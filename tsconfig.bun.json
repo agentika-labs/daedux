@@ -1,0 +1,34 @@
+{
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.bun.tsbuildinfo",
+    "target": "ESNext",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "lib": ["ESNext"],
+    "types": ["bun-types"],
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "noEmit": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "noUncheckedIndexedAccess": true,
+    "noFallthroughCasesInSwitch": true,
+    "verbatimModuleSyntax": true,
+
+    /* Effect TS plugin */
+    "plugins": [
+      { "name": "@effect/language-service" }
+    ],
+
+    /* Paths */
+    "baseUrl": ".",
+    "paths": {
+      "~/*": ["./src/*"],
+      "@shared/*": ["./src/shared/*"]
+    }
+  },
+  "include": ["src/bun/**/*", "src/shared/**/*", "electrobun.config.ts", "vite.config.ts"]
+}

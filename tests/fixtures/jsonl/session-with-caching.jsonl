@@ -1,0 +1,7 @@
+{"type":"system","subtype":"init","timestamp":"2026-02-20T10:00:00.000Z","cwd":"/Users/test/project","version":"1.0.0"}
+{"type":"user","timestamp":"2026-02-20T10:00:01.000Z","message":{"role":"user","content":[{"type":"text","text":"Start a new task"}]},"cwd":"/Users/test/project"}
+{"type":"assistant","timestamp":"2026-02-20T10:00:02.000Z","message":{"role":"assistant","model":"claude-sonnet-4-5-20251022","content":[{"type":"text","text":"Sure, what would you like to work on?"}],"usage":{"input_tokens":50000,"output_tokens":10,"cache_read_input_tokens":0,"cache_creation_input_tokens":50000}}}
+{"type":"user","timestamp":"2026-02-20T10:01:00.000Z","message":{"role":"user","content":[{"type":"text","text":"Continue the task"}]},"cwd":"/Users/test/project"}
+{"type":"assistant","timestamp":"2026-02-20T10:01:01.000Z","message":{"role":"assistant","model":"claude-sonnet-4-5-20251022","content":[{"type":"text","text":"Continuing from where we left off."}],"usage":{"input_tokens":1000,"output_tokens":15,"cache_read_input_tokens":50000,"cache_creation_input_tokens":0}}}
+{"type":"user","timestamp":"2026-02-20T10:02:00.000Z","message":{"role":"user","content":[{"type":"text","text":"Keep going"}]},"cwd":"/Users/test/project"}
+{"type":"assistant","timestamp":"2026-02-20T10:02:01.000Z","message":{"role":"assistant","model":"claude-sonnet-4-5-20251022","content":[{"type":"text","text":"Still working on it."}],"usage":{"input_tokens":500,"output_tokens":10,"cache_read_input_tokens":51000,"cache_creation_input_tokens":0}}}

@@ -1,0 +1,7 @@
+{"type":"system","subtype":"init","timestamp":"2026-02-20T10:00:00.000Z","cwd":"/Users/test/project","version":"1.0.0"}
+{"type":"user","timestamp":"2026-02-20T10:00:01.000Z","message":{"role":"user","content":[{"type":"text","text":"What is TypeScript?"}]},"cwd":"/Users/test/project"}
+{"type":"assistant","timestamp":"2026-02-20T10:00:02.000Z","message":{"role":"assistant","model":"claude-sonnet-4-5-20251022","content":[{"type":"text","text":"TypeScript is a typed superset of JavaScript."}],"usage":{"input_tokens":100,"output_tokens":50,"cache_read_input_tokens":0,"cache_creation_input_tokens":0}}}
+{"type":"user","timestamp":"2026-02-20T10:01:00.000Z","message":{"role":"user","content":[{"type":"text","text":"How do I use interfaces?"}]},"cwd":"/Users/test/project"}
+{"type":"assistant","timestamp":"2026-02-20T10:01:01.000Z","message":{"role":"assistant","model":"claude-sonnet-4-5-20251022","content":[{"type":"text","text":"Interfaces define the shape of objects."}],"usage":{"input_tokens":150,"output_tokens":75,"cache_read_input_tokens":50,"cache_creation_input_tokens":0}}}
+{"type":"user","timestamp":"2026-02-20T10:02:00.000Z","message":{"role":"user","content":[{"type":"text","text":"Show me an example"}]},"cwd":"/Users/test/project"}
+{"type":"assistant","timestamp":"2026-02-20T10:02:01.000Z","message":{"role":"assistant","model":"claude-sonnet-4-5-20251022","content":[{"type":"text","text":"Here is an example interface definition."}],"usage":{"input_tokens":200,"output_tokens":100,"cache_read_input_tokens":100,"cache_creation_input_tokens":0}}}
