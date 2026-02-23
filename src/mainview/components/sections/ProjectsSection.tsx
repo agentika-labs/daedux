@@ -5,8 +5,9 @@ import { StatCard } from "@/components/shared/StatCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
-import { formatCurrency, formatNumber, cn } from "@/lib/utils";
+import { formatCurrency, formatNumber, cn, shortenPath, getSmartProjectName, type SmartProjectName } from "@/lib/utils";
 import type { DashboardData, ProjectSummary } from "@shared/rpc-types";
+import { useMemo } from "react";
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Cell } from "recharts";
 
 interface ProjectsSectionProps {
@@ -17,7 +18,7 @@ interface ProjectsSectionProps {
 const projectConfig = {
   cost: {
     label: "Cost",
-    color: "hsl(var(--chart-1))",
+    color: "var(--chart-1)",
   },
 } satisfies ChartConfig;
 
@@ -32,13 +33,26 @@ export function ProjectsSection({ data, loading }: ProjectsSectionProps) {
   const mostActiveProject = sortedProjects[0];
   const highestCostProject = sortedProjects[0];
 
-  // Prepare chart data
-  const chartData = sortedProjects.slice(0, 10).map((p) => ({
-    name: getProjectDisplayName(p.projectPath),
-    cost: p.totalCost,
-    sessions: p.sessionCount,
-    fullPath: p.projectPath,
-  }));
+  // Pre-compute smart names for disambiguation
+  const projectPaths = projects.map(p => p.projectPath);
+  const smartNames = useMemo(() => {
+    return new Map(
+      projects.map(p => [p.projectPath, getSmartProjectName(p.projectPath, projectPaths)])
+    );
+  }, [projects, projectPaths]);
+
+  // Prepare chart data with smart names
+  const chartData = sortedProjects.slice(0, 10).map((p) => {
+    const smartName = smartNames.get(p.projectPath)!;
+    return {
+      name: smartName.secondary
+        ? `${smartName.primary} (${smartName.secondary})`
+        : smartName.primary,
+      cost: p.totalCost,
+      sessions: p.sessionCount,
+      fullPath: p.projectPath,
+    };
+  });
 
   return (
     <Section id="projects">
@@ -57,13 +71,13 @@ export function ProjectsSection({ data, loading }: ProjectsSectionProps) {
         />
         <StatCard
           label="Most Active"
-          value={mostActiveProject ? getProjectDisplayName(mostActiveProject.projectPath) : "-"}
+          value={mostActiveProject ? smartNames.get(mostActiveProject.projectPath)?.primary ?? "-" : "-"}
           subtext={mostActiveProject ? `${mostActiveProject.sessionCount} sessions` : undefined}
           loading={loading}
         />
         <StatCard
           label="Highest Cost"
-          value={highestCostProject ? getProjectDisplayName(highestCostProject.projectPath) : "-"}
+          value={highestCostProject ? smartNames.get(highestCostProject.projectPath)?.primary ?? "-" : "-"}
           subtext={highestCostProject ? formatCurrency(highestCostProject.totalCost) : undefined}
           loading={loading}
         />
@@ -111,7 +125,7 @@ export function ProjectsSection({ data, loading }: ProjectsSectionProps) {
                   {chartData.map((_, index) => (
                     <Cell
                       key={`cell-${index}`}
-                      fill={`hsl(var(--chart-${(index % 5) + 1}))`}
+                      fill={`var(--chart-${(index % 5) + 1})`}
                     />
                   ))}
                 </Bar>
@@ -136,9 +150,14 @@ export function ProjectsSection({ data, loading }: ProjectsSectionProps) {
                 <Skeleton className="h-12 w-full" />
               </div>
             ) : sortedProjects.length > 0 ? (
-              <div className="space-y-2 max-h-[300px] overflow-y-auto">
+              <div className="space-y-1 max-h-[300px] overflow-y-auto">
                 {sortedProjects.map((project, i) => (
-                  <ProjectRow key={i} project={project} rank={i + 1} />
+                  <ProjectRow
+                    key={project.projectPath}
+                    project={project}
+                    rank={i + 1}
+                    smartName={smartNames.get(project.projectPath)!}
+                  />
                 ))}
               </div>
             ) : (
@@ -190,27 +209,41 @@ export function ProjectsSection({ data, loading }: ProjectsSectionProps) {
 
 // ─── Helper Components ────────────────────────────────────────────────────────
 
-function ProjectRow({ project, rank }: { project: ProjectSummary; rank: number }) {
-  const lastActivity = new Date(project.lastActivity).toLocaleDateString();
+function ProjectRow({
+  project,
+  rank,
+  smartName,
+}: {
+  project: ProjectSummary;
+  rank: number;
+  smartName: SmartProjectName;
+}) {
+  const shortPath = shortenPath(smartName.full);
 
   return (
-    <div className="flex items-center justify-between py-2 px-3 rounded-lg hover:bg-muted/50 transition-colors">
-      <div className="flex items-center gap-3">
-        <span className="text-sm text-muted-foreground w-6">#{rank}</span>
-        <div>
-          <p className="font-medium text-sm truncate max-w-[200px]">
-            {getProjectDisplayName(project.projectPath)}
-          </p>
-          <p className="text-xs text-muted-foreground truncate max-w-[200px]">
-            {project.projectPath}
+    <div
+      className="flex items-center justify-between py-2.5 px-3 rounded-lg hover:bg-muted/50 transition-colors group"
+      title={smartName.full}
+    >
+      <div className="flex items-center gap-3 min-w-0 flex-1">
+        <span className="text-xs text-muted-foreground/60 w-5 shrink-0">{rank}</span>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-baseline gap-2">
+            <p className="font-medium text-sm truncate">{smartName.primary}</p>
+            {smartName.secondary && (
+              <span className="text-xs text-muted-foreground shrink-0">
+                in {smartName.secondary}
+              </span>
+            )}
+          </div>
+          <p className="text-xs text-muted-foreground/50 truncate h-4 opacity-0 group-hover:opacity-100 transition-opacity">
+            {shortPath}
           </p>
         </div>
       </div>
-      <div className="text-right">
-        <p className="font-medium text-sm">{formatCurrency(project.totalCost)}</p>
-        <p className="text-xs text-muted-foreground">
-          {project.sessionCount} sessions · {lastActivity}
-        </p>
+      <div className="text-right shrink-0 ml-4">
+        <p className="font-medium text-sm tabular-nums">{formatCurrency(project.totalCost)}</p>
+        <p className="text-xs text-muted-foreground">{project.sessionCount} sessions</p>
       </div>
     </div>
   );
@@ -228,11 +261,6 @@ function EmptyChartState({ height = 200 }: { height?: number }) {
 }
 
 // ─── Helper Functions ─────────────────────────────────────────────────────────
-
-function getProjectDisplayName(path: string): string {
-  const parts = path.split("/");
-  return parts[parts.length - 1] || parts[parts.length - 2] || path;
-}
 
 function generateActivityData(projects: ProjectSummary[]): Array<{ date: string; sessions: number }> {
   const days = 28;

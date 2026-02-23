@@ -68,12 +68,12 @@ export const ModelAnalyticsServiceLive = Layer.effect(
                   ),
                 })
                 .from(schema.queries)
-                .where(sql`${schema.queries.model} IS NOT NULL`)
+                .where(sql`${schema.queries.model} IS NOT NULL AND ${schema.queries.model} != '<synthetic>'`)
                 .groupBy(schema.queries.model)
                 .orderBy(desc(sql`SUM(${schema.queries.cost})`));
             } else {
               // Filtered query - join with sessions for date range
-              const conditions = [sql`${schema.queries.model} IS NOT NULL`, ...dateConditions];
+              const conditions = [sql`${schema.queries.model} IS NOT NULL AND ${schema.queries.model} != '<synthetic>'`, ...dateConditions];
 
               result = await db
                 .select({

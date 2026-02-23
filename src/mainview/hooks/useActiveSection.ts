@@ -29,6 +29,9 @@ export function useActiveSection(): SectionId {
     // Track visibility ratios for each section
     const visibilityMap = new Map<string, number>();
 
+    // The scrollable container is <main>, not the window
+    const mainElement = document.querySelector("main");
+
     observer.current = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
@@ -51,6 +54,7 @@ export function useActiveSection(): SectionId {
         }
       },
       {
+        root: mainElement, // Use main as the scroll container
         rootMargin: "-80px 0px -60% 0px", // Account for sticky header
         threshold: [0, 0.1, 0.25, 0.5, 0.75, 1],
       }
@@ -75,18 +79,18 @@ export function useActiveSection(): SectionId {
 }
 
 /**
- * Smooth scroll to a section with offset for sticky header
+ * Smooth scroll to a section with offset for sticky header.
+ * Uses scrollIntoView() which automatically finds the correct scrollable ancestor
+ * (the <main> element with overflow-auto, not the window).
  */
 export function scrollToSection(sectionId: SectionId) {
   const element = document.getElementById(sectionId);
   if (element) {
-    const headerOffset = 80;
-    const elementPosition = element.getBoundingClientRect().top;
-    const offsetPosition = elementPosition + window.scrollY - headerOffset;
-
-    window.scrollTo({
-      top: offsetPosition,
+    // scrollIntoView works with any scrollable ancestor container
+    // The scroll-mt-20 class on Section components provides the header offset
+    element.scrollIntoView({
       behavior: "smooth",
+      block: "start",
     });
   }
 }

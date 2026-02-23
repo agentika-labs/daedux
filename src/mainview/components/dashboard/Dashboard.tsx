@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useRPC } from "../../hooks/useRPC";
+import { useRPC, rpcRequest } from "../../hooks/useRPC";
 import type { DashboardData } from "@shared/rpc-types";
 import { formatCurrency, formatTokens, formatNumber } from "../../lib/utils";
 
@@ -22,7 +22,7 @@ const Dashboard = ({ isLoading: initialLoading }: DashboardProps) => {
       try {
         setIsLoading(true);
         setError(null);
-        const dashboardData = await rpc.request("getDashboardData", { filter });
+        const dashboardData = await rpcRequest("getDashboardData", { filter });
         setData(dashboardData);
       } catch (err) {
         console.error("Failed to load dashboard data:", err);
@@ -33,18 +33,18 @@ const Dashboard = ({ isLoading: initialLoading }: DashboardProps) => {
     };
 
     loadData();
-  }, [rpc, filter]);
+  }, [filter]);
 
   // Listen for data updates from main process
   useEffect(() => {
     const handleUpdate = () => {
       // Reload data when sessions are updated
-      rpc.request("getDashboardData", { filter }).then(setData).catch(console.error);
+      rpcRequest("getDashboardData", { filter }).then(setData).catch(console.error);
     };
 
     rpc.addMessageListener("sessionsUpdated", handleUpdate);
     return () => rpc.removeMessageListener("sessionsUpdated", handleUpdate);
-  }, [rpc, filter]);
+  }, [filter]);
 
   if (isLoading && !data) {
     return (

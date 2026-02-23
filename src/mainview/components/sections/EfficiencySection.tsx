@@ -16,14 +16,14 @@ interface EfficiencySectionProps {
 const cacheConfig = {
   cacheHitRate: {
     label: "Cache Hit Rate",
-    color: "hsl(var(--chart-2))",
+    color: "var(--chart-2)",
   },
 } satisfies ChartConfig;
 
 const sessionConfig = {
   count: {
     label: "Sessions",
-    color: "hsl(var(--chart-1))",
+    color: "var(--chart-1)",
   },
 } satisfies ChartConfig;
 

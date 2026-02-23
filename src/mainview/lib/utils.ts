@@ -40,3 +40,44 @@ export function formatDuration(ms: number): string {
   if (ms < 3_600_000) return `${Math.floor(ms / 60_000)}m ${Math.floor((ms % 60_000) / 1000)}s`;
   return `${Math.floor(ms / 3_600_000)}h ${Math.floor((ms % 3_600_000) / 60_000)}m`;
 }
+
+// ─── Path Formatting ──────────────────────────────────────────────────────────
+
+/**
+ * Shorten home directory paths: /Users/adam/... → ~/...
+ */
+export function shortenPath(path: string): string {
+  const match = path.match(/^\/Users\/([^/]+)/);
+  if (match) {
+    return "~" + path.slice(match[0].length);
+  }
+  return path;
+}
+
+/**
+ * Smart project name with disambiguation context.
+ * Only adds parent folder context when multiple projects share the same name.
+ */
+export interface SmartProjectName {
+  primary: string;    // Main display name
+  secondary: string;  // Parent context (only if needed for disambiguation)
+  full: string;       // Full path for tooltip
+}
+
+export function getSmartProjectName(path: string, allPaths: string[]): SmartProjectName {
+  const parts = path.split("/").filter(Boolean);
+  const lastSegment = parts[parts.length - 1] || path;
+
+  // Check for duplicate names
+  const duplicates = allPaths.filter(p =>
+    p.split("/").filter(Boolean).slice(-1)[0] === lastSegment
+  );
+
+  if (duplicates.length <= 1) {
+    return { primary: lastSegment, secondary: "", full: path };
+  }
+
+  // Need disambiguation - use parent folder
+  const parent = parts[parts.length - 2] || "";
+  return { primary: lastSegment, secondary: parent, full: path };
+}

@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
-import { useRPC } from "./hooks/useRPC";
+import { useRPC, rpcRequest } from "./hooks/useRPC";
 import { useActiveSection, scrollToSection } from "./hooks/useActiveSection";
 import { Header, type FilterOption } from "./components/layout/Header";
 import { OverviewSection } from "./components/sections/OverviewSection";
@@ -56,14 +56,14 @@ const App = () => {
     return () => {
       rpc.removeMessageListener("themeChanged", listener);
     };
-  }, [rpc]);
+  }, []);
 
   // Load dashboard data
   const loadData = useCallback(async () => {
     try {
       setIsLoading(true);
       setError(null);
-      const dashboardData = await rpc.request("getDashboardData", { filter });
+      const dashboardData = await rpcRequest("getDashboardData", { filter });
       setData(dashboardData);
     } catch (err) {
       console.error("Failed to load dashboard data:", err);
@@ -71,7 +71,7 @@ const App = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [rpc, filter]);
+  }, [filter]);
 
   // Initial load and filter changes
   useEffect(() => {
@@ -86,13 +86,13 @@ const App = () => {
 
     rpc.addMessageListener("sessionsUpdated", handleUpdate);
     return () => rpc.removeMessageListener("sessionsUpdated", handleUpdate);
-  }, [rpc, loadData]);
+  }, [loadData]);
 
   // Trigger sync
   const handleSync = async () => {
     try {
       setIsSyncing(true);
-      await rpc.request("triggerSync", { fullResync: false });
+      await rpcRequest("triggerSync", { fullResync: false });
       await loadData();
     } catch (err) {
       console.error("Sync failed:", err);

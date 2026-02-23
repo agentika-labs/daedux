@@ -17,37 +17,37 @@ interface CostSectionProps {
 const dailyCostConfig = {
   cost: {
     label: "Cost",
-    color: "hsl(var(--chart-1))",
+    color: "var(--chart-1)",
   },
   cumulativeCost: {
     label: "Cumulative",
-    color: "hsl(var(--chart-2))",
+    color: "var(--chart-2)",
   },
 } satisfies ChartConfig;
 
 const modelConfig = {
   cost: {
     label: "Cost",
-    color: "hsl(var(--chart-1))",
+    color: "var(--chart-1)",
   },
 } satisfies ChartConfig;
 
 const tokenConfig = {
   uncachedInput: {
     label: "Uncached Input",
-    color: "hsl(var(--chart-1))",
+    color: "var(--chart-1)",
   },
   cacheRead: {
     label: "Cache Read",
-    color: "hsl(var(--chart-2))",
+    color: "var(--chart-2)",
   },
   cacheCreation: {
     label: "Cache Creation",
-    color: "hsl(var(--chart-3))",
+    color: "var(--chart-3)",
   },
   output: {
     label: "Output",
-    color: "hsl(var(--chart-4))",
+    color: "var(--chart-4)",
   },
 } satisfies ChartConfig;
 
@@ -209,7 +209,7 @@ export function CostSection({ data, loading }: CostSectionProps) {
                   {modelBreakdown.map((_, index) => (
                     <Cell
                       key={`cell-${index}`}
-                      fill={`hsl(var(--chart-${(index % 5) + 1}))`}
+                      fill={`var(--chart-${(index % 5) + 1})`}
                     />
                   ))}
                 </Bar>
@@ -307,7 +307,7 @@ function LegendItem({ color, label, value }: { color: string; label: string; val
     <div className="flex items-center gap-2">
       <div
         className="h-3 w-3 rounded-sm"
-        style={{ backgroundColor: `hsl(${color.replace("var(--", "").replace(")", "")})` }}
+        style={{ backgroundColor: color }}
       />
       <span className="text-muted-foreground">{label}:</span>
       <span className="font-medium">{value}</span>
