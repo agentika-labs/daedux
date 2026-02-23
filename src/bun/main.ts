@@ -2,6 +2,7 @@ import { Layer } from "effect";
 import { DatabaseServiceLive } from "./db";
 import { SyncServiceLive } from "./sync";
 import { AllAnalyticsServicesLive } from "./analytics/index";
+import { SchedulerServiceLive } from "./services/scheduler";
 
 // ─── Composed Application Layer ─────────────────────────────────────────────
 
@@ -11,5 +12,6 @@ import { AllAnalyticsServicesLive } from "./analytics/index";
  */
 export const AppLive = Layer.mergeAll(
   SyncServiceLive,
-  AllAnalyticsServicesLive
+  AllAnalyticsServicesLive,
+  SchedulerServiceLive
 ).pipe(Layer.provideMerge(DatabaseServiceLive));

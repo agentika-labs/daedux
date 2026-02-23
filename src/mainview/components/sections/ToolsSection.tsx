@@ -5,11 +5,30 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Badge } from "@/components/ui/badge";
-import { cn, formatPercent } from "@/lib/utils";
+import { cn, formatPercent, formatOccurrenceCount } from "@/lib/utils";
 import type { DashboardData } from "@shared/rpc-types";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { ArrowDown01Icon, ArrowUp01Icon, CheckmarkCircle02Icon, AlertCircleIcon } from "@hugeicons/core-free-icons";
+import {
+  ArrowDown01Icon,
+  ArrowUp01Icon,
+  CheckmarkCircle02Icon,
+  AlertCircleIcon,
+  Copy01Icon,
+  Cancel01Icon,
+  AlertDiamondIcon,
+  Search01Icon,
+  LockIcon,
+  Wifi02Icon,
+  CodeIcon,
+} from "@hugeicons/core-free-icons";
 import { useState } from "react";
+import {
+  parseError,
+  matchSuggestionToError,
+  formatRecommendation,
+  CATEGORY_STYLES,
+  type ErrorCategory,
+} from "@/lib/error-parsing";
 
 interface ToolsSectionProps {
   data: DashboardData | null;
@@ -31,7 +50,7 @@ export function ToolsSection({ data, loading }: ToolsSectionProps) {
       {toolHealthReport && (
         <InsightCard
           headline={toolHealthReport.headline}
-          context={toolHealthReport.recommendation}
+          context={formatRecommendation(toolHealthReport.recommendation)}
           type={
             toolHealthReport.frictionPoints.length === 0
               ? "success"
@@ -62,7 +81,7 @@ export function ToolsSection({ data, loading }: ToolsSectionProps) {
                 <Skeleton className="h-10 w-full" />
               </div>
             ) : toolHealthReport?.reliableTools && toolHealthReport.reliableTools.length > 0 ? (
-              <div className="space-y-2 max-h-[300px] overflow-y-auto">
+              <div className="space-y-2 max-h-[300px] overflow-y-auto pr-3">
                 {toolHealthReport.reliableTools.map((tool, i) => (
                   <div
                     key={i}
@@ -102,7 +121,7 @@ export function ToolsSection({ data, loading }: ToolsSectionProps) {
                 <Skeleton className="h-10 w-full" />
               </div>
             ) : toolHealthReport?.frictionPoints && toolHealthReport.frictionPoints.length > 0 ? (
-              <div className="space-y-2 max-h-[300px] overflow-y-auto">
+              <div className="space-y-2 max-h-[300px] overflow-y-auto pr-3">
                 {toolHealthReport.frictionPoints.map((tool, i) => (
                   <div
                     key={i}
@@ -120,7 +139,7 @@ export function ToolsSection({ data, loading }: ToolsSectionProps) {
                       </Badge>
                     </div>
                     <p className="text-xs text-muted-foreground truncate">
-                      Top error: {tool.topError}
+                      Top error: {parseError(tool.topError).summary}
                     </p>
                   </div>
                 ))}
@@ -162,6 +181,95 @@ export function ToolsSection({ data, loading }: ToolsSectionProps) {
 }
 
 // ─── Helper Components ────────────────────────────────────────────────────────
+
+/** Icon mapping for error categories */
+const CATEGORY_ICONS: Record<ErrorCategory, typeof AlertCircleIcon> = {
+  user_rejection: Cancel01Icon,
+  exit_code: AlertDiamondIcon,
+  file_not_found: Search01Icon,
+  permission_denied: LockIcon,
+  network_error: Wifi02Icon,
+  stack_trace: CodeIcon,
+  generic: AlertCircleIcon,
+};
+
+interface SmartErrorCardProps {
+  message: string;
+  count: number;
+  suggestion?: string;
+}
+
+function SmartErrorCard({ message, count, suggestion }: SmartErrorCardProps) {
+  const [copied, setCopied] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  const parsed = parseError(message);
+  const style = CATEGORY_STYLES[parsed.category];
+  const Icon = CATEGORY_ICONS[parsed.category];
+
+  const handleCopy = async () => {
+    await navigator.clipboard.writeText(message);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <div className={cn("rounded-lg border", style.bgClass, style.borderClass)}>
+      {/* Header: icon + summary + count badge + copy button */}
+      <div className="flex items-center justify-between px-3 py-2 border-b border-border/30">
+        <div className="flex items-center gap-2 min-w-0 flex-1">
+          <HugeiconsIcon icon={Icon} className={cn("h-4 w-4 shrink-0", style.textClass)} />
+          <span className="text-sm font-medium truncate">{parsed.summary}</span>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <Badge variant="outline" className="text-xs px-1.5 py-0">
+            {formatOccurrenceCount(count)}
+          </Badge>
+          <button
+            onClick={handleCopy}
+            className="text-muted-foreground hover:text-foreground transition-colors p-1"
+            title="Copy full error message"
+          >
+            {copied ? (
+              <HugeiconsIcon icon={CheckmarkCircle02Icon} className="h-3.5 w-3.5 text-success" />
+            ) : (
+              <HugeiconsIcon icon={Copy01Icon} className="h-3.5 w-3.5" />
+            )}
+          </button>
+        </div>
+      </div>
+
+      {/* Collapsible body for stack traces / verbose errors */}
+      <div className="px-3 py-2">
+        <pre className="text-xs text-muted-foreground font-mono whitespace-pre-wrap break-words leading-relaxed">
+          {isExpanded ? parsed.originalMessage : parsed.truncatedMessage}
+        </pre>
+        {parsed.isExpandable && (
+          <button
+            onClick={() => setIsExpanded(!isExpanded)}
+            className="text-xs text-primary hover:underline mt-1 flex items-center gap-1"
+          >
+            <HugeiconsIcon
+              icon={isExpanded ? ArrowUp01Icon : ArrowDown01Icon}
+              className="h-3 w-3"
+            />
+            {isExpanded ? "Show less" : "Show more"}
+          </button>
+        )}
+      </div>
+
+      {/* Inline suggestion (green accent) */}
+      {suggestion && (
+        <div className="px-3 py-2 bg-success/5 border-t border-success/20 rounded-b-lg">
+          <span className="text-xs text-success flex items-start gap-1.5">
+            <span className="shrink-0">→</span>
+            <span>{suggestion}</span>
+          </span>
+        </div>
+      )}
+    </div>
+  );
+}
 
 interface BashCategory {
   category: string;
@@ -208,27 +316,20 @@ function BashCategoryAccordion({ category }: { category: BashCategory }) {
           {category.topErrors.length > 0 && (
             <div>
               <p className="text-sm font-medium mb-2">Top Errors</p>
-              <ul className="space-y-1">
-                {category.topErrors.slice(0, 3).map((error, i) => (
-                  <li key={i} className="text-sm text-muted-foreground flex items-start gap-2">
-                    <span className="text-destructive font-mono text-xs">{error.count}x</span>
-                    <span className="truncate">{error.message}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-          {category.fixSuggestions.length > 0 && (
-            <div>
-              <p className="text-sm font-medium mb-2">Fix Suggestions</p>
-              <ul className="space-y-1">
-                {category.fixSuggestions.map((suggestion, i) => (
-                  <li key={i} className="text-sm text-muted-foreground flex items-start gap-2">
-                    <span className="text-success">→</span>
-                    <span>{suggestion}</span>
-                  </li>
-                ))}
-              </ul>
+              <div className="space-y-2">
+                {category.topErrors.slice(0, 3).map((error, i) => {
+                  const parsed = parseError(error.message);
+                  const matchedSuggestion = matchSuggestionToError(parsed, category.fixSuggestions);
+                  return (
+                    <SmartErrorCard
+                      key={i}
+                      message={error.message}
+                      count={error.count}
+                      suggestion={matchedSuggestion}
+                    />
+                  );
+                })}
+              </div>
             </div>
           )}
           {category.topErrors.length === 0 && category.fixSuggestions.length === 0 && (

@@ -249,6 +249,34 @@ export function initializeDatabase(): void {
     )
   `);
 
+  // ─── Session Warm-Up Scheduling Tables ─────────────────────────────────────
+
+  sqlite.exec(`
+    CREATE TABLE IF NOT EXISTS session_schedules (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      enabled INTEGER DEFAULT 1,
+      hour INTEGER NOT NULL,
+      minute INTEGER NOT NULL,
+      days_of_week TEXT NOT NULL,
+      last_run_at INTEGER,
+      next_run_at INTEGER,
+      created_at INTEGER NOT NULL
+    )
+  `);
+
+  sqlite.exec(`
+    CREATE TABLE IF NOT EXISTS schedule_executions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      schedule_id TEXT NOT NULL REFERENCES session_schedules(id) ON DELETE CASCADE,
+      executed_at INTEGER NOT NULL,
+      status TEXT NOT NULL,
+      error_message TEXT,
+      session_id TEXT,
+      duration_ms INTEGER
+    )
+  `);
+
   // Create indexes for common query patterns
   sqlite.exec(`CREATE INDEX IF NOT EXISTS sessions_project_idx ON sessions(project_path)`);
   sqlite.exec(`CREATE INDEX IF NOT EXISTS sessions_start_time_idx ON sessions(start_time)`);
@@ -280,6 +308,10 @@ export function initializeDatabase(): void {
   sqlite.exec(`CREATE INDEX IF NOT EXISTS context_usage_query_idx ON context_window_usage(query_index)`);
   sqlite.exec(`CREATE INDEX IF NOT EXISTS pr_links_session_idx ON pr_links(session_id)`);
   sqlite.exec(`CREATE INDEX IF NOT EXISTS pr_links_repo_idx ON pr_links(pr_repository)`);
+
+  // Schedule indexes
+  sqlite.exec(`CREATE INDEX IF NOT EXISTS schedule_exec_schedule_idx ON schedule_executions(schedule_id)`);
+  sqlite.exec(`CREATE INDEX IF NOT EXISTS schedule_exec_time_idx ON schedule_executions(executed_at)`);
 
   sqlite.close();
 }

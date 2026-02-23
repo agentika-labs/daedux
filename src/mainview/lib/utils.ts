@@ -34,6 +34,10 @@ export function formatPercent(value: number): string {
   return `${(value * 100).toFixed(1)}%`;
 }
 
+export function formatOccurrenceCount(count: number): string {
+  return `${count}x`;
+}
+
 export function formatDuration(ms: number): string {
   if (ms < 1000) return `${ms}ms`;
   if (ms < 60_000) return `${(ms / 1000).toFixed(1)}s`;
@@ -44,19 +48,34 @@ export function formatDuration(ms: number): string {
 // ─── Path Formatting ──────────────────────────────────────────────────────────
 
 /**
+ * Decode Claude's hyphenated project path back to normal path.
+ * "-Users-adam-Documents-git-project" → "/Users/adam/Documents/git/project"
+ */
+export function decodeProjectPath(encoded: string): string {
+  if (encoded.startsWith("-")) {
+    // Claude-encoded path: convert leading hyphen and hyphen separators to slashes
+    return "/" + encoded.slice(1).replace(/-/g, "/");
+  }
+  return encoded;
+}
+
+/**
  * Shorten home directory paths: /Users/adam/... → ~/...
+ * Also handles Claude's hyphenated path encoding.
  */
 export function shortenPath(path: string): string {
-  const match = path.match(/^\/Users\/([^/]+)/);
+  const decoded = decodeProjectPath(path);
+  const match = decoded.match(/^\/Users\/([^/]+)/);
   if (match) {
-    return "~" + path.slice(match[0].length);
+    return "~" + decoded.slice(match[0].length);
   }
-  return path;
+  return decoded;
 }
 
 /**
  * Smart project name with disambiguation context.
- * Only adds parent folder context when multiple projects share the same name.
+ * Uses cwd (actual filesystem path) when available, falls back to decoding hyphenated projectPath.
+ * Shows last 2 segments for clarity, with full path for tooltips.
  */
 export interface SmartProjectName {
   primary: string;    // Main display name
@@ -64,20 +83,45 @@ export interface SmartProjectName {
   full: string;       // Full path for tooltip
 }
 
-export function getSmartProjectName(path: string, allPaths: string[]): SmartProjectName {
-  const parts = path.split("/").filter(Boolean);
-  const lastSegment = parts[parts.length - 1] || path;
+/**
+ * Options for getSmartProjectName.
+ * When cwd is provided, it's used directly (accurate path with / separators).
+ * Otherwise, falls back to decoding the hyphenated projectPath.
+ */
+export interface SmartProjectNameOptions {
+  projectPath: string;
+  cwd?: string;
+}
 
-  // Check for duplicate names
-  const duplicates = allPaths.filter(p =>
-    p.split("/").filter(Boolean).slice(-1)[0] === lastSegment
-  );
+export function getSmartProjectName(
+  opts: SmartProjectNameOptions | string,
+  allItems: Array<SmartProjectNameOptions | string>
+): SmartProjectName {
+  // Normalize input to options object
+  const { projectPath, cwd } = typeof opts === "string"
+    ? { projectPath: opts, cwd: undefined }
+    : opts;
+
+  // Use cwd when available (accurate), fall back to decoding projectPath
+  const fullPath = cwd ?? decodeProjectPath(projectPath);
+  const parts = fullPath.split("/").filter(Boolean);
+
+  // Get last 2 segments for display
+  const lastSegment = parts[parts.length - 1] || projectPath;
+  const parentSegment = parts[parts.length - 2] || "";
+
+  // Check for duplicate last segments among all items
+  const duplicates = allItems.filter(item => {
+    const itemOpts = typeof item === "string" ? { projectPath: item, cwd: undefined } : item;
+    const itemPath = itemOpts.cwd ?? decodeProjectPath(itemOpts.projectPath);
+    const otherParts = itemPath.split("/").filter(Boolean);
+    return otherParts[otherParts.length - 1] === lastSegment;
+  });
 
   if (duplicates.length <= 1) {
-    return { primary: lastSegment, secondary: "", full: path };
+    return { primary: lastSegment, secondary: "", full: fullPath };
   }
 
   // Need disambiguation - use parent folder
-  const parent = parts[parts.length - 2] || "";
-  return { primary: lastSegment, secondary: parent, full: path };
+  return { primary: lastSegment, secondary: parentSegment, full: fullPath };
 }

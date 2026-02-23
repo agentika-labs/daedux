@@ -96,6 +96,7 @@ export interface ProjectSummary {
   totalCost: number;
   totalQueries: number;
   lastActivity: number;
+  cwd?: string;
 }
 
 export interface ModelBreakdown {
@@ -241,6 +242,52 @@ export interface AppSettings {
   scanOnLaunch: boolean;
   scanIntervalMinutes: number;
   customPaths: Record<string, string>;
+  schedulerEnabled: boolean;
+}
+
+// ─── Session Schedule Types ─────────────────────────────────────────────────
+
+export interface SessionSchedule {
+  id: string;
+  name: string;
+  enabled: boolean;
+  hour: number; // 0-23
+  minute: number; // 0-59
+  daysOfWeek: number[]; // 0=Sunday, 1=Monday, etc.
+  lastRunAt: number | null;
+  nextRunAt: number | null;
+  createdAt: number;
+}
+
+export interface ScheduleExecution {
+  id: number;
+  scheduleId: string;
+  executedAt: number;
+  status: "success" | "error" | "skipped";
+  errorMessage: string | null;
+  sessionId: string | null;
+  durationMs: number | null;
+}
+
+export interface ScheduleInput {
+  name: string;
+  enabled?: boolean;
+  hour: number;
+  minute: number;
+  daysOfWeek: number[];
+}
+
+export interface ExecutionResult {
+  status: "success" | "error" | "skipped";
+  error?: string;
+  sessionId?: string;
+  durationMs?: number;
+}
+
+export interface AuthStatus {
+  loggedIn: boolean;
+  email?: string;
+  subscriptionType?: string;
 }
 
 // ─── Sync Result ────────────────────────────────────────────────────────────
@@ -294,6 +341,35 @@ export type UsageMonitorRPC = {
         params: Partial<AppSettings>;
         response: boolean;
       };
+      // ─── Schedule Management ────────────────────────────────────────────
+      getSchedules: {
+        params: Record<string, never>;
+        response: SessionSchedule[];
+      };
+      createSchedule: {
+        params: ScheduleInput;
+        response: SessionSchedule;
+      };
+      updateSchedule: {
+        params: { id: string; patch: Partial<ScheduleInput> };
+        response: boolean;
+      };
+      deleteSchedule: {
+        params: { id: string };
+        response: boolean;
+      };
+      runScheduleNow: {
+        params: { id: string };
+        response: ExecutionResult;
+      };
+      getScheduleHistory: {
+        params: { scheduleId: string; limit?: number };
+        response: ScheduleExecution[];
+      };
+      getAuthStatus: {
+        params: Record<string, never>;
+        response: AuthStatus;
+      };
     };
     messages: {
       log: { msg: string; level?: "info" | "warn" | "error" };
@@ -310,6 +386,7 @@ export type UsageMonitorRPC = {
       navigate: { view: string };
       themeChanged: { theme: "system" | "light" | "dark" };
       sessionsUpdated: { scanResult: { scanned: number; total: number } };
+      scheduleExecuted: { scheduleId: string; result: ExecutionResult };
     };
   }>;
 };

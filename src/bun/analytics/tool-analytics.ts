@@ -636,7 +636,7 @@ export const ToolAnalyticsServiceLive = Layer.effect(
               .slice(0, 5)
               .map((t) => ({
                 name: t.name,
-                successRate: t.successRate * 100,
+                successRate: t.successRate,
                 totalCalls: t.totalCalls,
               }));
 
@@ -646,7 +646,7 @@ export const ToolAnalyticsServiceLive = Layer.effect(
               .slice(0, 5)
               .map((t) => ({
                 name: t.name,
-                errorRate: t.errorRate * 100,
+                errorRate: t.errorRate,
                 topError: t.topError.slice(0, 100),
                 totalCalls: t.totalCalls,
               }));

@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { formatCurrency, formatTokens, formatDuration, cn } from "@/lib/utils";
+import { formatCurrency, formatTokens, formatDuration, cn, getSmartProjectName, shortenPath } from "@/lib/utils";
 import type { DashboardData, SessionSummary } from "@shared/rpc-types";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { ArrowRight01Icon, Clock01Icon, Coins01Icon } from "@hugeicons/core-free-icons";
@@ -62,6 +62,26 @@ export function SessionsSection({ data, loading }: SessionsSectionProps) {
 
     return filtered;
   }, [sessions, sortField, sortDirection, showSubagents]);
+
+  // Build Map once (O(n)), then all lookups are O(1) per js-index-maps rule
+  // Look up cwd from projects for accurate path splitting
+  const smartNames = useMemo(() => {
+    // Build projectPath → cwd lookup from projects data
+    const projectCwdMap = new Map(
+      (data?.projects ?? []).map(p => [p.projectPath, p.cwd])
+    );
+    // Build items with cwd when available
+    const allItems = filteredSessions.map((s) => ({
+      projectPath: s.project,
+      cwd: projectCwdMap.get(s.project),
+    }));
+    return new Map(
+      filteredSessions.map((s) => [
+        s.project,
+        getSmartProjectName({ projectPath: s.project, cwd: projectCwdMap.get(s.project) }, allItems)
+      ])
+    );
+  }, [filteredSessions, data?.projects]);
 
   const handleSort = (field: SortField) => {
     if (field === sortField) {
@@ -157,11 +177,14 @@ export function SessionsSection({ data, loading }: SessionsSectionProps) {
                           )}
                           <div>
                             <div className="font-medium truncate max-w-[200px]">
-                              {session.displayName ?? session.project.split("/").pop()}
+                              {smartNames.get(session.project)?.primary ??
+                                session.project.split("/").pop()}
                             </div>
-                            <div className="text-xs text-muted-foreground truncate max-w-[200px]">
-                              {session.project}
-                            </div>
+                            {smartNames.get(session.project)?.secondary && (
+                              <div className="text-xs text-muted-foreground">
+                                in {smartNames.get(session.project)?.secondary}
+                              </div>
+                            )}
                           </div>
                         </div>
                       </td>
@@ -199,10 +222,10 @@ export function SessionsSection({ data, loading }: SessionsSectionProps) {
             <>
               <SheetHeader>
                 <SheetTitle>
-                  {selectedSession.displayName ?? selectedSession.project.split("/").pop()}
+                  {selectedSession.displayName ?? smartNames.get(selectedSession.project)?.primary ?? selectedSession.project.split("/").pop()}
                 </SheetTitle>
                 <SheetDescription>
-                  {selectedSession.project}
+                  {shortenPath(smartNames.get(selectedSession.project)?.full ?? selectedSession.project)}
                 </SheetDescription>
               </SheetHeader>
               <ScrollArea className="h-[calc(100vh-120px)] mt-6">

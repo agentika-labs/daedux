@@ -2,8 +2,18 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { SECTIONS, scrollToSection, type SectionId } from "@/hooks/useActiveSection";
 import { Separator } from "@/components/ui/separator";
+import {
+  Sheet,
+  SheetTrigger,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+} from "@/components/ui/sheet";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { ScheduleSettings } from "@/components/settings/ScheduleSettings";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { RefreshIcon } from "@hugeicons/core-free-icons";
+import { RefreshIcon, Settings02Icon } from "@hugeicons/core-free-icons";
 
 export type FilterOption = "today" | "7d" | "30d" | "all";
 
@@ -88,6 +98,29 @@ export function Header({
                 Sync
               </Button>
             )}
+
+            {/* Settings */}
+            <Sheet>
+              <SheetTrigger
+                render={
+                  <Button variant="outline" size="icon">
+                    <HugeiconsIcon icon={Settings02Icon} className="h-4 w-4" />
+                    <span className="sr-only">Settings</span>
+                  </Button>
+                }
+              />
+              <SheetContent side="right" className="w-full sm:max-w-2xl overflow-hidden">
+                <SheetHeader>
+                  <SheetTitle>Settings</SheetTitle>
+                  <SheetDescription>
+                    Configure session warm-up schedules and other preferences.
+                  </SheetDescription>
+                </SheetHeader>
+                <ScrollArea className="flex-1 p-6 pt-0">
+                  <ScheduleSettings />
+                </ScrollArea>
+              </SheetContent>
+            </Sheet>
           </div>
         </div>
       </div>

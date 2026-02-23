@@ -60,6 +60,7 @@ export interface ProjectSummary {
   readonly totalCost: number;
   readonly totalQueries: number;
   readonly lastActivity: number;
+  readonly cwd?: string;
 }
 
 export interface ExtendedTotals extends Totals {
@@ -363,6 +364,8 @@ export const SessionAnalyticsServiceLive = Layer.effect(
                 totalCost: sql<number>`SUM(${schema.sessions.totalCost})`.as("total_cost"),
                 totalQueries: sql<number>`SUM(${schema.sessions.queryCount})`.as("total_queries"),
                 lastActivity: sql<number>`MAX(${schema.sessions.startTime})`.as("last_activity"),
+                // Pick shortest cwd (project root) - MIN returns shortest path since subdirs are longer
+                cwd: sql<string | null>`MIN(${schema.sessions.cwd})`.as("cwd"),
               })
               .from(schema.sessions);
 
@@ -380,6 +383,7 @@ export const SessionAnalyticsServiceLive = Layer.effect(
               totalCost: row.totalCost ?? 0,
               totalQueries: row.totalQueries ?? 0,
               lastActivity: row.lastActivity ?? 0,
+              cwd: row.cwd ?? undefined,
             }));
           },
           catch: (error) =>

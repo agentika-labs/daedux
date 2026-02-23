@@ -18,6 +18,7 @@ import type {
   SyncResult,
   DateFilter,
   SessionSummary,
+  SessionSchedule,
 } from "../shared/rpc-types";
 
 import { initializeDatabase } from "./db/migrate";
@@ -32,7 +33,9 @@ import {
   ContextAnalyticsService,
   InsightsAnalyticsService,
 } from "./analytics/index";
+import { SchedulerService, parseDaysOfWeek } from "./services/scheduler";
 import { modelDisplayNameWithVersion } from "./utils/pricing";
+import { totalInputWithCache } from "./metrics";
 
 // ─── App State ──────────────────────────────────────────────────────────────
 
@@ -41,6 +44,7 @@ let isScanning = false;
 let isQuitting = false;
 let lastScanAt: string | null = null;
 let scanIntervalId: ReturnType<typeof setInterval> | null = null;
+let schedulerIntervalId: ReturnType<typeof setInterval> | null = null;
 let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
 let isMainViewReady = false;
@@ -52,6 +56,7 @@ let settings: AppSettings = {
   scanOnLaunch: true,
   scanIntervalMinutes: 5,
   customPaths: {},
+  schedulerEnabled: false, // Off by default until user enables it
 };
 
 Electrobun.events.on("before-quit", () => {
@@ -172,13 +177,17 @@ const loadDashboardData = (dateFilter: DateFilter = {}) =>
           : 0,
       totalFileOperations: extendedTotals.totalFileOperations,
       contextEfficiencyScore: extendedTotals.cacheEfficiencyRatio * 100,
-      avgContextUtilization: extendedTotals.cacheEfficiencyRatio * 100,
+      avgContextUtilization: extendedTotals.cacheEfficiencyRatio,
       agentLeverageRatio: extendedTotals.agentLeverageRatio,
       totalAgentSpawns: extendedTotals.totalAgentSpawns,
-      promptEfficiencyRatio:
-        totals.totalInputTokens > 0
-          ? totals.totalOutputTokens / totals.totalInputTokens
-          : 0,
+      promptEfficiencyRatio: (() => {
+        const fullInputContext = totalInputWithCache({
+          uncachedInput: totals.totalInputTokens,
+          cacheRead: totals.totalCacheRead,
+          cacheWrite: totals.totalCacheWrite,
+        });
+        return fullInputContext > 0 ? totals.totalOutputTokens / fullInputContext : 0;
+      })(),
       totalSkillInvocations: extendedTotals.totalSkillInvocations,
     };
 
@@ -516,6 +525,48 @@ const configureBackgroundScan = (intervalMinutes: number) => {
   }, safeMinutes * 60_000);
 };
 
+// ─── Scheduler Configuration ─────────────────────────────────────────────────
+
+const configureScheduler = (enabled: boolean) => {
+  // Clear existing interval if any
+  if (schedulerIntervalId) {
+    clearInterval(schedulerIntervalId);
+    schedulerIntervalId = null;
+  }
+
+  if (!enabled) {
+    console.log("[scheduler] Disabled");
+    return;
+  }
+
+  console.log("[scheduler] Starting schedule checker (every 60s)");
+
+  // Check schedules every minute
+  schedulerIntervalId = setInterval(() => {
+    void runEffect(
+      Effect.gen(function* () {
+        const scheduler = yield* SchedulerService;
+        yield* scheduler.checkSchedules();
+      })
+    ).catch((err) => {
+      console.warn("[scheduler] Check failed:", err);
+    });
+  }, 60_000);
+
+  // Also run an immediate check for any missed schedules
+  void runEffect(
+    Effect.gen(function* () {
+      const scheduler = yield* SchedulerService;
+      const missed = yield* scheduler.checkMissedSchedules();
+      if (missed.length > 0) {
+        console.log(`[scheduler] Executed ${missed.length} missed schedule(s)`);
+      }
+    })
+  ).catch((err) => {
+    console.warn("[scheduler] Missed check failed:", err);
+  });
+};
+
 // ─── RPC Definition ─────────────────────────────────────────────────────────
 
 const rpc = BrowserView.defineRPC<UsageMonitorRPC>({
@@ -662,6 +713,10 @@ const rpc = BrowserView.defineRPC<UsageMonitorRPC>({
           configureBackgroundScan(patch.scanIntervalMinutes);
         }
 
+        if (patch.schedulerEnabled !== undefined) {
+          configureScheduler(patch.schedulerEnabled);
+        }
+
         if (patch.theme !== undefined) {
           dispatchToWebview(() => {
             rpc.send.themeChanged({ theme: patch.theme! });
@@ -669,6 +724,110 @@ const rpc = BrowserView.defineRPC<UsageMonitorRPC>({
         }
 
         return true;
+      },
+
+      // ─── Schedule Management ────────────────────────────────────────────
+      getSchedules: async () => {
+        return runEffect(
+          Effect.gen(function* () {
+            const scheduler = yield* SchedulerService;
+            const schedules = yield* scheduler.getSchedules();
+
+            // Transform DB records to RPC format
+            return schedules.map(
+              (s): SessionSchedule => ({
+                id: s.id,
+                name: s.name,
+                enabled: s.enabled ?? true,
+                hour: s.hour,
+                minute: s.minute,
+                daysOfWeek: parseDaysOfWeek(s.daysOfWeek),
+                lastRunAt: s.lastRunAt,
+                nextRunAt: s.nextRunAt,
+                createdAt: s.createdAt,
+              })
+            );
+          })
+        );
+      },
+
+      createSchedule: async (input) => {
+        return runEffect(
+          Effect.gen(function* () {
+            const scheduler = yield* SchedulerService;
+            const schedule = yield* scheduler.createSchedule(input);
+
+            return {
+              id: schedule.id,
+              name: schedule.name,
+              enabled: schedule.enabled ?? true,
+              hour: schedule.hour,
+              minute: schedule.minute,
+              daysOfWeek: parseDaysOfWeek(schedule.daysOfWeek),
+              lastRunAt: schedule.lastRunAt,
+              nextRunAt: schedule.nextRunAt,
+              createdAt: schedule.createdAt,
+            } satisfies SessionSchedule;
+          })
+        );
+      },
+
+      updateSchedule: async ({ id, patch }) => {
+        return runEffect(
+          Effect.gen(function* () {
+            const scheduler = yield* SchedulerService;
+            return yield* scheduler.updateSchedule(id, patch);
+          })
+        );
+      },
+
+      deleteSchedule: async ({ id }) => {
+        return runEffect(
+          Effect.gen(function* () {
+            const scheduler = yield* SchedulerService;
+            return yield* scheduler.deleteSchedule(id);
+          })
+        );
+      },
+
+      runScheduleNow: async ({ id }) => {
+        const result = await runEffect(
+          Effect.gen(function* () {
+            const scheduler = yield* SchedulerService;
+            return yield* scheduler.runScheduleNow(id);
+          })
+        );
+
+        // Notify webview of execution result
+        dispatchToWebview(() => {
+          rpc.send.scheduleExecuted({ scheduleId: id, result });
+        });
+
+        return result;
+      },
+
+      getScheduleHistory: async ({ scheduleId, limit }) => {
+        return runEffect(
+          Effect.gen(function* () {
+            const scheduler = yield* SchedulerService;
+            const history = yield* scheduler.getScheduleHistory(scheduleId, limit ?? 20);
+
+            // Cast status to union type (DB stores as string)
+            return history.map((h) => ({
+              ...h,
+              status: h.status as "success" | "error" | "skipped",
+            }));
+          })
+        );
+      },
+
+      getAuthStatus: async () => {
+        return runEffect(
+          Effect.gen(function* () {
+            const scheduler = yield* SchedulerService;
+            return yield* scheduler.checkAuthStatus();
+          })
+        );
       },
     },
 
@@ -853,6 +1012,11 @@ const bootstrap = async () => {
   // Configure background scan
   configureBackgroundScan(settings.scanIntervalMinutes);
 
+  // Configure scheduler if enabled
+  if (settings.schedulerEnabled) {
+    configureScheduler(true);
+  }
+
   // Initial sync if enabled
   if (settings.scanOnLaunch) {
     await runSyncWithNotifications(false);
@@ -869,6 +1033,11 @@ process.on("exit", () => {
   if (scanIntervalId) {
     clearInterval(scanIntervalId);
     scanIntervalId = null;
+  }
+
+  if (schedulerIntervalId) {
+    clearInterval(schedulerIntervalId);
+    schedulerIntervalId = null;
   }
 
   if (tray) {

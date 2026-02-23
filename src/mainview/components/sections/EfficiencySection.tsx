@@ -1,6 +1,7 @@
 import { Section } from "@/components/layout/Section";
 import { SectionHeader } from "@/components/shared/SectionHeader";
 import { ChartCard } from "@/components/shared/ChartCard";
+import { InfoTooltip } from "@/components/shared/InfoTooltip";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
@@ -32,8 +33,9 @@ export function EfficiencySection({ data, loading }: EfficiencySectionProps) {
   const sessions = data?.sessions ?? [];
 
   // Calculate cache hit rate per day
+  // Total input context = uncachedInput + cacheRead + cacheCreation (cacheWrite)
   const cacheEfficiencyData = dailyUsage.map((day) => {
-    const totalInput = day.uncachedInput + day.cacheRead;
+    const totalInput = day.uncachedInput + day.cacheRead + day.cacheCreation;
     const hitRate = totalInput > 0 ? day.cacheRead / totalInput : 0;
     return {
       date: day.date,
@@ -44,9 +46,9 @@ export function EfficiencySection({ data, loading }: EfficiencySectionProps) {
   // Session length distribution (queries per session)
   const sessionLengthBuckets = getSessionLengthDistribution(sessions);
 
-  // Context utilization from totals
-  const contextUtilization = data?.totals?.avgContextUtilization ?? 0;
-  const contextEfficiency = data?.totals?.contextEfficiencyScore ?? 0;
+  // Efficiency metrics from efficiencyScore (distinct from cache hit rate)
+  const toolSuccessRate = data?.efficiencyScore?.toolSuccess ?? 0;
+  const sessionEfficiency = data?.efficiencyScore?.sessionEfficiency ?? null;
 
   return (
     <Section id="efficiency">
@@ -72,17 +74,29 @@ export function EfficiencySection({ data, loading }: EfficiencySectionProps) {
           }
         />
         <MetricCard
-          label="Context Utilization"
-          value={formatPercent(contextUtilization)}
-          description="Avg context window fill"
+          label="Tool Success Rate"
+          value={`${Math.round(toolSuccessRate)}%`}
+          description="Tools completing without errors"
           loading={loading}
+          variant={toolSuccessRate >= 95 ? "success" : toolSuccessRate >= 85 ? "warning" : "default"}
         />
         <MetricCard
-          label="Context Efficiency"
-          value={Math.round(contextEfficiency).toString()}
-          description="Score out of 100"
+          label="Session Efficiency"
+          value={sessionEfficiency !== null ? Math.round(sessionEfficiency).toString() : "—"}
+          description="Queries per session score"
           loading={loading}
-          variant={contextEfficiency >= 70 ? "success" : contextEfficiency >= 40 ? "warning" : "default"}
+          variant={sessionEfficiency !== null && sessionEfficiency >= 70 ? "success" : sessionEfficiency !== null && sessionEfficiency >= 40 ? "warning" : "default"}
+          tooltip={
+            <InfoTooltip
+              title="What does this measure?"
+              description="Average queries per session. Longer sessions benefit more from prompt caching, reducing costs."
+              scale={[
+                { range: "1-4 queries", quality: "Low (< 50)" },
+                { range: "5-9 queries", quality: "Good (50-99)" },
+                { range: "10+ queries", quality: "Optimal (100)" },
+              ]}
+            />
+          }
         />
         <MetricCard
           label="Prompt Efficiency"
@@ -238,9 +252,10 @@ interface MetricCardProps {
   description?: string;
   loading?: boolean;
   variant?: "default" | "success" | "warning";
+  tooltip?: React.ReactNode;
 }
 
-function MetricCard({ label, value, description, loading, variant = "default" }: MetricCardProps) {
+function MetricCard({ label, value, description, loading, variant = "default", tooltip }: MetricCardProps) {
   if (loading) {
     return (
       <Card size="sm">
@@ -255,7 +270,10 @@ function MetricCard({ label, value, description, loading, variant = "default" }:
   return (
     <Card size="sm">
       <CardContent className="pt-4">
-        <p className="text-sm text-muted-foreground mb-1">{label}</p>
+        <div className="flex items-center gap-1.5 mb-1">
+          <p className="text-sm text-muted-foreground">{label}</p>
+          {tooltip}
+        </div>
         <p
           className={cn(
             "text-xl font-semibold",

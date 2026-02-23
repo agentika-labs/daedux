@@ -366,7 +366,58 @@ export const prLinks = sqliteTable(
   ]
 );
 
+// ─── Session Schedules (Warm-up Scheduling) ─────────────────────────────────
+
+/**
+ * Scheduled session warm-ups to pre-start usage windows.
+ * Uses simple time-based scheduling (hour/minute/days) instead of cron.
+ */
+export const sessionSchedules = sqliteTable("session_schedules", {
+  id: text("id").primaryKey(), // UUID
+  name: text("name").notNull(),
+  enabled: integer("enabled", { mode: "boolean" }).default(true),
+
+  // Simple time-based scheduling
+  hour: integer("hour").notNull(), // 0-23
+  minute: integer("minute").notNull(), // 0-59
+  daysOfWeek: text("days_of_week").notNull(), // JSON array: [1,2,3,4,5] for weekdays
+
+  // Tracking
+  lastRunAt: integer("last_run_at"), // Unix timestamp ms
+  nextRunAt: integer("next_run_at"), // Unix timestamp ms (computed)
+  createdAt: integer("created_at").notNull(), // Unix timestamp ms
+});
+
+/**
+ * Execution history for scheduled warm-ups.
+ * Tracks success/failure and links to created sessions.
+ */
+export const scheduleExecutions = sqliteTable(
+  "schedule_executions",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    scheduleId: text("schedule_id")
+      .notNull()
+      .references(() => sessionSchedules.id, { onDelete: "cascade" }),
+    executedAt: integer("executed_at").notNull(), // Unix timestamp ms
+    status: text("status").notNull(), // "success" | "error" | "skipped"
+    errorMessage: text("error_message"),
+    sessionId: text("session_id"), // Links to created session (if successful)
+    durationMs: integer("duration_ms"),
+  },
+  (table) => [
+    index("schedule_exec_schedule_idx").on(table.scheduleId),
+    index("schedule_exec_time_idx").on(table.executedAt),
+  ]
+);
+
 // ─── Type exports for Effect Schema generation ──────────────────────────────
+
+export type SessionSchedule = typeof sessionSchedules.$inferSelect;
+export type NewSessionSchedule = typeof sessionSchedules.$inferInsert;
+
+export type ScheduleExecution = typeof scheduleExecutions.$inferSelect;
+export type NewScheduleExecution = typeof scheduleExecutions.$inferInsert;
 
 export type SessionFile = typeof sessionFiles.$inferSelect;
 export type NewSessionFile = typeof sessionFiles.$inferInsert;

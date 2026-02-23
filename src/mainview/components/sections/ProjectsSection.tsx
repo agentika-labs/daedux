@@ -15,6 +15,35 @@ interface ProjectsSectionProps {
   loading?: boolean;
 }
 
+// Hoisted outside component per rendering-hoist-jsx rule
+// This avoids recreating the function on every render
+function TruncatedYAxisTick({
+  x,
+  y,
+  payload,
+}: {
+  x: number;
+  y: number;
+  payload: { value: string };
+}) {
+  const maxLength = 18; // chars before truncation
+  const text = payload.value;
+  const displayText =
+    text.length > maxLength ? text.slice(0, maxLength - 1) + "…" : text;
+
+  return (
+    <text
+      x={x}
+      y={y}
+      textAnchor="end"
+      dominantBaseline="middle"
+      className="text-xs fill-muted-foreground"
+    >
+      {displayText}
+    </text>
+  );
+}
+
 const projectConfig = {
   cost: {
     label: "Cost",
@@ -34,12 +63,16 @@ export function ProjectsSection({ data, loading }: ProjectsSectionProps) {
   const highestCostProject = sortedProjects[0];
 
   // Pre-compute smart names for disambiguation
-  const projectPaths = projects.map(p => p.projectPath);
+  // Pass cwd when available for accurate path splitting (avoids hyphenated path ambiguity)
   const smartNames = useMemo(() => {
+    const allItems = projects.map(p => ({ projectPath: p.projectPath, cwd: p.cwd }));
     return new Map(
-      projects.map(p => [p.projectPath, getSmartProjectName(p.projectPath, projectPaths)])
+      projects.map(p => [
+        p.projectPath,
+        getSmartProjectName({ projectPath: p.projectPath, cwd: p.cwd }, allItems)
+      ])
     );
-  }, [projects, projectPaths]);
+  }, [projects]);
 
   // Prepare chart data with smart names
   const chartData = sortedProjects.slice(0, 10).map((p) => {
@@ -50,7 +83,7 @@ export function ProjectsSection({ data, loading }: ProjectsSectionProps) {
         : smartName.primary,
       cost: p.totalCost,
       sessions: p.sessionCount,
-      fullPath: p.projectPath,
+      smartName, // Pass the full SmartProjectName object for tooltip
     };
   });
 
@@ -105,15 +138,26 @@ export function ProjectsSection({ data, loading }: ProjectsSectionProps) {
                   dataKey="name"
                   tickLine={false}
                   axisLine={false}
-                  width={120}
-                  tick={{ fontSize: 12 }}
+                  width={140}
+                  tick={TruncatedYAxisTick}
                 />
                 <ChartTooltip
                   content={
                     <ChartTooltipContent
+                      hideLabel
                       formatter={(value, _name, item) => (
                         <div className="space-y-1">
-                          <p className="font-medium">{item.payload.fullPath}</p>
+                          <div className="flex items-baseline gap-2">
+                            <p className="font-medium">{item.payload.smartName.primary}</p>
+                            {item.payload.smartName.secondary && (
+                              <span className="text-xs text-muted-foreground">
+                                in {item.payload.smartName.secondary}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            {shortenPath(item.payload.smartName.full)}
+                          </p>
                           <p>Cost: {formatCurrency(value as number)}</p>
                           <p>Sessions: {item.payload.sessions}</p>
                         </div>
