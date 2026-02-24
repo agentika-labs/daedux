@@ -7,9 +7,10 @@ import {
   extractPreview,
   extractSlashCommand,
   extractTargetPath,
+  isSystemContent,
   safeJsonParse,
   toolToOperation,
-} from "../../src/utils/parser-utils"
+} from "../../src/utils/parsing"
 
 describe("extractPreview", () => {
   test("extracts text from first text block", () => {
@@ -538,5 +539,76 @@ describe("toolToOperation", () => {
   test("is case sensitive", () => {
     expect(toolToOperation("read")).toBeNull()
     expect(toolToOperation("READ")).toBeNull()
+  })
+})
+
+describe("isSystemContent", () => {
+  describe("XML system tags", () => {
+    test("detects task-notification tags", () => {
+      expect(isSystemContent("<task-notification> <task-id>b74a603</task-id>")).toBe(true)
+    })
+
+    test("detects system-reminder tags", () => {
+      expect(isSystemContent("<system-reminder>SessionStart:clear hook success")).toBe(true)
+    })
+
+    test("detects hook-output tags", () => {
+      expect(isSystemContent("<hook-output>Build passed</hook-output>")).toBe(true)
+    })
+
+    test("detects new-diagnostics tags", () => {
+      expect(isSystemContent("<new-diagnostics>Error on line 5</new-diagnostics>")).toBe(true)
+    })
+
+    test("detects auto-memory-update tags", () => {
+      expect(isSystemContent("<auto-memory-update>Updated memory.md</auto-memory-update>")).toBe(true)
+    })
+
+    test("handles leading whitespace", () => {
+      expect(isSystemContent("  <task-notification>content</task-notification>")).toBe(true)
+      expect(isSystemContent("\n\t<system-reminder>content")).toBe(true)
+    })
+  })
+
+  describe("Task tool subagent instructions", () => {
+    test("detects 'Your task is to' prefix", () => {
+      expect(isSystemContent("Your task is to create a detailed summary")).toBe(true)
+      expect(isSystemContent("Your task is to analyze the error")).toBe(true)
+    })
+
+    test("handles leading whitespace for task prefix", () => {
+      expect(isSystemContent("  Your task is to review the code")).toBe(true)
+      expect(isSystemContent("\nYour task is to debug the issue")).toBe(true)
+    })
+  })
+
+  describe("genuine user prompts (should return false)", () => {
+    test("accepts normal user text", () => {
+      expect(isSystemContent("Hello, can you help me?")).toBe(false)
+      expect(isSystemContent("Implement a new feature")).toBe(false)
+      expect(isSystemContent("Fix the bug in the login page")).toBe(false)
+    })
+
+    test("accepts user commands that look like directives", () => {
+      // These are legitimate user prompts, not system-generated
+      expect(isSystemContent("Search for any files related to auth")).toBe(false)
+      expect(isSystemContent("Find the implementation of the login flow")).toBe(false)
+      expect(isSystemContent("Create a new component")).toBe(false)
+      expect(isSystemContent("Fix this bug")).toBe(false)
+    })
+
+    test("accepts code snippets", () => {
+      expect(isSystemContent("function foo() { return 42; }")).toBe(false)
+    })
+
+    test("accepts questions about system tags", () => {
+      // User asking ABOUT these tags, not system injecting them
+      expect(isSystemContent("What is task-notification used for?")).toBe(false)
+      expect(isSystemContent("How does system-reminder work?")).toBe(false)
+    })
+
+    test("accepts empty string", () => {
+      expect(isSystemContent("")).toBe(false)
+    })
   })
 })

@@ -5,8 +5,8 @@
 import { Database } from "bun:sqlite"
 import { drizzle } from "drizzle-orm/bun-sqlite"
 import { Effect, Layer } from "effect"
-import * as schema from "../../src/db/schema"
-import { DatabaseService } from "../../src/services/db"
+import * as schema from "../../src/bun/db/schema"
+import { DatabaseService } from "../../src/bun/db"
 
 // ─── Schema DDL ──────────────────────────────────────────────────────────────
 
@@ -203,6 +203,36 @@ CREATE TABLE IF NOT EXISTS pr_links (
 );
 CREATE INDEX IF NOT EXISTS pr_links_session_idx ON pr_links(session_id);
 CREATE INDEX IF NOT EXISTS pr_links_repo_idx ON pr_links(pr_repository);
+
+-- Session schedules (for warm-up CRON jobs)
+CREATE TABLE IF NOT EXISTS session_schedules (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  enabled INTEGER DEFAULT 1,
+  cron_expression TEXT NOT NULL,
+  project_path TEXT NOT NULL,
+  warmup_prompt TEXT,
+  max_duration_minutes INTEGER DEFAULT 5,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL,
+  last_run_at INTEGER,
+  next_run_at INTEGER
+);
+CREATE INDEX IF NOT EXISTS session_schedules_enabled_idx ON session_schedules(enabled);
+CREATE INDEX IF NOT EXISTS session_schedules_next_run_idx ON session_schedules(next_run_at);
+
+-- Schedule executions
+CREATE TABLE IF NOT EXISTS schedule_executions (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  schedule_id TEXT NOT NULL REFERENCES session_schedules(id) ON DELETE CASCADE,
+  executed_at INTEGER NOT NULL,
+  status TEXT NOT NULL,
+  error_message TEXT,
+  session_id TEXT,
+  duration_ms INTEGER
+);
+CREATE INDEX IF NOT EXISTS schedule_executions_schedule_idx ON schedule_executions(schedule_id);
+CREATE INDEX IF NOT EXISTS schedule_executions_executed_at_idx ON schedule_executions(executed_at);
 `
 
 // ─── Test Database Factory ───────────────────────────────────────────────────

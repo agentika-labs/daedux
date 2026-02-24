@@ -2,8 +2,7 @@ import { Section } from "@/components/layout/Section";
 import { SectionHeader } from "@/components/shared/SectionHeader";
 import { ChartCard } from "@/components/shared/ChartCard";
 import { StatCard } from "@/components/shared/StatCard";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
+import { ExpensivePromptsCard } from "@/components/cards/ExpensivePromptsCard";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
 import { formatCurrency, formatTokens } from "@/lib/utils";
 import type { DashboardData, DailyStat } from "@shared/rpc-types";
@@ -259,42 +258,7 @@ export function CostSection({ data, loading }: CostSectionProps) {
         </ChartCard>
 
         {/* Expensive Prompts */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle>Top Expensive Prompts</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {loading ? (
-              <div className="space-y-3">
-                <Skeleton className="h-12 w-full" />
-                <Skeleton className="h-12 w-full" />
-                <Skeleton className="h-12 w-full" />
-              </div>
-            ) : data?.topPrompts && data.topPrompts.length > 0 ? (
-              <div className="space-y-2 max-h-[200px] overflow-y-auto">
-                {data.topPrompts.slice(0, 5).map((prompt, i) => (
-                  <div
-                    key={i}
-                    className="flex items-start justify-between gap-4 py-2 border-b border-border last:border-0"
-                  >
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm truncate">{prompt.prompt.slice(0, 80)}...</p>
-                      <p className="text-xs text-muted-foreground">
-                        {prompt.model} · {prompt.date}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm font-medium">{formatCurrency(prompt.cost)}</p>
-                      <p className="text-xs text-muted-foreground">{formatTokens(prompt.totalTokens)}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-center text-muted-foreground py-8">No prompts found</p>
-            )}
-          </CardContent>
-        </Card>
+        <ExpensivePromptsCard data={data} loading={loading} />
       </div>
     </Section>
   );

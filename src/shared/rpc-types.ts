@@ -219,10 +219,37 @@ export interface DashboardData {
     totalTokens: number;
     cost: number;
     sessionId: string;
+    queryCount: number; // Number of API calls aggregated for this prompt
   }>;
   toolHealth: ToolHealthEntry[];
   agentROI: AgentROI;
   toolHealthReportCard: ToolHealthReportCard;
+}
+
+// ─── Anthropic Usage (from OAuth API) ────────────────────────────────────────
+
+export interface AnthropicUsageWindow {
+  percentUsed: number; // 0-100
+  resetAt: number | null; // Unix timestamp (seconds)
+  limit: string | null; // Human-readable limit description
+}
+
+export interface AnthropicUsage {
+  session: AnthropicUsageWindow; // 5-hour window
+  weekly: AnthropicUsageWindow; // 7-day window
+  sonnet: AnthropicUsageWindow | null; // Model-specific (if applicable)
+  opus: AnthropicUsageWindow | null; // Model-specific (if applicable)
+  extraUsage?: {
+    spentUsd: number;
+    limitUsd: number | null;
+  };
+  subscription?: {
+    type: string; // "max", "pro", "free", etc.
+    rateLimitTier: string; // e.g., "default_claude_max_5x"
+    expiresAt: number | null; // Token expiry timestamp
+  };
+  fetchedAt: number;
+  source: "oauth" | "cli" | "credentials" | "unavailable";
 }
 
 // ─── Tray Stats ─────────────────────────────────────────────────────────────
@@ -233,6 +260,7 @@ export interface TrayStats {
   todaySessions: number;
   todayEvents: number;
   activeSessions: number;
+  anthropicUsage?: AnthropicUsage;
 }
 
 // ─── App Settings ───────────────────────────────────────────────────────────
@@ -369,6 +397,10 @@ export type UsageMonitorRPC = {
       getAuthStatus: {
         params: Record<string, never>;
         response: AuthStatus;
+      };
+      getAnthropicUsage: {
+        params: Record<string, never>;
+        response: AnthropicUsage;
       };
     };
     messages: {

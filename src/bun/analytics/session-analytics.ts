@@ -929,41 +929,52 @@ export const SessionAnalyticsServiceLive = Layer.effect(
               sql`${schema.queries.userMessagePreview} != ''`,
             ];
 
+            // Aggregate costs across all API calls for each user prompt
+            // A single user prompt can trigger multiple API calls (agentic turns, tool use, etc.)
+            // Group by (sessionId, userMessagePreview) to capture the TOTAL cost of a user prompt
             let result;
             if (dateConditions.length === 0) {
               result = await db
                 .select({
                   prompt: schema.queries.userMessagePreview,
-                  timestamp: schema.queries.timestamp,
-                  model: schema.queries.model,
-                  inputTokens: schema.queries.inputTokens,
-                  outputTokens: schema.queries.outputTokens,
-                  cacheRead: schema.queries.cacheRead,
-                  cacheWrite: schema.queries.cacheWrite,
-                  cost: schema.queries.cost,
                   sessionId: schema.queries.sessionId,
+                  totalCost: sql<number>`SUM(${schema.queries.cost})`.as("total_cost"),
+                  totalTokens: sql<number>`SUM(
+                    COALESCE(${schema.queries.inputTokens}, 0) +
+                    COALESCE(${schema.queries.outputTokens}, 0) +
+                    COALESCE(${schema.queries.cacheRead}, 0) +
+                    COALESCE(${schema.queries.cacheWrite}, 0)
+                  )`.as("total_tokens"),
+                  queryCount: sql<number>`COUNT(*)`.as("query_count"),
+                  timestamp: sql<number>`MAX(${schema.queries.timestamp})`.as("timestamp"),
+                  model: sql<string>`MAX(${schema.queries.model})`.as("model"),
                 })
                 .from(schema.queries)
                 .where(and(...baseConditions))
-                .orderBy(desc(schema.queries.cost))
+                .groupBy(schema.queries.sessionId, schema.queries.userMessagePreview)
+                .orderBy(sql`total_cost DESC`)
                 .limit(limit);
             } else {
               result = await db
                 .select({
                   prompt: schema.queries.userMessagePreview,
-                  timestamp: schema.queries.timestamp,
-                  model: schema.queries.model,
-                  inputTokens: schema.queries.inputTokens,
-                  outputTokens: schema.queries.outputTokens,
-                  cacheRead: schema.queries.cacheRead,
-                  cacheWrite: schema.queries.cacheWrite,
-                  cost: schema.queries.cost,
                   sessionId: schema.queries.sessionId,
+                  totalCost: sql<number>`SUM(${schema.queries.cost})`.as("total_cost"),
+                  totalTokens: sql<number>`SUM(
+                    COALESCE(${schema.queries.inputTokens}, 0) +
+                    COALESCE(${schema.queries.outputTokens}, 0) +
+                    COALESCE(${schema.queries.cacheRead}, 0) +
+                    COALESCE(${schema.queries.cacheWrite}, 0)
+                  )`.as("total_tokens"),
+                  queryCount: sql<number>`COUNT(*)`.as("query_count"),
+                  timestamp: sql<number>`MAX(${schema.queries.timestamp})`.as("timestamp"),
+                  model: sql<string>`MAX(${schema.queries.model})`.as("model"),
                 })
                 .from(schema.queries)
                 .innerJoin(schema.sessions, eq(schema.queries.sessionId, schema.sessions.sessionId))
                 .where(and(...baseConditions, ...dateConditions))
-                .orderBy(desc(schema.queries.cost))
+                .groupBy(schema.queries.sessionId, schema.queries.userMessagePreview)
+                .orderBy(sql`total_cost DESC`)
                 .limit(limit);
             }
 
@@ -971,13 +982,10 @@ export const SessionAnalyticsServiceLive = Layer.effect(
               prompt: row.prompt ?? "",
               date: new Date(row.timestamp).toISOString().split("T")[0]!,
               model: row.model ?? "unknown",
-              totalTokens:
-                (row.inputTokens ?? 0) +
-                (row.outputTokens ?? 0) +
-                (row.cacheRead ?? 0) +
-                (row.cacheWrite ?? 0),
-              cost: row.cost ?? 0,
+              totalTokens: row.totalTokens ?? 0,
+              cost: row.totalCost ?? 0,
               sessionId: row.sessionId,
+              queryCount: row.queryCount ?? 1,
             }));
           },
           catch: (error) => new DatabaseError({ operation: "getTopPrompts", cause: error }),

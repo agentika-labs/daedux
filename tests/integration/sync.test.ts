@@ -7,8 +7,8 @@ import { Effect } from "effect"
 import * as path from "node:path"
 import { eq } from "drizzle-orm"
 import { createTestDb, runWithTestDb, insertTestSession } from "../helpers/test-db"
-import { parseSessionFile, type FileInfo } from "../../src/services/parser"
-import { DatabaseService } from "../../src/services/db"
+import { parseSessionFile, type FileInfo } from "../../src/bun/parser"
+import { DatabaseService } from "../../src/bun/db"
 import * as schema from "../../src/db/schema"
 
 // ─── Test Helpers ───────────────────────────────────────────────────────────
@@ -245,6 +245,60 @@ describe("Sync Database Operations", () => {
       expect(sessions[0]!.queryCount).toBe(5)
       // startTime should NOT be updated (not in set clause)
       expect(sessions[0]!.startTime).toBe(1000)
+    })
+
+    it("updates parentSessionId and isSubagent on re-sync", async () => {
+      const { db } = createTestDb()
+
+      // Insert initial session as main session (not a subagent)
+      await db.insert(schema.sessions).values({
+        sessionId: "resync-test-session",
+        projectPath: "/test/project",
+        startTime: 1000,
+        displayName: "Original session",
+        isSubagent: false,
+        parentSessionId: null,
+        queryCount: 1,
+        toolUseCount: 0,
+      })
+
+      // Verify initial state
+      let sessions = await db.select().from(schema.sessions)
+      expect(sessions).toHaveLength(1)
+      expect(sessions[0]!.isSubagent).toBe(false)
+      expect(sessions[0]!.parentSessionId).toBeNull()
+
+      // Re-sync with updated subagent info (simulating file re-parse)
+      await db
+        .insert(schema.sessions)
+        .values({
+          sessionId: "resync-test-session",
+          projectPath: "/test/project",
+          startTime: 1000,
+          displayName: "Updated session",
+          isSubagent: true,
+          parentSessionId: "parent-session-id",
+          queryCount: 5,
+          toolUseCount: 10,
+        })
+        .onConflictDoUpdate({
+          target: schema.sessions.sessionId,
+          set: {
+            displayName: "Updated session",
+            queryCount: 5,
+            toolUseCount: 10,
+            parentSessionId: "parent-session-id",
+            isSubagent: true,
+          },
+        })
+
+      // Verify session was updated with subagent fields
+      sessions = await db.select().from(schema.sessions)
+      expect(sessions).toHaveLength(1)
+      expect(sessions[0]!.displayName).toBe("Updated session")
+      expect(sessions[0]!.queryCount).toBe(5)
+      expect(sessions[0]!.isSubagent).toBe(true)
+      expect(sessions[0]!.parentSessionId).toBe("parent-session-id")
     })
 
     it("tracks file mtime for incremental sync", async () => {

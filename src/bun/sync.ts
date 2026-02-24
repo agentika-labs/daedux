@@ -310,6 +310,8 @@ const insertRecords = (
               savedByCaching: session.savedByCaching,
               totalEphemeral5mTokens: session.totalEphemeral5mTokens,
               totalEphemeral1hTokens: session.totalEphemeral1hTokens,
+              parentSessionId: session.parentSessionId,
+              isSubagent: session.isSubagent,
             },
           }),
       catch: (cause) => new DatabaseError({ operation: "upsertSession", cause }),

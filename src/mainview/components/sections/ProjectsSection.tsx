@@ -140,6 +140,7 @@ export function ProjectsSection({ data, loading }: ProjectsSectionProps) {
                   axisLine={false}
                   width={140}
                   tick={TruncatedYAxisTick}
+                  interval={0}
                 />
                 <ChartTooltip
                   content={

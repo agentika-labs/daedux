@@ -158,12 +158,12 @@ const App = () => {
             loading={isLoading}
           />
 
-          <SessionsSection
+          <ProjectsSection
             data={data}
             loading={isLoading}
           />
 
-          <ProjectsSection
+          <SessionsSection
             data={data}
             loading={isLoading}
           />

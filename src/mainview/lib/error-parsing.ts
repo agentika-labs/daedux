@@ -204,6 +204,77 @@ export function parseError(message: string): ParsedError {
   };
 }
 
+// ─── XML Stripping ───────────────────────────────────────────────────────────
+
+/**
+ * Strip XML/HTML tags from error messages (e.g., `<tool_use_error>...`)
+ */
+export function stripXmlTags(message: string): string {
+  return message.replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim();
+}
+
+// ─── Severity Tiers ──────────────────────────────────────────────────────────
+
+export type SeverityTier = "critical" | "severe" | "moderate" | "minor";
+
+export interface SeverityStyle {
+  tier: SeverityTier;
+  bgClass: string;
+  borderClass: string;
+  badgeBgClass: string;
+  badgeTextClass: string;
+  label: string;
+}
+
+const SEVERITY_STYLES: Record<SeverityTier, SeverityStyle> = {
+  critical: {
+    tier: "critical",
+    bgClass: "bg-destructive/10",
+    borderClass: "border-destructive/40",
+    badgeBgClass: "bg-destructive/20",
+    badgeTextClass: "text-destructive",
+    label: "Critical - needs immediate attention",
+  },
+  severe: {
+    tier: "severe",
+    bgClass: "bg-destructive/5",
+    borderClass: "border-destructive/25",
+    badgeBgClass: "bg-destructive/15",
+    badgeTextClass: "text-destructive/90",
+    label: "High error rate",
+  },
+  moderate: {
+    tier: "moderate",
+    bgClass: "bg-warning/5",
+    borderClass: "border-warning/25",
+    badgeBgClass: "bg-warning/15",
+    badgeTextClass: "text-warning",
+    label: "Moderate error rate",
+  },
+  minor: {
+    tier: "minor",
+    bgClass: "bg-muted/50",
+    borderClass: "border-border/50",
+    badgeBgClass: "bg-muted",
+    badgeTextClass: "text-muted-foreground",
+    label: "Occasional errors",
+  },
+};
+
+/**
+ * Get severity styling based on error rate.
+ * - >= 50% = critical (intense red)
+ * - >= 25% = severe (softer red)
+ * - >= 10% = moderate (amber/warning)
+ * - < 10% = minor (muted gray)
+ */
+export function getSeverityFromErrorRate(errorRate: number): SeverityStyle {
+  if (errorRate >= 0.5) return SEVERITY_STYLES.critical;
+  if (errorRate >= 0.25) return SEVERITY_STYLES.severe;
+  if (errorRate >= 0.1) return SEVERITY_STYLES.moderate;
+  return SEVERITY_STYLES.minor;
+}
+
 // ─── Category Styling ────────────────────────────────────────────────────────
 
 export interface CategoryStyle {

@@ -149,3 +149,24 @@ export const toolToOperation = (toolName: string): string | null => {
       return null
   }
 }
+
+/**
+ * Detect system-injected content that shouldn't be treated as user prompts.
+ * Claude Code uses the "user" role for tool results, system tags, and subagent
+ * instructions - this filters those out to capture only genuine human prompts.
+ *
+ * Note: This is intentionally conservative to avoid false positives. We only
+ * detect patterns that are definitively system-generated.
+ */
+export const isSystemContent = (text: string): boolean => {
+  const trimmed = text.trimStart()
+  // XML-like system tags injected by Claude Code
+  if (trimmed.startsWith("<task-notification>")) return true
+  if (trimmed.startsWith("<system-reminder>")) return true
+  if (trimmed.startsWith("<hook-output>")) return true
+  if (trimmed.startsWith("<new-diagnostics>")) return true
+  if (trimmed.startsWith("<auto-memory-update>")) return true
+  // Task tool subagent instruction prefix (specific to Task tool prompts)
+  if (trimmed.startsWith("Your task is to")) return true
+  return false
+}

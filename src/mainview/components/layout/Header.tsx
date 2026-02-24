@@ -109,14 +109,14 @@ export function Header({
                   </Button>
                 }
               />
-              <SheetContent side="right" className="w-full sm:max-w-2xl overflow-hidden">
+              <SheetContent side="right" className="w-full sm:max-w-2xl">
                 <SheetHeader>
                   <SheetTitle>Settings</SheetTitle>
                   <SheetDescription>
                     Configure session warm-up schedules and other preferences.
                   </SheetDescription>
                 </SheetHeader>
-                <ScrollArea className="flex-1 p-6 pt-0">
+                <ScrollArea className="flex-1 min-h-0 overflow-hidden p-6 pt-0">
                   <ScheduleSettings />
                 </ScrollArea>
               </SheetContent>

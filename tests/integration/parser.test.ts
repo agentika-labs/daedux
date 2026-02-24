@@ -5,7 +5,7 @@
 import { describe, expect, it } from "bun:test"
 import { Effect } from "effect"
 import * as path from "node:path"
-import { parseSessionFile, type FileInfo } from "../../src/services/parser"
+import { parseSessionFile, type FileInfo } from "../../src/bun/parser"
 
 // ─── Test Helpers ───────────────────────────────────────────────────────────
 

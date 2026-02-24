@@ -12,6 +12,7 @@ import {
   categorizeBashCommand,
   extractSlashCommand,
   toolToOperation,
+  isSystemContent,
 } from "./utils/parsing";
 import { cacheHitRatio } from "./metrics";
 
@@ -221,9 +222,22 @@ export const parseSessionFile = (
             ? [{ type: "text", text: rawContent }]
             : [];
 
-        lastUserPreview = extractPreview(content);
-        if (lastUserPreview && !displayName) {
-          displayName = lastUserPreview.slice(0, 200);
+        // Only update lastUserPreview for genuine user prompts, not:
+        // - Tool results (content is only tool_result blocks)
+        // - System injections (<task-notification>, <system-reminder>, etc.)
+        // - Subagent instructions ("Your task is to...")
+        const hasTextBlock = content.some((b) => b.type === "text");
+        const hasOnlyToolResults = content.length > 0 && content.every((b) => b.type === "tool_result");
+
+        if (hasTextBlock && !hasOnlyToolResults) {
+          const preview = extractPreview(content);
+          // Skip system-injected content
+          if (preview && !isSystemContent(preview)) {
+            lastUserPreview = preview;
+            if (!displayName) {
+              displayName = preview.slice(0, 200);
+            }
+          }
         }
 
         // Check for slash commands in user message

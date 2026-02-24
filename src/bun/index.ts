@@ -19,6 +19,7 @@ import type {
   DateFilter,
   SessionSummary,
   SessionSchedule,
+  AnthropicUsage,
 } from "../shared/rpc-types";
 
 import { initializeDatabase } from "./db/migrate";
@@ -34,8 +35,8 @@ import {
   InsightsAnalyticsService,
 } from "./analytics/index";
 import { SchedulerService, parseDaysOfWeek } from "./services/scheduler";
+import { AnthropicUsageService } from "./services/anthropic-usage";
 import { modelDisplayNameWithVersion } from "./utils/pricing";
-import { totalInputWithCache } from "./metrics";
 
 // ─── App State ──────────────────────────────────────────────────────────────
 
@@ -181,12 +182,10 @@ const loadDashboardData = (dateFilter: DateFilter = {}) =>
       agentLeverageRatio: extendedTotals.agentLeverageRatio,
       totalAgentSpawns: extendedTotals.totalAgentSpawns,
       promptEfficiencyRatio: (() => {
-        const fullInputContext = totalInputWithCache({
-          uncachedInput: totals.totalInputTokens,
-          cacheRead: totals.totalCacheRead,
-          cacheWrite: totals.totalCacheWrite,
-        });
-        return fullInputContext > 0 ? totals.totalOutputTokens / fullInputContext : 0;
+        // Exclude cacheRead - we want output relative to NEW tokens sent
+        // (fresh input + newly cached content), not efficiently reused cached context
+        const newTokensSent = totals.totalInputTokens + totals.totalCacheWrite;
+        return newTokensSent > 0 ? totals.totalOutputTokens / newTokensSent : 0;
       })(),
       totalSkillInvocations: extendedTotals.totalSkillInvocations,
     };
@@ -307,12 +306,21 @@ const getTrayStats = async (): Promise<TrayStats> => {
   const dateFilter = parseDateFilter("today");
 
   try {
-    const totals = await runEffect(
+    const result = await runEffect(
       Effect.gen(function* () {
         const sessions = yield* SessionAnalyticsService;
-        return yield* sessions.getTotals(dateFilter);
+        const anthropicService = yield* AnthropicUsageService;
+
+        const [totals, anthropicUsage] = yield* Effect.all([
+          sessions.getTotals(dateFilter),
+          anthropicService.getUsage(),
+        ]);
+
+        return { totals, anthropicUsage };
       })
     );
+
+    const { totals, anthropicUsage } = result;
 
     return {
       todayTokens:
@@ -324,6 +332,7 @@ const getTrayStats = async (): Promise<TrayStats> => {
       todaySessions: totals.totalSessions,
       todayEvents: totals.totalQueries + totals.totalToolUses,
       activeSessions: 0,
+      anthropicUsage,
     };
   } catch {
     return {
@@ -390,36 +399,141 @@ const flushPendingWebviewMessages = () => {
 
 // ─── Tray Menu ──────────────────────────────────────────────────────────────
 
-const buildTrayMenu = (stats: TrayStats) => [
-  {
+// ─── Tray Formatting Helpers ─────────────────────────────────────────────────
+
+const getUsageIndicator = (
+  percent: number | null | undefined,
+  warnThreshold: number,
+  alertThreshold: number
+): string => {
+  if (percent === null || percent === undefined) return "";
+  if (percent >= alertThreshold) return " [!]";
+  if (percent >= warnThreshold) return " [*]";
+  return "";
+};
+
+const formatSubscriptionTier = (subscriptionType: string): string => {
+  const tierMap: Record<string, string> = {
+    max: "Claude Max",
+    pro: "Claude Pro",
+    free: "Claude Free",
+    team: "Claude Team",
+    enterprise: "Claude Enterprise",
+  };
+  return tierMap[subscriptionType.toLowerCase()] ?? `Claude ${subscriptionType}`;
+};
+
+const buildTrayMenu = (stats: TrayStats) => {
+  const { anthropicUsage } = stats;
+
+  type TrayMenuItem =
+    | { label: string; type: "normal"; enabled?: boolean; action?: string }
+    | { type: "separator" };
+
+  const items: TrayMenuItem[] = [];
+
+  // Anthropic usage (actual subscription limits) - show at top
+  if (anthropicUsage && anthropicUsage.source !== "unavailable") {
+    // Show subscription tier if available
+    if (anthropicUsage.subscription) {
+      const tierLabel = formatSubscriptionTier(anthropicUsage.subscription.type);
+      items.push({
+        label: tierLabel,
+        type: "normal" as const,
+        enabled: false,
+      });
+    }
+
+    // Only show usage percentages if we have real API data
+    if (anthropicUsage.source === "oauth") {
+      // Session usage (5-hour window)
+      const sessionIndicator = getUsageIndicator(anthropicUsage.session.percentUsed, 70, 90);
+      items.push({
+        label: `Session: ${anthropicUsage.session.percentUsed.toFixed(0)}%${sessionIndicator}`,
+        type: "normal" as const,
+        enabled: false,
+      });
+
+      // Weekly usage
+      const weeklyIndicator = getUsageIndicator(anthropicUsage.weekly.percentUsed, 70, 90);
+      items.push({
+        label: `Weekly: ${anthropicUsage.weekly.percentUsed.toFixed(0)}%${weeklyIndicator}`,
+        type: "normal" as const,
+        enabled: false,
+      });
+
+      // Model-specific limits if available
+      if (anthropicUsage.opus) {
+        const opusIndicator = getUsageIndicator(anthropicUsage.opus.percentUsed, 70, 90);
+        items.push({
+          label: `Opus: ${anthropicUsage.opus.percentUsed.toFixed(0)}%${opusIndicator}`,
+          type: "normal" as const,
+          enabled: false,
+        });
+      }
+
+      if (anthropicUsage.sonnet) {
+        const sonnetIndicator = getUsageIndicator(anthropicUsage.sonnet.percentUsed, 70, 90);
+        items.push({
+          label: `Sonnet: ${anthropicUsage.sonnet.percentUsed.toFixed(0)}%${sonnetIndicator}`,
+          type: "normal" as const,
+          enabled: false,
+        });
+      }
+
+      // Extra usage (Max subscribers overage)
+      if (anthropicUsage.extraUsage) {
+        const spent = anthropicUsage.extraUsage.spentUsd.toFixed(2);
+        const limit = anthropicUsage.extraUsage.limitUsd?.toFixed(2) ?? "∞";
+        items.push({
+          label: `Extra: $${spent} / $${limit}`,
+          type: "normal" as const,
+          enabled: false,
+        });
+      }
+    }
+
+    items.push({ type: "separator" as const });
+  }
+
+  // Session count
+  items.push({
     label: `${stats.todaySessions} sessions today`,
     type: "normal" as const,
     enabled: false,
-  },
-  {
+  });
+
+  // Cost today
+  items.push({
     label: `$${stats.todayCost.toFixed(2)} today`,
     type: "normal" as const,
     enabled: false,
-  },
-  { type: "separator" as const },
-  {
-    label: "Show Dashboard",
-    type: "normal" as const,
-    action: "show-dashboard",
-  },
-  {
-    label: isScanning ? "Scanning..." : "Rescan Sessions",
-    type: "normal" as const,
-    action: "rescan-sessions",
-    enabled: !isScanning,
-  },
-  { type: "separator" as const },
-  {
-    label: "Quit",
-    type: "normal" as const,
-    action: "quit-app",
-  },
-];
+  });
+
+  // Add separator and actions
+  items.push(
+    { type: "separator" as const },
+    {
+      label: "Show Dashboard",
+      type: "normal" as const,
+      action: "show-dashboard",
+    },
+    {
+      label: isScanning ? "Scanning..." : "Rescan Sessions",
+      type: "normal" as const,
+      action: "rescan-sessions",
+      enabled: !isScanning,
+    },
+    { type: "separator" as const },
+    {
+      label: "Quit",
+      type: "normal" as const,
+      action: "quit-app",
+    }
+  );
+
+  return items;
+};
 
 const updateTrayMenu = async () => {
   if (!tray) return;
@@ -826,6 +940,15 @@ const rpc = BrowserView.defineRPC<UsageMonitorRPC>({
           Effect.gen(function* () {
             const scheduler = yield* SchedulerService;
             return yield* scheduler.checkAuthStatus();
+          })
+        );
+      },
+
+      getAnthropicUsage: async () => {
+        return runEffect(
+          Effect.gen(function* () {
+            const anthropicService = yield* AnthropicUsageService;
+            return yield* anthropicService.getUsage();
           })
         );
       },

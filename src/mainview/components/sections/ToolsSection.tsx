@@ -26,6 +26,8 @@ import {
   parseError,
   matchSuggestionToError,
   formatRecommendation,
+  stripXmlTags,
+  getSeverityFromErrorRate,
   CATEGORY_STYLES,
   type ErrorCategory,
 } from "@/lib/error-parsing";
@@ -121,28 +123,20 @@ export function ToolsSection({ data, loading }: ToolsSectionProps) {
                 <Skeleton className="h-10 w-full" />
               </div>
             ) : toolHealthReport?.frictionPoints && toolHealthReport.frictionPoints.length > 0 ? (
-              <div className="space-y-2 max-h-[300px] overflow-y-auto pr-3">
-                {toolHealthReport.frictionPoints.map((tool, i) => (
-                  <div
-                    key={i}
-                    className="py-2 px-3 rounded-lg bg-destructive/5 border border-destructive/20"
-                  >
-                    <div className="flex items-center justify-between mb-1">
-                      <div>
-                        <span className="font-medium text-sm">{tool.name}</span>
-                        <span className="text-xs text-muted-foreground ml-2">
-                          {tool.totalCalls} calls
-                        </span>
-                      </div>
-                      <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/30">
-                        {formatPercent(tool.errorRate)} errors
-                      </Badge>
-                    </div>
-                    <p className="text-xs text-muted-foreground truncate">
-                      Top error: {parseError(tool.topError).summary}
-                    </p>
-                  </div>
-                ))}
+              <div className="space-y-2 max-h-[400px] overflow-y-auto pr-3">
+                {/* Sort by error rate descending (worst first) */}
+                {[...toolHealthReport.frictionPoints]
+                  .sort((a, b) => b.errorRate - a.errorRate)
+                  .map((tool, i) => (
+                    <FrictionPointCard
+                      key={i}
+                      name={tool.name}
+                      totalCalls={tool.totalCalls}
+                      errorRate={tool.errorRate}
+                      topError={tool.topError}
+                      errorCount={Math.round(tool.totalCalls * tool.errorRate)}
+                    />
+                  ))}
               </div>
             ) : (
               <p className="text-center text-muted-foreground py-8">
@@ -192,6 +186,123 @@ const CATEGORY_ICONS: Record<ErrorCategory, typeof AlertCircleIcon> = {
   stack_trace: CodeIcon,
   generic: AlertCircleIcon,
 };
+
+// ─── Friction Point Card ─────────────────────────────────────────────────────
+
+interface FrictionPointCardProps {
+  name: string;
+  totalCalls: number;
+  errorRate: number;
+  topError: string;
+  errorCount: number;
+}
+
+function FrictionPointCard({
+  name,
+  totalCalls,
+  errorRate,
+  topError,
+  errorCount,
+}: FrictionPointCardProps) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const severity = getSeverityFromErrorRate(errorRate);
+  const parsed = parseError(topError);
+  const Icon = CATEGORY_ICONS[parsed.category];
+  const cleanedError = stripXmlTags(topError);
+  const cleanedSummary = stripXmlTags(parsed.summary);
+
+  const handleCopy = async () => {
+    await navigator.clipboard.writeText(cleanedError);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <Collapsible open={isExpanded} onOpenChange={setIsExpanded}>
+      <div className={cn("rounded-lg border", severity.bgClass, severity.borderClass)}>
+        {/* Header */}
+        <CollapsibleTrigger className="w-full text-left">
+          <div className="px-3 py-2">
+            <div className="flex items-center justify-between mb-1.5">
+              <div className="flex items-center gap-2 min-w-0">
+                <HugeiconsIcon
+                  icon={Icon}
+                  className={cn("h-4 w-4 shrink-0", severity.badgeTextClass)}
+                />
+                <span className="font-medium text-sm truncate">{name}</span>
+                <span className="text-xs text-muted-foreground shrink-0">
+                  {totalCalls} calls
+                </span>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <Badge
+                  variant="outline"
+                  className={cn(
+                    "text-xs px-1.5 py-0",
+                    severity.badgeBgClass,
+                    severity.badgeTextClass,
+                    `border-${severity.tier === "critical" || severity.tier === "severe" ? "destructive" : severity.tier === "moderate" ? "warning" : "border"}/30`
+                  )}
+                >
+                  {formatPercent(errorRate)} errors
+                </Badge>
+                <HugeiconsIcon
+                  icon={isExpanded ? ArrowUp01Icon : ArrowDown01Icon}
+                  className="h-4 w-4 text-muted-foreground"
+                />
+              </div>
+            </div>
+
+            {/* Summary (always visible) */}
+            <p className="text-xs text-muted-foreground truncate">{cleanedSummary}</p>
+          </div>
+        </CollapsibleTrigger>
+
+        {/* Expanded content */}
+        <CollapsibleContent>
+          <div className="border-t border-border/30 px-3 py-2">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-medium">
+                Error Details ({formatOccurrenceCount(errorCount)} occurrences)
+              </span>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleCopy();
+                }}
+                className="text-muted-foreground hover:text-foreground transition-colors p-1"
+                title="Copy full error message"
+              >
+                {copied ? (
+                  <HugeiconsIcon icon={CheckmarkCircle02Icon} className="h-3.5 w-3.5 text-success" />
+                ) : (
+                  <HugeiconsIcon icon={Copy01Icon} className="h-3.5 w-3.5" />
+                )}
+              </button>
+            </div>
+
+            {/* Full error message */}
+            <pre className="text-xs text-muted-foreground font-mono whitespace-pre-wrap break-words leading-relaxed bg-muted/30 rounded p-2 mb-2">
+              {cleanedError}
+            </pre>
+
+            {/* Category badge with severity */}
+            <div className="flex items-center gap-2 text-xs">
+              <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                {parsed.category.replace(/_/g, " ")}
+              </Badge>
+              <span className={cn("text-[10px]", severity.badgeTextClass)}>
+                {severity.label}
+              </span>
+            </div>
+          </div>
+        </CollapsibleContent>
+      </div>
+    </Collapsible>
+  );
+}
 
 interface SmartErrorCardProps {
   message: string;

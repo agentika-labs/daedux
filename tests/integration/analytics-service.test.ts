@@ -14,8 +14,8 @@ import {
   AgentAnalyticsService,
   ContextAnalyticsService,
   InsightsAnalyticsService,
-} from "../../src/services/analytics/index"
-import { DatabaseService } from "../../src/services/db"
+} from "../../src/bun/analytics/index"
+import { DatabaseService } from "../../src/bun/db"
 import * as schema from "../../src/db/schema"
 
 // ─── Test Helpers ───────────────────────────────────────────────────────────
