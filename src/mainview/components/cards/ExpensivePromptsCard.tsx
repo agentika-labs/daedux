@@ -49,12 +49,16 @@ function getModelBadgeStyle(family: ReturnType<typeof getModelFamily>) {
 }
 
 function getShortModel(model: string): string {
-  // Extract short name: "claude-opus-4" -> "opus-4"
-  const match = model.match(/(opus|sonnet|haiku)[-_]?(\d+(?:\.\d+)?)?/i);
+  // Extract short name: "claude-opus-4-6" -> "opus-4.6"
+  const match = model.match(/(opus|sonnet|haiku)-(\d+)-(\d+)/i);
   if (match) {
-    const name = match[1]?.toLowerCase() ?? "";
-    const version = match[2] ?? "";
-    return version ? `${name}-${version}` : name;
+    const [, name, major, minor] = match;
+    return `${name!.toLowerCase()}-${major}.${minor}`;
+  }
+  // Fallback: family + major version only
+  const familyMatch = model.match(/(opus|sonnet|haiku)-(\d+)/i);
+  if (familyMatch) {
+    return `${familyMatch[1]!.toLowerCase()}-${familyMatch[2]}`;
   }
   return model.slice(0, 12);
 }
