@@ -106,6 +106,7 @@ const toDateString = (timestamp: number): string => {
 
 const loadDashboardData = (dateFilter: DateFilter = {}) =>
   Effect.gen(function* () {
+    yield* Effect.logDebug("Loading dashboard data");
     const sessions = yield* SessionAnalyticsService;
     const models = yield* ModelAnalyticsService;
     const tools = yield* ToolAnalyticsService;
@@ -254,7 +255,7 @@ const loadDashboardData = (dateFilter: DateFilter = {}) =>
       agentROI,
       toolHealthReportCard,
     } as DashboardData;
-  });
+  }).pipe(Effect.withSpan("rpc.loadDashboardData"));
 
 // ─── Sync Operations ────────────────────────────────────────────────────────
 
@@ -264,7 +265,7 @@ const runSync = (fullResync = false) =>
     return fullResync
       ? yield* syncService.fullResync({ verbose: false })
       : yield* syncService.syncIncremental({ verbose: false });
-  });
+  }).pipe(Effect.withSpan("rpc.runSync", { attributes: { fullResync } }));
 
 const runSyncWithNotifications = async (fullScan = false): Promise<SyncResult> => {
   if (isScanning) {

@@ -18,13 +18,39 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+} from "@/components/ui/sheet";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { formatCurrency, formatTokens, formatDuration, cn, getSmartProjectName, shortenPath, type SmartProjectName } from "@/lib/utils";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  formatCurrency,
+  formatTokens,
+  formatDuration,
+  cn,
+  getSmartProjectName,
+  shortenPath,
+  type SmartProjectName,
+} from "@/lib/utils";
 import type { DashboardData, SessionSummary } from "@shared/rpc-types";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { ArrowRight01Icon, Clock01Icon, Coins01Icon, Search01Icon, ArrowLeft01Icon } from "@hugeicons/core-free-icons";
+import {
+  ArrowRight01Icon,
+  Clock01Icon,
+  Coins01Icon,
+  Search01Icon,
+  ArrowLeft01Icon,
+} from "@hugeicons/core-free-icons";
 
 interface SessionsSectionProps {
   data: DashboardData | null;
@@ -37,7 +63,11 @@ interface SessionRow extends SessionSummary {
 }
 
 // Custom global filter that searches project name and first prompt
-const globalFilterFn: FilterFn<SessionRow> = (row, _columnId, filterValue: string) => {
+const globalFilterFn: FilterFn<SessionRow> = (
+  row,
+  _columnId,
+  filterValue: string,
+) => {
   const searchLower = filterValue.toLowerCase();
   const session = row.original;
 
@@ -48,29 +78,39 @@ const globalFilterFn: FilterFn<SessionRow> = (row, _columnId, filterValue: strin
     session.smartName.full.toLowerCase().includes(searchLower);
 
   // Search in first prompt
-  const promptMatch = session.firstPrompt?.toLowerCase().includes(searchLower) ?? false;
+  const promptMatch =
+    session.firstPrompt?.toLowerCase().includes(searchLower) ?? false;
 
   return nameMatch || promptMatch;
 };
 
 export function SessionsSection({ data, loading }: SessionsSectionProps) {
-  const [selectedSession, setSelectedSession] = useState<SessionRow | null>(null);
+  const [selectedSession, setSelectedSession] = useState<SessionRow | null>(
+    null,
+  );
   const [showSubagents, setShowSubagents] = useState(false);
 
-  // TanStack Table state
-  const [sorting, setSorting] = useState<SortingState>([{ id: "cost", desc: true }]);
-  const [pagination, setPagination] = useState<PaginationState>({ pageIndex: 0, pageSize: 25 });
+  const [sorting, setSorting] = useState<SortingState>([
+    { id: "cost", desc: true },
+  ]);
+  const [pagination, setPagination] = useState<PaginationState>({
+    pageIndex: 0,
+    pageSize: 25,
+  });
   const [globalFilter, setGlobalFilter] = useState("");
 
   const sessions = data?.sessions ?? [];
 
-  // Pre-compute table data with smart names attached
   const tableData = useMemo(() => {
     // Filter subagents first
-    const filtered = showSubagents ? sessions : sessions.filter((s) => !s.isSubagent);
+    const filtered = showSubagents
+      ? sessions
+      : sessions.filter((s) => !s.isSubagent);
 
     // Build projectPath → cwd lookup from projects data
-    const projectCwdMap = new Map((data?.projects ?? []).map((p) => [p.projectPath, p.cwd]));
+    const projectCwdMap = new Map(
+      (data?.projects ?? []).map((p) => [p.projectPath, p.cwd]),
+    );
 
     // Build items for smart name calculation
     const allItems = filtered.map((s) => ({
@@ -79,10 +119,15 @@ export function SessionsSection({ data, loading }: SessionsSectionProps) {
     }));
 
     // Attach smart names to each session
-    return filtered.map((s): SessionRow => ({
-      ...s,
-      smartName: getSmartProjectName({ projectPath: s.project, cwd: projectCwdMap.get(s.project) }, allItems),
-    }));
+    return filtered.map(
+      (s): SessionRow => ({
+        ...s,
+        smartName: getSmartProjectName(
+          { projectPath: s.project, cwd: projectCwdMap.get(s.project) },
+          allItems,
+        ),
+      }),
+    );
   }, [sessions, showSubagents, data?.projects]);
 
   // Column definitions
@@ -103,9 +148,13 @@ export function SessionsSection({ data, loading }: SessionsSectionProps) {
                 </Badge>
               )}
               <div>
-                <div className="font-medium truncate max-w-[200px]">{session.smartName.primary}</div>
+                <div className="font-medium truncate max-w-[200px]">
+                  {session.smartName.primary}
+                </div>
                 {session.smartName.secondary && (
-                  <div className="text-xs text-muted-foreground">in {session.smartName.secondary}</div>
+                  <div className="text-xs text-muted-foreground">
+                    in {session.smartName.secondary}
+                  </div>
                 )}
               </div>
             </div>
@@ -118,12 +167,16 @@ export function SessionsSection({ data, loading }: SessionsSectionProps) {
           <SortableHeaderCell
             label="Date"
             sorted={column.getIsSorted()}
-            onToggle={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            onToggle={() =>
+              column.toggleSorting(column.getIsSorted() === "asc")
+            }
           />
         ),
         accessorKey: "startTime",
         cell: ({ row }) => (
-          <span className="text-sm text-muted-foreground">{row.original.date}</span>
+          <span className="text-sm text-muted-foreground">
+            {row.original.date}
+          </span>
         ),
       },
       {
@@ -132,12 +185,16 @@ export function SessionsSection({ data, loading }: SessionsSectionProps) {
           <SortableHeaderCell
             label="Queries"
             sorted={column.getIsSorted()}
-            onToggle={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            onToggle={() =>
+              column.toggleSorting(column.getIsSorted() === "asc")
+            }
             align="right"
           />
         ),
         accessorKey: "queryCount",
-        cell: ({ row }) => <span className="text-sm">{row.original.queryCount}</span>,
+        cell: ({ row }) => (
+          <span className="text-sm">{row.original.queryCount}</span>
+        ),
         meta: { align: "right" },
       },
       {
@@ -146,12 +203,18 @@ export function SessionsSection({ data, loading }: SessionsSectionProps) {
           <SortableHeaderCell
             label="Tokens"
             sorted={column.getIsSorted()}
-            onToggle={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            onToggle={() =>
+              column.toggleSorting(column.getIsSorted() === "asc")
+            }
             align="right"
           />
         ),
         accessorKey: "totalTokens",
-        cell: ({ row }) => <span className="text-sm">{formatTokens(row.original.totalTokens)}</span>,
+        cell: ({ row }) => (
+          <span className="text-sm">
+            {formatTokens(row.original.totalTokens)}
+          </span>
+        ),
         meta: { align: "right" },
       },
       {
@@ -160,13 +223,17 @@ export function SessionsSection({ data, loading }: SessionsSectionProps) {
           <SortableHeaderCell
             label="Cost"
             sorted={column.getIsSorted()}
-            onToggle={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            onToggle={() =>
+              column.toggleSorting(column.getIsSorted() === "asc")
+            }
             align="right"
           />
         ),
         accessorKey: "totalCost",
         cell: ({ row }) => (
-          <span className="text-sm font-medium">{formatCurrency(row.original.totalCost)}</span>
+          <span className="text-sm font-medium">
+            {formatCurrency(row.original.totalCost)}
+          </span>
         ),
         meta: { align: "right" },
       },
@@ -182,7 +249,7 @@ export function SessionsSection({ data, loading }: SessionsSectionProps) {
         meta: { align: "right" },
       },
     ],
-    []
+    [],
   );
 
   const table = useReactTable({
@@ -201,7 +268,10 @@ export function SessionsSection({ data, loading }: SessionsSectionProps) {
 
   const totalFiltered = table.getFilteredRowModel().rows.length;
   const pageStart = pagination.pageIndex * pagination.pageSize + 1;
-  const pageEnd = Math.min((pagination.pageIndex + 1) * pagination.pageSize, totalFiltered);
+  const pageEnd = Math.min(
+    (pagination.pageIndex + 1) * pagination.pageSize,
+    totalFiltered,
+  );
 
   return (
     <Section id="sessions">
@@ -255,20 +325,30 @@ export function SessionsSection({ data, loading }: SessionsSectionProps) {
                 <table className="w-full">
                   <thead>
                     {table.getHeaderGroups().map((headerGroup) => (
-                      <tr key={headerGroup.id} className="border-b border-border text-left text-sm text-muted-foreground">
+                      <tr
+                        key={headerGroup.id}
+                        className="border-b border-border text-left text-sm text-muted-foreground"
+                      >
                         {headerGroup.headers.map((header) => {
-                          const align = (header.column.columnDef.meta as { align?: string } | undefined)?.align;
+                          const align = (
+                            header.column.columnDef.meta as
+                              | { align?: string }
+                              | undefined
+                          )?.align;
                           return (
                             <th
                               key={header.id}
                               className={cn(
                                 "p-4 font-medium",
-                                align === "right" && "text-right"
+                                align === "right" && "text-right",
                               )}
                             >
                               {header.isPlaceholder
                                 ? null
-                                : flexRender(header.column.columnDef.header, header.getContext())}
+                                : flexRender(
+                                    header.column.columnDef.header,
+                                    header.getContext(),
+                                  )}
                             </th>
                           );
                         })}
@@ -283,13 +363,23 @@ export function SessionsSection({ data, loading }: SessionsSectionProps) {
                         onClick={() => setSelectedSession(row.original)}
                       >
                         {row.getVisibleCells().map((cell) => {
-                          const align = (cell.column.columnDef.meta as { align?: string } | undefined)?.align;
+                          const align = (
+                            cell.column.columnDef.meta as
+                              | { align?: string }
+                              | undefined
+                          )?.align;
                           return (
                             <td
                               key={cell.id}
-                              className={cn("p-4", align === "right" && "text-right")}
+                              className={cn(
+                                "p-4",
+                                align === "right" && "text-right",
+                              )}
                             >
-                              {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                              {flexRender(
+                                cell.column.columnDef.cell,
+                                cell.getContext(),
+                              )}
                             </td>
                           );
                         })}
@@ -307,11 +397,16 @@ export function SessionsSection({ data, loading }: SessionsSectionProps) {
                   </span>
                   <div className="flex items-center gap-4">
                     <div className="flex items-center gap-2">
-                      <span className="text-sm text-muted-foreground">Per page:</span>
+                      <span className="text-sm text-muted-foreground">
+                        Per page:
+                      </span>
                       <Select
                         value={pagination.pageSize.toString()}
                         onValueChange={(value) =>
-                          setPagination({ pageIndex: 0, pageSize: Number(value) })
+                          setPagination({
+                            pageIndex: 0,
+                            pageSize: Number(value),
+                          })
                         }
                       >
                         <SelectTrigger className="w-[70px] h-8">
@@ -331,10 +426,14 @@ export function SessionsSection({ data, loading }: SessionsSectionProps) {
                         onClick={() => table.previousPage()}
                         disabled={!table.getCanPreviousPage()}
                       >
-                        <HugeiconsIcon icon={ArrowLeft01Icon} className="h-4 w-4" />
+                        <HugeiconsIcon
+                          icon={ArrowLeft01Icon}
+                          className="h-4 w-4"
+                        />
                       </Button>
                       <span className="text-sm px-2">
-                        Page {pagination.pageIndex + 1} of {table.getPageCount()}
+                        Page {pagination.pageIndex + 1} of{" "}
+                        {table.getPageCount()}
                       </span>
                       <Button
                         variant="outline"
@@ -342,7 +441,10 @@ export function SessionsSection({ data, loading }: SessionsSectionProps) {
                         onClick={() => table.nextPage()}
                         disabled={!table.getCanNextPage()}
                       >
-                        <HugeiconsIcon icon={ArrowRight01Icon} className="h-4 w-4" />
+                        <HugeiconsIcon
+                          icon={ArrowRight01Icon}
+                          className="h-4 w-4"
+                        />
                       </Button>
                     </div>
                   </div>
@@ -350,19 +452,25 @@ export function SessionsSection({ data, loading }: SessionsSectionProps) {
               )}
             </>
           ) : (
-            <p className="text-center text-muted-foreground py-12">No sessions found</p>
+            <p className="text-center text-muted-foreground py-12">
+              No sessions found
+            </p>
           )}
         </CardContent>
       </Card>
 
       {/* Session Detail Drawer */}
-      <Sheet open={!!selectedSession} onOpenChange={(open) => !open && setSelectedSession(null)}>
+      <Sheet
+        open={!!selectedSession}
+        onOpenChange={(open) => !open && setSelectedSession(null)}
+      >
         <SheetContent className="w-[500px] sm:max-w-[500px] flex flex-col overflow-hidden">
           {selectedSession && (
             <>
               <SheetHeader className="flex-shrink-0">
                 <SheetTitle>
-                  {selectedSession.displayName ?? selectedSession.smartName.primary}
+                  {selectedSession.displayName ??
+                    selectedSession.smartName.primary}
                 </SheetTitle>
                 <SheetDescription>
                   {shortenPath(selectedSession.smartName.full)}
@@ -390,18 +498,25 @@ interface SortableHeaderCellProps {
   align?: "left" | "right";
 }
 
-function SortableHeaderCell({ label, sorted, onToggle, align = "left" }: SortableHeaderCellProps) {
+function SortableHeaderCell({
+  label,
+  sorted,
+  onToggle,
+  align = "left",
+}: SortableHeaderCellProps) {
   return (
     <button
       type="button"
       className={cn(
         "flex items-center gap-1 hover:text-foreground transition-colors",
-        align === "right" && "justify-end w-full"
+        align === "right" && "justify-end w-full",
       )}
       onClick={onToggle}
     >
       {label}
-      {sorted && <span className="text-xs">{sorted === "asc" ? "↑" : "↓"}</span>}
+      {sorted && (
+        <span className="text-xs">{sorted === "asc" ? "↑" : "↓"}</span>
+      )}
     </button>
   );
 }
@@ -411,8 +526,16 @@ function SessionDetail({ session }: { session: SessionRow }) {
     <div className="space-y-6">
       {/* Summary Stats */}
       <div className="grid grid-cols-2 gap-4">
-        <StatItem icon={Clock01Icon} label="Duration" value={formatDuration(session.durationMs)} />
-        <StatItem icon={Coins01Icon} label="Cost" value={formatCurrency(session.totalCost)} />
+        <StatItem
+          icon={Clock01Icon}
+          label="Duration"
+          value={formatDuration(session.durationMs)}
+        />
+        <StatItem
+          icon={Coins01Icon}
+          label="Cost"
+          value={formatCurrency(session.totalCost)}
+        />
       </div>
 
       {/* Metrics */}
@@ -420,11 +543,26 @@ function SessionDetail({ session }: { session: SessionRow }) {
         <h4 className="text-sm font-medium">Metrics</h4>
         <div className="grid grid-cols-2 gap-3 text-sm">
           <MetricRow label="Queries" value={session.queryCount.toString()} />
-          <MetricRow label="Tool Uses" value={session.toolUseCount.toString()} />
-          <MetricRow label="Total Tokens" value={formatTokens(session.totalTokens)} />
-          <MetricRow label="Cache Savings" value={formatCurrency(session.savedByCaching)} />
-          <MetricRow label="Compactions" value={session.compactions.toString()} />
-          <MetricRow label="Subagents" value={session.subagentCount.toString()} />
+          <MetricRow
+            label="Tool Uses"
+            value={session.toolUseCount.toString()}
+          />
+          <MetricRow
+            label="Total Tokens"
+            value={formatTokens(session.totalTokens)}
+          />
+          <MetricRow
+            label="Cache Savings"
+            value={formatCurrency(session.savedByCaching)}
+          />
+          <MetricRow
+            label="Compactions"
+            value={session.compactions.toString()}
+          />
+          <MetricRow
+            label="Subagents"
+            value={session.subagentCount.toString()}
+          />
         </div>
       </div>
 
@@ -432,34 +570,49 @@ function SessionDetail({ session }: { session: SessionRow }) {
       <div className="space-y-3">
         <h4 className="text-sm font-medium">Token Breakdown</h4>
         <div className="grid grid-cols-2 gap-3 text-sm">
-          <MetricRow label="Uncached Input" value={formatTokens(session.uncachedInput)} />
-          <MetricRow label="Cache Read" value={formatTokens(session.cacheRead)} />
-          <MetricRow label="Cache Creation" value={formatTokens(session.cacheCreation)} />
+          <MetricRow
+            label="Uncached Input"
+            value={formatTokens(session.uncachedInput)}
+          />
+          <MetricRow
+            label="Cache Read"
+            value={formatTokens(session.cacheRead)}
+          />
+          <MetricRow
+            label="Cache Creation"
+            value={formatTokens(session.cacheCreation)}
+          />
           <MetricRow label="Output" value={formatTokens(session.output)} />
         </div>
       </div>
 
       {/* File Activity */}
-      {session.fileActivityDetails && session.fileActivityDetails.length > 0 && (
-        <div className="space-y-3">
-          <h4 className="text-sm font-medium">File Activity</h4>
-          <div className="space-y-1 max-h-[200px] overflow-y-auto">
-            {session.fileActivityDetails.slice(0, 20).map((file, i) => (
-              <div key={i} className="flex items-center justify-between py-1 text-xs">
-                <span className="truncate max-w-[300px] text-muted-foreground">{file.filePath}</span>
-                <Badge variant="outline" className="text-xs">
-                  {file.tool}
-                </Badge>
-              </div>
-            ))}
-            {session.fileActivityDetails.length > 20 && (
-              <p className="text-xs text-muted-foreground pt-2">
-                +{session.fileActivityDetails.length - 20} more files
-              </p>
-            )}
+      {session.fileActivityDetails &&
+        session.fileActivityDetails.length > 0 && (
+          <div className="space-y-3">
+            <h4 className="text-sm font-medium">File Activity</h4>
+            <div className="space-y-1 max-h-[200px] overflow-y-auto">
+              {session.fileActivityDetails.slice(0, 20).map((file, i) => (
+                <div
+                  key={i}
+                  className="flex items-center justify-between py-1 text-xs"
+                >
+                  <span className="truncate max-w-[300px] text-muted-foreground">
+                    {file.filePath}
+                  </span>
+                  <Badge variant="outline" className="text-xs">
+                    {file.tool}
+                  </Badge>
+                </div>
+              ))}
+              {session.fileActivityDetails.length > 20 && (
+                <p className="text-xs text-muted-foreground pt-2">
+                  +{session.fileActivityDetails.length - 20} more files
+                </p>
+              )}
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
       {/* Tool Usage */}
       {session.toolCounts && Object.keys(session.toolCounts).length > 0 && (
@@ -492,7 +645,15 @@ function SessionDetail({ session }: { session: SessionRow }) {
   );
 }
 
-function StatItem({ icon, label, value }: { icon: typeof Clock01Icon; label: string; value: string }) {
+function StatItem({
+  icon,
+  label,
+  value,
+}: {
+  icon: typeof Clock01Icon;
+  label: string;
+  value: string;
+}) {
   return (
     <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
       <HugeiconsIcon icon={icon} className="h-5 w-5 text-muted-foreground" />

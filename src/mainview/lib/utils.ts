@@ -51,7 +51,7 @@ export function formatDuration(ms: number): string {
  * Decode Claude's hyphenated project path back to normal path.
  * "-Users-adam-Documents-git-project" → "/Users/adam/Documents/git/project"
  */
-export function decodeProjectPath(encoded: string): string {
+function decodeProjectPath(encoded: string): string {
   if (encoded.startsWith("-")) {
     // Claude-encoded path: convert leading hyphen and hyphen separators to slashes
     return "/" + encoded.slice(1).replace(/-/g, "/");

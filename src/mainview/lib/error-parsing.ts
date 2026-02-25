@@ -159,7 +159,7 @@ function truncateString(str: string, maxLength: number): string {
 }
 
 /** Truncate a multi-line message to N lines */
-export function truncateStackTrace(message: string, maxLines: number = COLLAPSED_LINES): string {
+function truncateStackTrace(message: string, maxLines: number = COLLAPSED_LINES): string {
   const lines = message.split("\n");
   if (lines.length <= maxLines) return message;
   return lines.slice(0, maxLines).join("\n");

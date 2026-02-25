@@ -16,7 +16,7 @@ import {
   InsightsAnalyticsService,
 } from "../../src/bun/analytics/index"
 import { DatabaseService } from "../../src/bun/db"
-import * as schema from "../../src/db/schema"
+import * as schema from "../../src/bun/db/schema"
 
 // ─── Test Helpers ───────────────────────────────────────────────────────────
 

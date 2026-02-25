@@ -9,7 +9,7 @@ import { eq } from "drizzle-orm"
 import { createTestDb, runWithTestDb, insertTestSession } from "../helpers/test-db"
 import { parseSessionFile, type FileInfo } from "../../src/bun/parser"
 import { DatabaseService } from "../../src/bun/db"
-import * as schema from "../../src/db/schema"
+import * as schema from "../../src/bun/db/schema"
 
 // ─── Test Helpers ───────────────────────────────────────────────────────────
 

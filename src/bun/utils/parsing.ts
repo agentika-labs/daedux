@@ -88,9 +88,6 @@ export const extractFileExtension = (filePath: string): string => {
   return ext || ""
 }
 
-/** Alias for extractFileExtension (for compatibility) */
-export const getFileExtension = extractFileExtension
-
 /** Categorize a bash command by its primary purpose */
 export const categorizeBashCommand = (command: string): BashCommandCategory => {
   const cmd = command.trim().toLowerCase()

@@ -10,7 +10,7 @@ import {
   isSystemContent,
   safeJsonParse,
   toolToOperation,
-} from "../../src/utils/parsing"
+} from "../../src/bun/utils/parsing"
 
 describe("extractPreview", () => {
   test("extracts text from first text block", () => {

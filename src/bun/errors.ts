@@ -28,7 +28,7 @@ export class SessionNotFoundError extends Data.TaggedError("SessionNotFoundError
 
 /** Anthropic usage fetch failed */
 export class AnthropicUsageError extends Data.TaggedError("AnthropicUsageError")<{
-  readonly reason: "no_credentials" | "api_error" | "token_expired" | "parse_error";
+  readonly reason: "no_credentials" | "api_error" | "token_expired" | "parse_error" | "not_supported";
   readonly message: string;
   readonly cause?: unknown;
 }> {}

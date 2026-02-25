@@ -217,7 +217,7 @@ const discoverFilesImpl = (): Effect.Effect<FileInfo[], FileSystemError> =>
         path: path.join(claudeDir(), "projects"),
         cause: error,
       }),
-  });
+  }).pipe(Effect.withSpan("sync.discoverFiles"));
 
 // ─── Database Operations ────────────────────────────────────────────────────
 
@@ -423,7 +423,7 @@ const processFile = (
     );
 
     return parsed ? "synced" : "empty";
-  });
+  }).pipe(Effect.withSpan("sync.processFile", { attributes: { sessionId: fileInfo.sessionId } }));
 
 /** Update file mtime tracking */
 const updateFileMtime = (
@@ -481,6 +481,7 @@ export const SyncServiceLive = Layer.effect(
       syncIncremental: (options?: SyncOptions) =>
         Effect.gen(function* () {
           const verbose = options?.verbose ?? false;
+          yield* Effect.logInfo("Starting incremental sync");
 
           // 1. Discover current files
           const currentFiles = yield* discoverFilesImpl();
@@ -493,6 +494,8 @@ export const SyncServiceLive = Layer.effect(
             const cached = cachedMtimes.get(file.filePath);
             return !cached || Math.floor(cached) !== Math.floor(file.mtimeMs);
           });
+
+          yield* Effect.logInfo(`Found ${toSync.length} files to sync out of ${currentFiles.length} total`);
 
           // 4. Parse and insert changed files
           let synced = 0;
@@ -513,18 +516,22 @@ export const SyncServiceLive = Layer.effect(
             );
           }
 
+          yield* Effect.logInfo(`Sync complete: ${synced} synced, ${errors} errors`);
+
           return {
             synced,
             total: currentFiles.length,
             unchanged: currentFiles.length - toSync.length,
             errors,
           };
-        }),
+        }).pipe(Effect.withSpan("sync.incrementalSync")),
 
       fullResync: (options?: SyncOptions) =>
         Effect.gen(function* () {
           const verbose = options?.verbose ?? false;
           const { db } = yield* DatabaseService;
+
+          yield* Effect.logInfo("Starting full resync - clearing existing data");
 
           // Clear existing data (cascade will clean up dependent tables)
           yield* runInTransaction(
@@ -549,6 +556,7 @@ export const SyncServiceLive = Layer.effect(
 
           // Discover and sync all files
           const currentFiles = yield* discoverFilesImpl();
+          yield* Effect.logInfo(`Found ${currentFiles.length} files for full resync`);
 
           let synced = 0;
           let errors = 0;
@@ -568,13 +576,15 @@ export const SyncServiceLive = Layer.effect(
             );
           }
 
+          yield* Effect.logInfo(`Full resync complete: ${synced} synced, ${errors} errors`);
+
           return {
             synced,
             total: currentFiles.length,
             unchanged: 0,
             errors,
           };
-        }),
+        }).pipe(Effect.withSpan("sync.fullResync")),
     };
   })
 );

@@ -6,7 +6,7 @@ import {
   modelDisplayName,
   modelDisplayNameWithVersion,
   modelFamily,
-} from "../../src/utils/pricing"
+} from "../../src/bun/utils/pricing"
 
 describe("getPricing", () => {
   describe("model tier matching", () => {
