@@ -2,6 +2,7 @@ import { Section } from "@/components/layout/Section";
 import { SectionHeader } from "@/components/shared/SectionHeader";
 import { ChartCard } from "@/components/shared/ChartCard";
 import { StatCard } from "@/components/shared/StatCard";
+import { EmptyChartState } from "@/components/shared/EmptyChartState";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
@@ -290,17 +291,6 @@ function ProjectRow({
         <p className="font-medium text-sm tabular-nums">{formatCurrency(project.totalCost)}</p>
         <p className="text-xs text-muted-foreground">{project.sessionCount} sessions</p>
       </div>
-    </div>
-  );
-}
-
-function EmptyChartState({ height = 200 }: { height?: number }) {
-  return (
-    <div
-      className="flex items-center justify-center text-muted-foreground"
-      style={{ height }}
-    >
-      No data available
     </div>
   );
 }

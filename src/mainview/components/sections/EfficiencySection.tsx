@@ -1,6 +1,7 @@
 import { Section } from "@/components/layout/Section";
 import { SectionHeader } from "@/components/shared/SectionHeader";
 import { ChartCard } from "@/components/shared/ChartCard";
+import { EmptyChartState } from "@/components/shared/EmptyChartState";
 import { InfoTooltip } from "@/components/shared/InfoTooltip";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -316,17 +317,6 @@ function CompactionStat({
       {description && (
         <p className="text-xs text-muted-foreground mt-1">{description}</p>
       )}
-    </div>
-  );
-}
-
-function EmptyChartState({ height = 200 }: { height?: number }) {
-  return (
-    <div
-      className="flex items-center justify-center text-muted-foreground"
-      style={{ height }}
-    >
-      No data available
     </div>
   );
 }

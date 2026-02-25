@@ -2,6 +2,8 @@ import { Section } from "@/components/layout/Section";
 import { SectionHeader } from "@/components/shared/SectionHeader";
 import { ChartCard } from "@/components/shared/ChartCard";
 import { StatCard } from "@/components/shared/StatCard";
+import { EmptyChartState } from "@/components/shared/EmptyChartState";
+import { LegendItem } from "@/components/shared/LegendItem";
 import { ExpensivePromptsCard } from "@/components/cards/ExpensivePromptsCard";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
 import { formatCurrency, formatTokens } from "@/lib/utils";
@@ -264,28 +266,3 @@ export function CostSection({ data, loading }: CostSectionProps) {
   );
 }
 
-// ─── Helper Components ────────────────────────────────────────────────────────
-
-function LegendItem({ color, label, value }: { color: string; label: string; value: string }) {
-  return (
-    <div className="flex items-center gap-2">
-      <div
-        className="h-3 w-3 rounded-sm"
-        style={{ backgroundColor: color }}
-      />
-      <span className="text-muted-foreground">{label}:</span>
-      <span className="font-medium">{value}</span>
-    </div>
-  );
-}
-
-function EmptyChartState({ height = 200 }: { height?: number }) {
-  return (
-    <div
-      className="flex items-center justify-center text-muted-foreground"
-      style={{ height }}
-    >
-      No data available
-    </div>
-  );
-}
