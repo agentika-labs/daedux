@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils";
+import { SEMANTIC_STYLES, type SemanticVariant } from "@/lib/semantic-styles";
 import {
   CheckmarkCircle02Icon,
   AlertCircleIcon,
@@ -28,26 +29,10 @@ const iconMap: Record<InsightType, typeof CheckmarkCircle02Icon> = {
   tip: BulbIcon,
 };
 
-const colorMap: Record<InsightType, string> = {
-  success: "border-success/30 bg-success/5",
-  warning: "border-chart-4/30 bg-chart-4/5",
-  info: "border-chart-2/30 bg-chart-2/5",
-  tip: "border-chart-1/30 bg-chart-1/5",
-};
-
-const iconColorMap: Record<InsightType, string> = {
-  success: "text-success",
-  warning: "text-chart-4",
-  info: "text-chart-2",
-  tip: "text-chart-1",
-};
-
-const buttonColorMap: Record<InsightType, string> = {
-  success: "text-success hover:text-success/80",
-  warning: "text-chart-4 hover:text-chart-4/80",
-  info: "text-chart-2 hover:text-chart-2/80",
-  tip: "text-chart-1 hover:text-chart-1/80",
-};
+// Map InsightType to SemanticVariant (they align 1:1)
+function getStyles(type: InsightType) {
+  return SEMANTIC_STYLES[type as SemanticVariant];
+}
 
 export function InsightCard({
   headline,
@@ -59,12 +44,14 @@ export function InsightCard({
   className,
 }: InsightCardProps) {
   const Icon = iconMap[type];
+  const styles = getStyles(type);
 
   return (
     <div
       className={cn(
         "flex gap-3 rounded-lg border p-3 transition-colors",
-        colorMap[type],
+        styles.bg,
+        styles.border,
         priority === "high" && "ring-1 ring-current/20",
         className
       )}
@@ -73,7 +60,7 @@ export function InsightCard({
     >
       <HugeiconsIcon
         icon={Icon}
-        className={cn("h-5 w-5 flex-shrink-0 mt-0.5", iconColorMap[type])}
+        className={cn("h-5 w-5 flex-shrink-0 mt-0.5", styles.text)}
         aria-hidden="true"
       />
       <div className="flex-1 min-w-0">
@@ -83,11 +70,8 @@ export function InsightCard({
             <span
               className={cn(
                 "text-xs font-medium px-1.5 py-0.5 rounded flex-shrink-0",
-                type === "success"
-                  ? "bg-success/20 text-success"
-                  : type === "warning"
-                    ? "bg-chart-4/20 text-chart-4"
-                    : "bg-muted text-muted-foreground"
+                styles.badgeBg,
+                styles.text
               )}
             >
               ${dollarImpact.toFixed(2)}
@@ -103,7 +87,7 @@ export function InsightCard({
             className={cn(
               "inline-flex items-center gap-1 text-xs font-medium mt-2 transition-colors",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 rounded-sm",
-              buttonColorMap[type]
+              styles.button
             )}
             aria-label={`${action.label} for ${headline}`}
           >

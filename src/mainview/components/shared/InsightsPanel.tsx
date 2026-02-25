@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -25,10 +26,18 @@ export function InsightsPanel({
   maxInsights = 5,
   className,
 }: InsightsPanelProps) {
-  // Sort by priority (highest first) and limit count
-  const sortedInsights = [...insights]
-    .sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0))
-    .slice(0, maxInsights);
+  // Memoize sorted insights with stable action objects to prevent re-renders
+  const processedInsights = useMemo(() => {
+    return [...insights]
+      .sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0))
+      .slice(0, maxInsights)
+      .map((insight) => ({
+        insight,
+        type: mapInsightType(insight.type),
+        priority: (insight.priority && insight.priority > 5 ? "high" : "medium") as "high" | "medium",
+        action: buildAction(insight, onNavigateToSection),
+      }));
+  }, [insights, maxInsights, onNavigateToSection]);
 
   return (
     <Card className={className}>
@@ -42,18 +51,18 @@ export function InsightsPanel({
             <Skeleton className="h-16 w-full" />
             <Skeleton className="h-16 w-full" />
           </div>
-        ) : sortedInsights.length > 0 ? (
+        ) : processedInsights.length > 0 ? (
           <ScrollArea style={{ maxHeight }}>
             <div className="space-y-3 pr-2">
-              {sortedInsights.map((insight, i) => (
+              {processedInsights.map(({ insight, type, priority, action }, i) => (
                 <InsightCard
                   key={insight.title + i}
                   headline={insight.title}
                   context={insight.description}
-                  type={mapInsightType(insight.type)}
-                  priority={insight.priority && insight.priority > 5 ? "high" : "medium"}
+                  type={type}
+                  priority={priority}
                   dollarImpact={insight.dollarImpact}
-                  action={buildAction(insight, onNavigateToSection)}
+                  action={action}
                 />
               ))}
             </div>
