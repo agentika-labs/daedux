@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useRPC, rpcRequest } from "../../hooks/useRPC";
 import type { DashboardData } from "@shared/rpc-types";
-import { formatCurrency, formatTokens, formatNumber } from "../../lib/utils";
+import { formatCurrency, formatTokens, formatNumber, shortenPath } from "../../lib/utils";
 
 interface DashboardProps {
   isLoading: boolean;
@@ -264,10 +264,10 @@ const Dashboard = ({ isLoading: initialLoading }: DashboardProps) => {
                     >
                       <td className="py-3">
                         <div className="font-medium truncate max-w-[200px]">
-                          {session.displayName ?? session.project.split("/").pop()}
+                          {session.displayName ?? shortenPath(session.project).split("/").pop()}
                         </div>
                         <div className="text-xs text-muted-foreground truncate max-w-[200px]">
-                          {session.project}
+                          {shortenPath(session.project)}
                         </div>
                       </td>
                       <td className="py-3 text-sm text-muted-foreground">{session.date}</td>

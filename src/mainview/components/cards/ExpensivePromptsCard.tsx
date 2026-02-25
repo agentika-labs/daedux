@@ -4,6 +4,8 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { formatCurrency, formatTokens, cn } from "@/lib/utils";
+import { modelFamily, modelBadgeId } from "@shared/model-utils";
+import { getModelBadgeStyle } from "@/lib/model-styles";
 import type { DashboardData } from "@shared/rpc-types";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -23,44 +25,6 @@ interface PromptRowProps {
   totalOfTop5: number;
   expanded: boolean;
   onToggle: () => void;
-}
-
-// ─── Model Badge Colors ───────────────────────────────────────────────────────
-
-function getModelFamily(model: string): "opus" | "sonnet" | "haiku" | "unknown" {
-  const lower = model.toLowerCase();
-  if (lower.includes("opus")) return "opus";
-  if (lower.includes("sonnet")) return "sonnet";
-  if (lower.includes("haiku")) return "haiku";
-  return "unknown";
-}
-
-function getModelBadgeStyle(family: ReturnType<typeof getModelFamily>) {
-  switch (family) {
-    case "opus":
-      return "bg-chart-3/20 text-chart-3 border-chart-3/30";
-    case "sonnet":
-      return "bg-chart-2/20 text-chart-2 border-chart-2/30";
-    case "haiku":
-      return "bg-chart-5/20 text-chart-5 border-chart-5/30";
-    default:
-      return "bg-muted text-muted-foreground border-border";
-  }
-}
-
-function getShortModel(model: string): string {
-  // Extract short name: "claude-opus-4-6" -> "opus-4.6"
-  const match = model.match(/(opus|sonnet|haiku)-(\d+)-(\d+)/i);
-  if (match) {
-    const [, name, major, minor] = match;
-    return `${name!.toLowerCase()}-${major}.${minor}`;
-  }
-  // Fallback: family + major version only
-  const familyMatch = model.match(/(opus|sonnet|haiku)-(\d+)/i);
-  if (familyMatch) {
-    return `${familyMatch[1]!.toLowerCase()}-${familyMatch[2]}`;
-  }
-  return model.slice(0, 12);
 }
 
 // ─── Rank Badge ───────────────────────────────────────────────────────────────
@@ -104,9 +68,9 @@ function PromptRow({
   expanded,
   onToggle,
 }: PromptRowProps) {
-  const modelFamily = getModelFamily(prompt.model);
-  const modelBadgeStyle = getModelBadgeStyle(modelFamily);
-  const shortModel = getShortModel(prompt.model);
+  const family = modelFamily(prompt.model);
+  const badgeStyle = getModelBadgeStyle(family);
+  const badgeLabel = modelBadgeId(prompt.model);
 
   // Truncate prompt for collapsed view
   const truncatedPrompt = prompt.prompt.length > 60
@@ -155,9 +119,9 @@ function PromptRow({
             <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
               <Badge
                 variant="outline"
-                className={cn("h-5 text-[10px] font-medium", modelBadgeStyle)}
+                className={cn("h-5 text-[10px] font-medium", badgeStyle)}
               >
-                {shortModel}
+                {badgeLabel}
               </Badge>
               <span>{prompt.date}</span>
               {prompt.queryCount > 1 && (

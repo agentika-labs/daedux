@@ -1,12 +1,11 @@
 import { describe, expect, test } from "bun:test"
+import { calculateCost, getPricing } from "../../src/bun/utils/pricing"
 import {
-  calculateCost,
   extractModelDate,
-  getPricing,
   modelDisplayName,
   modelDisplayNameWithVersion,
   modelFamily,
-} from "../../src/bun/utils/pricing"
+} from "../../src/shared/model-utils"
 
 describe("getPricing", () => {
   describe("model tier matching", () => {

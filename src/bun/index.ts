@@ -36,7 +36,8 @@ import {
 } from "./analytics/index";
 import { SchedulerService, parseDaysOfWeek } from "./services/scheduler";
 import { AnthropicUsageService } from "./services/anthropic-usage";
-import { modelDisplayNameWithVersion } from "./utils/pricing";
+import { modelDisplayNameWithVersion } from "@shared/model-utils";
+import { toDateString } from "./utils/formatting";
 
 // ─── App State ──────────────────────────────────────────────────────────────
 
@@ -97,12 +98,6 @@ const runEffect = <A, E>(effect: Effect.Effect<A, E, AppContext>): Promise<A> =>
 };
 
 // ─── Dashboard Data Loading ─────────────────────────────────────────────────
-
-/** Convert timestamp (ms) to YYYY-MM-DD string in local timezone */
-const toDateString = (timestamp: number): string => {
-  const d = new Date(timestamp);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-};
 
 const loadDashboardData = (dateFilter: DateFilter = {}) =>
   Effect.gen(function* () {
