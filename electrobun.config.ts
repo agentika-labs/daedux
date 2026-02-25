@@ -18,9 +18,14 @@ export default {
       "dist/assets": "views/mainview/assets",
       "public/tray-icon.png": "views/mainview/tray-icon.png",
       "public/tray-icon@2x.png": "views/mainview/tray-icon@2x.png",
+      "src/bun/libMacWindowEffects.dylib": "bun/libMacWindowEffects.dylib",
     },
     mac: { bundleCEF: false, icons: "icon.iconset" },
     linux: { bundleCEF: true, icon: "icon.png" },
     win: { bundleCEF: false, icon: "icon.ico" },
+  },
+  release: {
+    baseUrl:
+      "https://github.com/adamferguson/claude-usage-monitor/releases/download/",
   },
 } satisfies ElectrobunConfig;
