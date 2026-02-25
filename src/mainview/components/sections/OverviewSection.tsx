@@ -2,6 +2,8 @@ import { Section } from "@/components/layout/Section";
 import { SectionHeader } from "@/components/shared/SectionHeader";
 import { StatCard } from "@/components/shared/StatCard";
 import { InsightsPanel } from "@/components/shared/InsightsPanel";
+import { ScoreBar } from "@/components/shared/ScoreBar";
+import { ComparisonCard } from "@/components/shared/ComparisonCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatCurrency, formatTokens, formatNumber, formatPercent, cn } from "@/lib/utils";
@@ -255,58 +257,3 @@ export function OverviewSection({ data, loading, onNavigateToSection }: Overview
   );
 }
 
-// ─── Helper Components ────────────────────────────────────────────────────────
-
-function ScoreBar({ label, value }: { label: string; value: number }) {
-  const color =
-    value >= 75 ? "bg-success" : value >= 50 ? "bg-chart-4" : "bg-destructive";
-
-  return (
-    <div>
-      <div className="flex justify-between text-xs mb-1">
-        <span className="text-muted-foreground">{label}</span>
-        <span className="font-medium">{Math.round(value)}%</span>
-      </div>
-      <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-        <div
-          className={cn("h-full transition-all duration-300", color)}
-          style={{ width: `${Math.min(100, value)}%` }}
-        />
-      </div>
-    </div>
-  );
-}
-
-interface ComparisonCardProps {
-  label: string;
-  thisWeek: string;
-  lastWeek: string;
-  change: number;
-  isInverse?: boolean;
-}
-
-function ComparisonCard({ label, thisWeek, lastWeek, change, isInverse = false }: ComparisonCardProps) {
-  const isPositive = isInverse ? change < 0 : change > 0;
-  const displayChange = Math.abs(change);
-
-  return (
-    <div className="text-center">
-      <p className="text-sm text-muted-foreground mb-1">{label}</p>
-      <p className="text-xl font-semibold">{thisWeek}</p>
-      <div className="flex items-center justify-center gap-1 mt-1">
-        <span className="text-xs text-muted-foreground">vs {lastWeek}</span>
-        {change !== 0 && (
-          <span
-            className={cn(
-              "text-xs font-medium",
-              isPositive ? "text-success" : "text-destructive"
-            )}
-          >
-            {isPositive ? "+" : "-"}
-            {displayChange.toFixed(1)}%
-          </span>
-        )}
-      </div>
-    </div>
-  );
-}
