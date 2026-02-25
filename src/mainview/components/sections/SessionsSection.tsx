@@ -58,7 +58,7 @@ export function SessionsSection({ data, loading }: SessionsSectionProps) {
   const [showSubagents, setShowSubagents] = useState(false);
 
   // TanStack Table state
-  const [sorting, setSorting] = useState<SortingState>([{ id: "date", desc: true }]);
+  const [sorting, setSorting] = useState<SortingState>([{ id: "cost", desc: true }]);
   const [pagination, setPagination] = useState<PaginationState>({ pageIndex: 0, pageSize: 25 });
   const [globalFilter, setGlobalFilter] = useState("");
 

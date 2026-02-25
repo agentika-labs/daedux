@@ -444,8 +444,8 @@ const buildTrayMenu = (stats: TrayStats) => {
       });
     }
 
-    // Only show usage percentages if we have real API data
-    if (anthropicUsage.source === "oauth") {
+    // Only show usage percentages if we have real API data (OAuth or CLI probe)
+    if (anthropicUsage.source === "oauth" || anthropicUsage.source === "cli") {
       // Session usage (5-hour window)
       const sessionIndicator = getUsageIndicator(anthropicUsage.session.percentUsed, 70, 90);
       items.push({
@@ -1066,6 +1066,16 @@ const createTray = () => {
     width: 18,
     height: 18,
   });
+
+  // Set initial menu immediately so tray is responsive while stats load
+  tray.setMenu([
+    { label: "Loading...", type: "normal" as const, enabled: false },
+    { type: "separator" as const },
+    { label: "Show Dashboard", type: "normal" as const, action: "show-dashboard" },
+    { label: "Rescan Sessions", type: "normal" as const, action: "rescan-sessions" },
+    { type: "separator" as const },
+    { label: "Quit", type: "normal" as const, action: "quit-app" },
+  ]);
 
   tray.on("tray-clicked", (event: unknown) => {
     const getAction = (e: unknown): string => {
