@@ -7,6 +7,9 @@ import { DateFilter, buildComparisonWindows, cacheHitRatio } from "./shared";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
+/** Target section for insight action navigation */
+export type InsightActionTarget = "overview" | "cost" | "efficiency" | "tools" | "sessions" | "projects";
+
 export interface Insight {
   readonly id: string;
   readonly type: "success" | "warning" | "info" | "tip";
@@ -14,6 +17,9 @@ export interface Insight {
   readonly message: string;
   readonly metric?: number;
   readonly action?: string; // Actionable recommendation
+  readonly actionLabel?: string; // Short button label (e.g., "View Details")
+  readonly actionTarget?: InsightActionTarget; // Navigation target section
+  readonly dollarImpact?: number; // Estimated dollar impact for quantified insights
   readonly priority?: number; // 1-10 for sorting (higher = more important)
   readonly comparison?: {
     // Week-over-week comparison
@@ -65,6 +71,15 @@ export interface WeeklyComparison {
 }
 
 // ─── Constants ───────────────────────────────────────────────────────────────
+
+/** Benchmark thresholds for comparing user metrics to industry standards */
+export const BENCHMARKS = {
+  cacheRateGood: 0.25,
+  cacheRateExcellent: 0.35,
+  toolErrorRateGood: 0.03,
+  toolErrorRateBad: 0.10,
+  queriesPerSessionGood: 8,
+} as const;
 
 /**
  * Pattern-based fix suggestions for common bash errors by category.
@@ -339,6 +354,8 @@ export const InsightsAnalyticsServiceLive = Layer.effect(
                   : efficiencyScore < 70
                     ? "Good progress! Try batching related tasks to boost efficiency."
                     : "Excellent! Keep maintaining these patterns.",
+              actionLabel: "View Details",
+              actionTarget: "efficiency",
             });
 
             // ─── WEEK-OVER-WEEK COMPARISON ──────────────────────────────────────
@@ -346,14 +363,20 @@ export const InsightsAnalyticsServiceLive = Layer.effect(
               const costPerSessionChange = pctChange(costPerSession, lastWeekCostPerSession);
 
               if (costPerSessionChange < -10) {
+                // Calculate dollar savings
+                const dollarSavings = (lastWeekCostPerSession - costPerSession) * thisWeek.totalSessions;
+
                 insights.push({
                   id: "wow-cost-improved",
                   type: "success",
                   title: "Cost Efficiency Improved",
-                  message: `Your cost per session dropped ${Math.abs(costPerSessionChange).toFixed(0)}% vs last week.`,
+                  message: `Your cost per session dropped ${Math.abs(costPerSessionChange).toFixed(0)}% vs last week${dollarSavings > 0.5 ? `, saving ~$${dollarSavings.toFixed(2)}` : ""}.`,
                   metric: costPerSession,
                   priority: 8,
                   action: "Great work! You're getting more value from each session.",
+                  actionLabel: "View Cost Breakdown",
+                  actionTarget: "cost",
+                  dollarImpact: dollarSavings,
                   comparison: {
                     thisWeek: costPerSession,
                     lastWeek: lastWeekCostPerSession,
@@ -362,15 +385,21 @@ export const InsightsAnalyticsServiceLive = Layer.effect(
                   },
                 });
               } else if (costPerSessionChange > 20) {
+                // Calculate dollar increase
+                const dollarIncrease = (costPerSession - lastWeekCostPerSession) * thisWeek.totalSessions;
+
                 insights.push({
                   id: "wow-cost-increased",
                   type: "warning",
                   title: "Cost Per Session Increased",
-                  message: `Sessions are costing ${costPerSessionChange.toFixed(0)}% more than last week.`,
+                  message: `Sessions are costing ${costPerSessionChange.toFixed(0)}% more than last week${dollarIncrease > 0.5 ? ` (~$${dollarIncrease.toFixed(2)} extra)` : ""}.`,
                   metric: costPerSession,
                   priority: 7,
                   action:
                     "Consider using lighter models for simple tasks or improving cache utilization.",
+                  actionLabel: "View Cost Breakdown",
+                  actionTarget: "cost",
+                  dollarImpact: dollarIncrease,
                   comparison: {
                     thisWeek: costPerSession,
                     lastWeek: lastWeekCostPerSession,
@@ -384,15 +413,21 @@ export const InsightsAnalyticsServiceLive = Layer.effect(
             // ─── TOP OPPORTUNITY ────────────────────────────────────────────────
             // Identify the biggest single improvement opportunity
             if (cacheRatio < 0.2 && thisWeek.totalSessions >= 3) {
+              // Estimate potential savings if cache rate improved to benchmark
+              const potentialSavings = (thisWeek.totalCost ?? 0) * 0.25 * (BENCHMARKS.cacheRateGood - cacheRatio);
+
               insights.push({
                 id: "top-opportunity-cache",
                 type: "tip",
                 title: "Top Opportunity: Cache Utilization",
-                message: `Sessions with 10+ queries have 3x better cache hit rates. Your average: ${queriesPerSession.toFixed(1)} queries.`,
+                message: `Sessions with 10+ queries have 3x better cache hit rates. Your average: ${queriesPerSession.toFixed(1)} queries (benchmark: ${BENCHMARKS.queriesPerSessionGood}+).`,
                 metric: cacheRatio * 100,
                 priority: 9,
                 action:
                   "Batch related tasks into single sessions to improve cache utilization by ~25%.",
+                actionLabel: "Improve Cache",
+                actionTarget: "efficiency",
+                dollarImpact: potentialSavings > 0 ? potentialSavings : undefined,
               });
             } else if (errorRate > 0.05) {
               // Find the tool with highest errors
@@ -424,55 +459,100 @@ export const InsightsAnalyticsServiceLive = Layer.effect(
                 const toolErrorPct =
                   worstTool.total > 0 ? (worstTool.errors / worstTool.total) * 100 : 0;
                 if (toolErrorPct > 5) {
+                  // Query for top error pattern to provide root cause
+                  const topErrorPatternResult = await db
+                    .select({
+                      errorMessage: schema.toolUses.errorMessage,
+                      count: count(),
+                    })
+                    .from(schema.toolUses)
+                    .innerJoin(schema.sessions, eq(schema.toolUses.sessionId, schema.sessions.sessionId))
+                    .where(
+                      and(
+                        eq(schema.toolUses.hasError, true),
+                        eq(schema.toolUses.toolName, worstTool.toolName),
+                        gte(schema.sessions.startTime, currentStart),
+                        lte(schema.sessions.startTime, currentEnd)
+                      )
+                    )
+                    .groupBy(schema.toolUses.errorMessage)
+                    .orderBy(desc(count()))
+                    .limit(1);
+
+                  const topErrorMsg = topErrorPatternResult[0]?.errorMessage;
+                  const truncatedError = topErrorMsg
+                    ? topErrorMsg.length > 50
+                      ? topErrorMsg.slice(0, 47) + "..."
+                      : topErrorMsg
+                    : null;
+
                   insights.push({
                     id: "top-opportunity-tool",
                     type: "tip",
                     title: `Top Opportunity: Fix ${worstTool.toolName} Errors`,
-                    message: `${worstTool.toolName} has a ${toolErrorPct.toFixed(0)}% error rate, causing 80% of workflow friction.`,
+                    message: truncatedError
+                      ? `${worstTool.toolName} has ${toolErrorPct.toFixed(0)}% error rate. Top cause: "${truncatedError}"`
+                      : `${worstTool.toolName} has a ${toolErrorPct.toFixed(0)}% error rate (benchmark: <${(BENCHMARKS.toolErrorRateGood * 100).toFixed(0)}%).`,
                     metric: toolErrorPct,
                     priority: 9,
                     action:
                       worstTool.toolName === "Bash"
                         ? "Check for missing dependencies or incorrect paths in your shell commands."
                         : `Review ${worstTool.toolName} usage patterns and fix common failure cases.`,
+                    actionLabel: "Fix Tool Errors",
+                    actionTarget: "tools",
                   });
                 }
               }
             }
 
             // ─── CACHE EFFICIENCY ───────────────────────────────────────────────
-            if (cacheRatio > 0.3) {
+            const savedTotal = thisWeek.totalSavedByCaching ?? 0;
+
+            if (cacheRatio > BENCHMARKS.cacheRateExcellent) {
               insights.push({
                 id: "cache-efficiency",
                 type: "success",
                 title: "Excellent Cache Efficiency",
-                message: `${(cacheRatio * 100).toFixed(0)}% of input tokens served from cache.`,
+                message: `${(cacheRatio * 100).toFixed(0)}% cache rate saved you $${savedTotal.toFixed(2)} this week (benchmark: ${(BENCHMARKS.cacheRateGood * 100).toFixed(0)}%+).`,
                 metric: cacheRatio * 100,
                 priority: 5,
                 action: "Keep maintaining longer sessions to preserve cache benefits.",
+                actionLabel: "View Details",
+                actionTarget: "efficiency",
+                dollarImpact: savedTotal,
               });
             } else if (cacheRatio > 0 && cacheRatio < 0.15) {
+              // Estimate how much extra you're paying vs benchmark cache rate
+              const totalCost = thisWeek.totalCost ?? 0;
+              const estimatedExtraCost = totalCost * 0.25 * (BENCHMARKS.cacheRateGood - cacheRatio);
+
               insights.push({
                 id: "cache-low",
                 type: "warning",
                 title: "Low Cache Utilization",
-                message: `Only ${(cacheRatio * 100).toFixed(0)}% cache hit rate - you're paying full price for most tokens.`,
+                message: `Only ${(cacheRatio * 100).toFixed(0)}% cache hit rate (benchmark: ${(BENCHMARKS.cacheRateGood * 100).toFixed(0)}%+)${estimatedExtraCost > 0.5 ? ` - costing ~$${estimatedExtraCost.toFixed(2)} extra` : ""}.`,
                 metric: cacheRatio * 100,
                 priority: 6,
                 action: "Try longer sessions (10+ queries) to build up cache benefits.",
+                actionLabel: "Improve Cache",
+                actionTarget: "efficiency",
+                dollarImpact: estimatedExtraCost > 0 ? estimatedExtraCost : undefined,
               });
             }
 
             // ─── TOOL SUCCESS RATE ──────────────────────────────────────────────
-            if (errorRate > 0.1) {
+            if (errorRate > BENCHMARKS.toolErrorRateBad) {
               insights.push({
                 id: "high-tool-errors",
                 type: "warning",
                 title: "High Tool Error Rate",
-                message: `${(errorRate * 100).toFixed(1)}% of tool calls are failing.`,
+                message: `${(errorRate * 100).toFixed(1)}% of tool calls are failing (benchmark: <${(BENCHMARKS.toolErrorRateGood * 100).toFixed(0)}%).`,
                 metric: errorRate * 100,
                 priority: 7,
                 action: "Check project setup and fix common command failures.",
+                actionLabel: "View Tool Health",
+                actionTarget: "tools",
               });
             } else if (toolStats.total > 100 && errorRate < 0.02) {
               insights.push({
@@ -482,6 +562,8 @@ export const InsightsAnalyticsServiceLive = Layer.effect(
                 message: `${(toolSuccessRate * 100).toFixed(1)}% tool success rate across ${toolStats.total} calls.`,
                 metric: toolSuccessRate * 100,
                 priority: 4,
+                actionLabel: "View Details",
+                actionTarget: "tools",
               });
             }
 
@@ -499,6 +581,8 @@ export const InsightsAnalyticsServiceLive = Layer.effect(
                 message: `${(agentRatio * 100).toFixed(0)}% of sessions use subagents for parallel work.`,
                 metric: agentRatio * 100,
                 priority: 4,
+                actionLabel: "View Sessions",
+                actionTarget: "sessions",
               });
             } else if (thisWeek.totalSessions > 5 && agentRatio < 0.1) {
               insights.push({
@@ -509,6 +593,8 @@ export const InsightsAnalyticsServiceLive = Layer.effect(
                 metric: agentRatio * 100,
                 priority: 3,
                 action: "Try delegating research tasks to Explore or Plan agents.",
+                actionLabel: "Try Subagents",
+                actionTarget: "sessions",
               });
             }
 

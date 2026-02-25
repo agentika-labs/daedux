@@ -3,7 +3,10 @@ import { sql, desc, eq, and, count } from "drizzle-orm";
 import { DatabaseService } from "../db";
 import { DatabaseError } from "../errors";
 import * as schema from "../db/schema";
-import { modelDisplayNameWithVersion, modelFamily } from "../utils/pricing";
+import {
+  modelDisplayNameWithVersion,
+  modelFamily,
+} from "../../shared/model-utils";
 import { DateFilter, buildDateConditions } from "./shared";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -31,7 +34,7 @@ export class ModelAnalyticsService extends Context.Tag("ModelAnalyticsService")<
   ModelAnalyticsService,
   {
     readonly getModelBreakdown: (
-      dateFilter?: DateFilter
+      dateFilter?: DateFilter,
     ) => Effect.Effect<ModelBreakdown[], DatabaseError>;
   }
 >() {}
@@ -56,42 +59,56 @@ export const ModelAnalyticsServiceLive = Layer.effect(
                 .select({
                   model: schema.queries.model,
                   queryCount: count(),
-                  totalCost: sql<number>`SUM(${schema.queries.cost})`.as("total_cost"),
+                  totalCost: sql<number>`SUM(${schema.queries.cost})`.as(
+                    "total_cost",
+                  ),
                   totalTokens: sql<number>`SUM(
                     COALESCE(${schema.queries.inputTokens}, 0) +
                     COALESCE(${schema.queries.outputTokens}, 0) +
                     COALESCE(${schema.queries.cacheRead}, 0) +
                     COALESCE(${schema.queries.cacheWrite}, 0)
                   )`.as("total_tokens"),
-                  sessionCount: sql<number>`COUNT(DISTINCT ${schema.queries.sessionId})`.as(
-                    "session_count"
-                  ),
+                  sessionCount:
+                    sql<number>`COUNT(DISTINCT ${schema.queries.sessionId})`.as(
+                      "session_count",
+                    ),
                 })
                 .from(schema.queries)
-                .where(sql`${schema.queries.model} IS NOT NULL AND ${schema.queries.model} != '<synthetic>'`)
+                .where(
+                  sql`${schema.queries.model} IS NOT NULL AND ${schema.queries.model} != '<synthetic>'`,
+                )
                 .groupBy(schema.queries.model)
                 .orderBy(desc(sql`SUM(${schema.queries.cost})`));
             } else {
               // Filtered query - join with sessions for date range
-              const conditions = [sql`${schema.queries.model} IS NOT NULL AND ${schema.queries.model} != '<synthetic>'`, ...dateConditions];
+              const conditions = [
+                sql`${schema.queries.model} IS NOT NULL AND ${schema.queries.model} != '<synthetic>'`,
+                ...dateConditions,
+              ];
 
               result = await db
                 .select({
                   model: schema.queries.model,
                   queryCount: count(),
-                  totalCost: sql<number>`SUM(${schema.queries.cost})`.as("total_cost"),
+                  totalCost: sql<number>`SUM(${schema.queries.cost})`.as(
+                    "total_cost",
+                  ),
                   totalTokens: sql<number>`SUM(
                     COALESCE(${schema.queries.inputTokens}, 0) +
                     COALESCE(${schema.queries.outputTokens}, 0) +
                     COALESCE(${schema.queries.cacheRead}, 0) +
                     COALESCE(${schema.queries.cacheWrite}, 0)
                   )`.as("total_tokens"),
-                  sessionCount: sql<number>`COUNT(DISTINCT ${schema.queries.sessionId})`.as(
-                    "session_count"
-                  ),
+                  sessionCount:
+                    sql<number>`COUNT(DISTINCT ${schema.queries.sessionId})`.as(
+                      "session_count",
+                    ),
                 })
                 .from(schema.queries)
-                .innerJoin(schema.sessions, eq(schema.queries.sessionId, schema.sessions.sessionId))
+                .innerJoin(
+                  schema.sessions,
+                  eq(schema.queries.sessionId, schema.sessions.sessionId),
+                )
                 .where(and(...conditions))
                 .groupBy(schema.queries.model)
                 .orderBy(desc(sql`SUM(${schema.queries.cost})`));
@@ -156,5 +173,5 @@ export const ModelAnalyticsServiceLive = Layer.effect(
             }),
         }),
     };
-  })
+  }),
 );

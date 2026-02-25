@@ -4,7 +4,7 @@ import type { SQL } from "drizzle-orm";
 import { DatabaseService } from "../db";
 import { DatabaseError } from "../errors";
 import * as schema from "../db/schema";
-import { DateFilter, buildDateConditions } from "./shared";
+import { type DateFilter, buildDateConditions } from "./shared";
 import { cacheHitRatio, totalInputWithCache } from "../metrics";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -143,13 +143,17 @@ export interface DashboardStats {
 
 // ─── Service Interface ───────────────────────────────────────────────────────
 
-export class SessionAnalyticsService extends Context.Tag("SessionAnalyticsService")<
+export class SessionAnalyticsService extends Context.Tag(
+  "SessionAnalyticsService",
+)<
   SessionAnalyticsService,
   {
-    readonly getTotals: (dateFilter?: DateFilter) => Effect.Effect<Totals, DatabaseError>;
+    readonly getTotals: (
+      dateFilter?: DateFilter,
+    ) => Effect.Effect<Totals, DatabaseError>;
     readonly getDailyStats: (
       days?: number,
-      dateFilter?: DateFilter
+      dateFilter?: DateFilter,
     ) => Effect.Effect<DailyStat[], DatabaseError>;
     readonly getSessionSummaries: (options?: {
       limit?: number;
@@ -158,24 +162,26 @@ export class SessionAnalyticsService extends Context.Tag("SessionAnalyticsServic
       dateFilter?: DateFilter;
     }) => Effect.Effect<SessionSummary[], DatabaseError>;
     readonly getProjectSummaries: (
-      dateFilter?: DateFilter
+      dateFilter?: DateFilter,
     ) => Effect.Effect<ProjectSummary[], DatabaseError>;
-    readonly getRecentSessions: (limit: number) => Effect.Effect<SessionSummary[], DatabaseError>;
+    readonly getRecentSessions: (
+      limit: number,
+    ) => Effect.Effect<SessionSummary[], DatabaseError>;
     readonly getSessionPrimaryModels: (
-      dateFilter?: DateFilter
+      dateFilter?: DateFilter,
     ) => Effect.Effect<Map<string, string>, DatabaseError>;
     readonly getExtendedTotals: (
-      dateFilter?: DateFilter
+      dateFilter?: DateFilter,
     ) => Effect.Effect<ExtendedTotals, DatabaseError>;
     readonly getDashboardStats: (
-      dateFilter?: DateFilter
+      dateFilter?: DateFilter,
     ) => Effect.Effect<DashboardStats, DatabaseError>;
     readonly getTopPrompts: (
       limit: number,
-      dateFilter?: DateFilter
+      dateFilter?: DateFilter,
     ) => Effect.Effect<TopPrompt[], DatabaseError>;
     readonly getSessionAgentCounts: (
-      dateFilter?: DateFilter
+      dateFilter?: DateFilter,
     ) => Effect.Effect<Map<string, number>, DatabaseError>;
   }
 >() {}
@@ -198,25 +204,35 @@ export const SessionAnalyticsServiceLive = Layer.effect(
                 totalSessions: count(),
                 totalSubagents:
                   sql<number>`SUM(CASE WHEN ${schema.sessions.isSubagent} = 1 THEN 1 ELSE 0 END)`.as(
-                    "total_subagents"
+                    "total_subagents",
                   ),
-                totalQueries: sql<number>`SUM(${schema.sessions.queryCount})`.as("total_queries"),
-                totalToolUses: sql<number>`SUM(${schema.sessions.toolUseCount})`.as(
-                  "total_tool_uses"
+                totalQueries:
+                  sql<number>`SUM(${schema.sessions.queryCount})`.as(
+                    "total_queries",
+                  ),
+                totalToolUses:
+                  sql<number>`SUM(${schema.sessions.toolUseCount})`.as(
+                    "total_tool_uses",
+                  ),
+                totalCost: sql<number>`SUM(${schema.sessions.totalCost})`.as(
+                  "total_cost",
                 ),
-                totalCost: sql<number>`SUM(${schema.sessions.totalCost})`.as("total_cost"),
-                totalInputTokens: sql<number>`SUM(${schema.sessions.totalInputTokens})`.as(
-                  "total_input"
-                ),
-                totalOutputTokens: sql<number>`SUM(${schema.sessions.totalOutputTokens})`.as(
-                  "total_output"
-                ),
-                totalCacheRead: sql<number>`SUM(${schema.sessions.totalCacheRead})`.as(
-                  "total_cache_read"
-                ),
-                totalCacheWrite: sql<number>`SUM(${schema.sessions.totalCacheWrite})`.as(
-                  "total_cache_write"
-                ),
+                totalInputTokens:
+                  sql<number>`SUM(${schema.sessions.totalInputTokens})`.as(
+                    "total_input",
+                  ),
+                totalOutputTokens:
+                  sql<number>`SUM(${schema.sessions.totalOutputTokens})`.as(
+                    "total_output",
+                  ),
+                totalCacheRead:
+                  sql<number>`SUM(${schema.sessions.totalCacheRead})`.as(
+                    "total_cache_read",
+                  ),
+                totalCacheWrite:
+                  sql<number>`SUM(${schema.sessions.totalCacheWrite})`.as(
+                    "total_cache_write",
+                  ),
               })
               .from(schema.sessions);
 
@@ -238,35 +254,47 @@ export const SessionAnalyticsServiceLive = Layer.effect(
               totalCacheWrite: row?.totalCacheWrite ?? 0,
             };
           },
-          catch: (error) => new DatabaseError({ operation: "getTotals", cause: error }),
+          catch: (error) =>
+            new DatabaseError({ operation: "getTotals", cause: error }),
         }),
 
       getDailyStats: (days?: number, dateFilter: DateFilter = {}) =>
         Effect.tryPromise({
           try: async () => {
             // Use localtime to match user's calendar day
-            const dateExpr =
-              sql<string>`date(${schema.sessions.startTime} / 1000, 'unixepoch', 'localtime')`;
+            const dateExpr = sql<string>`date(${schema.sessions.startTime} / 1000, 'unixepoch', 'localtime')`;
 
             let query = db
               .select({
                 date: dateExpr.as("date"),
                 sessionCount: count(),
-                queryCount: sql<number>`SUM(${schema.sessions.queryCount})`.as("query_count"),
-                totalCost: sql<number>`SUM(${schema.sessions.totalCost})`.as("total_cost"),
+                queryCount: sql<number>`SUM(${schema.sessions.queryCount})`.as(
+                  "query_count",
+                ),
+                totalCost: sql<number>`SUM(${schema.sessions.totalCost})`.as(
+                  "total_cost",
+                ),
                 totalTokens:
                   sql<number>`SUM(${schema.sessions.totalInputTokens} + ${schema.sessions.totalOutputTokens})`.as(
-                    "total_tokens"
+                    "total_tokens",
                   ),
                 // Token breakdown for daily usage chart
-                uncachedInput: sql<number>`SUM(${schema.sessions.totalInputTokens})`.as(
-                  "uncached_input"
-                ),
-                cacheRead: sql<number>`SUM(${schema.sessions.totalCacheRead})`.as("cache_read"),
-                cacheCreation: sql<number>`SUM(${schema.sessions.totalCacheWrite})`.as(
-                  "cache_creation"
-                ),
-                output: sql<number>`SUM(${schema.sessions.totalOutputTokens})`.as("output"),
+                uncachedInput:
+                  sql<number>`SUM(${schema.sessions.totalInputTokens})`.as(
+                    "uncached_input",
+                  ),
+                cacheRead:
+                  sql<number>`SUM(${schema.sessions.totalCacheRead})`.as(
+                    "cache_read",
+                  ),
+                cacheCreation:
+                  sql<number>`SUM(${schema.sessions.totalCacheWrite})`.as(
+                    "cache_creation",
+                  ),
+                output:
+                  sql<number>`SUM(${schema.sessions.totalOutputTokens})`.as(
+                    "output",
+                  ),
               })
               .from(schema.sessions);
 
@@ -281,9 +309,13 @@ export const SessionAnalyticsServiceLive = Layer.effect(
             }
 
             const result = await query
-              .groupBy(sql`date(${schema.sessions.startTime} / 1000, 'unixepoch', 'localtime')`)
+              .groupBy(
+                sql`date(${schema.sessions.startTime} / 1000, 'unixepoch', 'localtime')`,
+              )
               .orderBy(
-                desc(sql`date(${schema.sessions.startTime} / 1000, 'unixepoch', 'localtime')`)
+                desc(
+                  sql`date(${schema.sessions.startTime} / 1000, 'unixepoch', 'localtime')`,
+                ),
               );
 
             return result.map((row) => ({
@@ -298,13 +330,19 @@ export const SessionAnalyticsServiceLive = Layer.effect(
               output: row.output ?? 0,
             }));
           },
-          catch: (error) => new DatabaseError({ operation: "getDailyStats", cause: error }),
+          catch: (error) =>
+            new DatabaseError({ operation: "getDailyStats", cause: error }),
         }),
 
       getSessionSummaries: (options = {}) =>
         Effect.tryPromise({
           try: async () => {
-            const { limit, projectPath, includeSubagents = true, dateFilter = {} } = options;
+            const {
+              limit,
+              projectPath,
+              includeSubagents = true,
+              dateFilter = {},
+            } = options;
 
             let query = db
               .select({
@@ -361,9 +399,16 @@ export const SessionAnalyticsServiceLive = Layer.effect(
               .select({
                 projectPath: schema.sessions.projectPath,
                 sessionCount: count(),
-                totalCost: sql<number>`SUM(${schema.sessions.totalCost})`.as("total_cost"),
-                totalQueries: sql<number>`SUM(${schema.sessions.queryCount})`.as("total_queries"),
-                lastActivity: sql<number>`MAX(${schema.sessions.startTime})`.as("last_activity"),
+                totalCost: sql<number>`SUM(${schema.sessions.totalCost})`.as(
+                  "total_cost",
+                ),
+                totalQueries:
+                  sql<number>`SUM(${schema.sessions.queryCount})`.as(
+                    "total_queries",
+                  ),
+                lastActivity: sql<number>`MAX(${schema.sessions.startTime})`.as(
+                  "last_activity",
+                ),
                 // Pick shortest cwd (project root) - MIN returns shortest path since subdirs are longer
                 cwd: sql<string | null>`MIN(${schema.sessions.cwd})`.as("cwd"),
               })
@@ -421,7 +466,8 @@ export const SessionAnalyticsServiceLive = Layer.effect(
 
             return result;
           },
-          catch: (error) => new DatabaseError({ operation: "getRecentSessions", cause: error }),
+          catch: (error) =>
+            new DatabaseError({ operation: "getRecentSessions", cause: error }),
         }),
 
       getSessionPrimaryModels: (dateFilter: DateFilter = {}) =>
@@ -450,7 +496,10 @@ export const SessionAnalyticsServiceLive = Layer.effect(
                   count: count(),
                 })
                 .from(schema.queries)
-                .innerJoin(schema.sessions, eq(schema.queries.sessionId, schema.sessions.sessionId))
+                .innerJoin(
+                  schema.sessions,
+                  eq(schema.queries.sessionId, schema.sessions.sessionId),
+                )
                 .where(and(modelNotNull, ...dateConditions))
                 .groupBy(schema.queries.sessionId, schema.queries.model)
                 .orderBy(schema.queries.sessionId, desc(count()));
@@ -470,7 +519,10 @@ export const SessionAnalyticsServiceLive = Layer.effect(
             return sessionModels;
           },
           catch: (error) =>
-            new DatabaseError({ operation: "getSessionPrimaryModels", cause: error }),
+            new DatabaseError({
+              operation: "getSessionPrimaryModels",
+              cause: error,
+            }),
         }),
 
       getExtendedTotals: (dateFilter: DateFilter = {}) =>
@@ -484,35 +536,55 @@ export const SessionAnalyticsServiceLive = Layer.effect(
                 totalSessions: count(),
                 totalSubagents:
                   sql<number>`SUM(CASE WHEN ${schema.sessions.isSubagent} = 1 THEN 1 ELSE 0 END)`.as(
-                    "total_subagents"
+                    "total_subagents",
                   ),
-                totalQueries: sql<number>`SUM(${schema.sessions.queryCount})`.as("total_queries"),
-                totalToolUses: sql<number>`SUM(${schema.sessions.toolUseCount})`.as(
-                  "total_tool_uses"
+                totalQueries:
+                  sql<number>`SUM(${schema.sessions.queryCount})`.as(
+                    "total_queries",
+                  ),
+                totalToolUses:
+                  sql<number>`SUM(${schema.sessions.toolUseCount})`.as(
+                    "total_tool_uses",
+                  ),
+                totalCost: sql<number>`SUM(${schema.sessions.totalCost})`.as(
+                  "total_cost",
                 ),
-                totalCost: sql<number>`SUM(${schema.sessions.totalCost})`.as("total_cost"),
-                totalInputTokens: sql<number>`SUM(${schema.sessions.totalInputTokens})`.as(
-                  "total_input"
-                ),
-                totalOutputTokens: sql<number>`SUM(${schema.sessions.totalOutputTokens})`.as(
-                  "total_output"
-                ),
-                totalCacheRead: sql<number>`SUM(${schema.sessions.totalCacheRead})`.as(
-                  "total_cache_read"
-                ),
-                totalCacheWrite: sql<number>`SUM(${schema.sessions.totalCacheWrite})`.as(
-                  "total_cache_write"
-                ),
+                totalInputTokens:
+                  sql<number>`SUM(${schema.sessions.totalInputTokens})`.as(
+                    "total_input",
+                  ),
+                totalOutputTokens:
+                  sql<number>`SUM(${schema.sessions.totalOutputTokens})`.as(
+                    "total_output",
+                  ),
+                totalCacheRead:
+                  sql<number>`SUM(${schema.sessions.totalCacheRead})`.as(
+                    "total_cache_read",
+                  ),
+                totalCacheWrite:
+                  sql<number>`SUM(${schema.sessions.totalCacheWrite})`.as(
+                    "total_cache_write",
+                  ),
                 totalSavedByCaching:
-                  sql<number>`SUM(COALESCE(${schema.sessions.savedByCaching}, 0))`.as("total_saved"),
-                avgDuration: sql<number>`AVG(${schema.sessions.durationMs})`.as("avg_duration"),
-                minStartTime: sql<number>`MIN(${schema.sessions.startTime})`.as("min_start"),
-                maxStartTime: sql<number>`MAX(${schema.sessions.startTime})`.as("max_start"),
+                  sql<number>`SUM(COALESCE(${schema.sessions.savedByCaching}, 0))`.as(
+                    "total_saved",
+                  ),
+                avgDuration: sql<number>`AVG(${schema.sessions.durationMs})`.as(
+                  "avg_duration",
+                ),
+                minStartTime: sql<number>`MIN(${schema.sessions.startTime})`.as(
+                  "min_start",
+                ),
+                maxStartTime: sql<number>`MAX(${schema.sessions.startTime})`.as(
+                  "max_start",
+                ),
               })
               .from(schema.sessions);
 
             if (dateConditions.length > 0) {
-              baseQuery = baseQuery.where(and(...dateConditions)) as typeof baseQuery;
+              baseQuery = baseQuery.where(
+                and(...dateConditions),
+              ) as typeof baseQuery;
             }
 
             const baseResult = await baseQuery;
@@ -524,7 +596,7 @@ export const SessionAnalyticsServiceLive = Layer.effect(
                 .select({
                   totalErrors:
                     sql<number>`SUM(CASE WHEN ${schema.toolUses.hasError} = 1 THEN 1 ELSE 0 END)`.as(
-                      "total_errors"
+                      "total_errors",
                     ),
                 })
                 .from(schema.toolUses);
@@ -533,13 +605,13 @@ export const SessionAnalyticsServiceLive = Layer.effect(
                 .select({
                   totalErrors:
                     sql<number>`SUM(CASE WHEN ${schema.toolUses.hasError} = 1 THEN 1 ELSE 0 END)`.as(
-                      "total_errors"
+                      "total_errors",
                     ),
                 })
                 .from(schema.toolUses)
                 .innerJoin(
                   schema.sessions,
-                  eq(schema.toolUses.sessionId, schema.sessions.sessionId)
+                  eq(schema.toolUses.sessionId, schema.sessions.sessionId),
                 )
                 .where(and(...dateConditions));
             }
@@ -547,56 +619,73 @@ export const SessionAnalyticsServiceLive = Layer.effect(
             // Get counts from extended tables (join with sessions for date filter)
             let bashCount, fileOpsCount, hookCount, skillCount, agentCount;
             if (dateConditions.length === 0) {
-              [bashCount, fileOpsCount, hookCount, skillCount, agentCount] = await Promise.all([
-                db.select({ count: count() }).from(schema.bashCommands),
-                db.select({ count: count() }).from(schema.fileOperations),
-                db.select({ count: count() }).from(schema.hookEvents),
-                db.select({ count: count() }).from(schema.skillInvocations),
-                db.select({ count: count() }).from(schema.agentSpawns),
-              ]);
+              [bashCount, fileOpsCount, hookCount, skillCount, agentCount] =
+                await Promise.all([
+                  db.select({ count: count() }).from(schema.bashCommands),
+                  db.select({ count: count() }).from(schema.fileOperations),
+                  db.select({ count: count() }).from(schema.hookEvents),
+                  db.select({ count: count() }).from(schema.skillInvocations),
+                  db.select({ count: count() }).from(schema.agentSpawns),
+                ]);
             } else {
-              [bashCount, fileOpsCount, hookCount, skillCount, agentCount] = await Promise.all([
-                db
-                  .select({ count: count() })
-                  .from(schema.bashCommands)
-                  .innerJoin(
-                    schema.sessions,
-                    eq(schema.bashCommands.sessionId, schema.sessions.sessionId)
-                  )
-                  .where(and(...dateConditions)),
-                db
-                  .select({ count: count() })
-                  .from(schema.fileOperations)
-                  .innerJoin(
-                    schema.sessions,
-                    eq(schema.fileOperations.sessionId, schema.sessions.sessionId)
-                  )
-                  .where(and(...dateConditions)),
-                db
-                  .select({ count: count() })
-                  .from(schema.hookEvents)
-                  .innerJoin(
-                    schema.sessions,
-                    eq(schema.hookEvents.sessionId, schema.sessions.sessionId)
-                  )
-                  .where(and(...dateConditions)),
-                db
-                  .select({ count: count() })
-                  .from(schema.skillInvocations)
-                  .innerJoin(
-                    schema.sessions,
-                    eq(schema.skillInvocations.sessionId, schema.sessions.sessionId)
-                  )
-                  .where(and(...dateConditions)),
-                db
-                  .select({ count: count() })
-                  .from(schema.agentSpawns)
-                  .innerJoin(
-                    schema.sessions,
-                    eq(schema.agentSpawns.sessionId, schema.sessions.sessionId)
-                  )
-                  .where(and(...dateConditions)),
-              ]);
+              [bashCount, fileOpsCount, hookCount, skillCount, agentCount] =
+                await Promise.all([
+                  db
+                    .select({ count: count() })
+                    .from(schema.bashCommands)
+                    .innerJoin(
+                      schema.sessions,
+                      eq(
+                        schema.bashCommands.sessionId,
+                        schema.sessions.sessionId,
+                      ),
+                    )
+                    .where(and(...dateConditions)),
+                  db
+                    .select({ count: count() })
+                    .from(schema.fileOperations)
+                    .innerJoin(
+                      schema.sessions,
+                      eq(
+                        schema.fileOperations.sessionId,
+                        schema.sessions.sessionId,
+                      ),
+                    )
+                    .where(and(...dateConditions)),
+                  db
+                    .select({ count: count() })
+                    .from(schema.hookEvents)
+                    .innerJoin(
+                      schema.sessions,
+                      eq(
+                        schema.hookEvents.sessionId,
+                        schema.sessions.sessionId,
+                      ),
+                    )
+                    .where(and(...dateConditions)),
+                  db
+                    .select({ count: count() })
+                    .from(schema.skillInvocations)
+                    .innerJoin(
+                      schema.sessions,
+                      eq(
+                        schema.skillInvocations.sessionId,
+                        schema.sessions.sessionId,
+                      ),
+                    )
+                    .where(and(...dateConditions)),
+                  db
+                    .select({ count: count() })
+                    .from(schema.agentSpawns)
+                    .innerJoin(
+                      schema.sessions,
+                      eq(
+                        schema.agentSpawns.sessionId,
+                        schema.sessions.sessionId,
+                      ),
+                    )
+                    .where(and(...dateConditions)),
+                ]);
             }
 
             const base = baseResult[0]!;
@@ -616,7 +705,8 @@ export const SessionAnalyticsServiceLive = Layer.effect(
             const uncachedInput = totalInputTokens;
             const totalTokens = totalInputTokens + totalOutputTokens;
 
-            const toDateStr = (ts: number) => new Date(ts).toISOString().split("T")[0]!;
+            const toDateStr = (ts: number) =>
+              new Date(ts).toISOString().split("T")[0]!;
 
             return {
               totalSessions,
@@ -640,24 +730,32 @@ export const SessionAnalyticsServiceLive = Layer.effect(
                 cacheRead: totalCacheRead,
                 cacheWrite: totalCacheWrite,
               }),
-              avgCostPerSession: totalSessions > 0 ? totalCost / totalSessions : 0,
+              avgCostPerSession:
+                totalSessions > 0 ? totalCost / totalSessions : 0,
               avgCostPerQuery: totalQueries > 0 ? totalCost / totalQueries : 0,
               avgSessionDurationMs: base.avgDuration ?? 0,
               dateRange: {
-                from: base.minStartTime ? toDateStr(base.minStartTime) : toDateStr(Date.now()),
-                to: base.maxStartTime ? toDateStr(base.maxStartTime) : toDateStr(Date.now()),
+                from: base.minStartTime
+                  ? toDateStr(base.minStartTime)
+                  : toDateStr(Date.now()),
+                to: base.maxStartTime
+                  ? toDateStr(base.maxStartTime)
+                  : toDateStr(Date.now()),
               },
               totalToolErrors,
-              toolErrorRate: totalToolUses > 0 ? totalToolErrors / totalToolUses : 0,
+              toolErrorRate:
+                totalToolUses > 0 ? totalToolErrors / totalToolUses : 0,
               totalBashCommands: bashCount[0]?.count ?? 0,
               totalFileOperations: fileOpsCount[0]?.count ?? 0,
               totalHookExecutions: hookCount[0]?.count ?? 0,
               totalSkillInvocations: skillCount[0]?.count ?? 0,
               totalAgentSpawns,
-              agentLeverageRatio: totalSessions > 0 ? totalAgentSpawns / totalSessions : 0,
+              agentLeverageRatio:
+                totalSessions > 0 ? totalAgentSpawns / totalSessions : 0,
             };
           },
-          catch: (error) => new DatabaseError({ operation: "getExtendedTotals", cause: error }),
+          catch: (error) =>
+            new DatabaseError({ operation: "getExtendedTotals", cause: error }),
         }),
 
       getDashboardStats: (dateFilter: DateFilter = {}) =>
@@ -674,11 +772,15 @@ export const SessionAnalyticsServiceLive = Layer.effect(
               mainSessionsResult = await db
                 .select({ count: count() })
                 .from(schema.sessions)
-                .where(and(eq(schema.sessions.isSubagent, false), ...dateConditions));
+                .where(
+                  and(eq(schema.sessions.isSubagent, false), ...dateConditions),
+                );
               subagentSessionsResult = await db
                 .select({ count: count() })
                 .from(schema.sessions)
-                .where(and(eq(schema.sessions.isSubagent, true), ...dateConditions));
+                .where(
+                  and(eq(schema.sessions.isSubagent, true), ...dateConditions),
+                );
             } else {
               mainSessionsResult = await db
                 .select({ count: count() })
@@ -702,11 +804,13 @@ export const SessionAnalyticsServiceLive = Layer.effect(
                 .from(schema.agentSpawns)
                 .innerJoin(
                   schema.sessions,
-                  eq(schema.agentSpawns.sessionId, schema.sessions.sessionId)
+                  eq(schema.agentSpawns.sessionId, schema.sessions.sessionId),
                 )
                 .where(and(...dateConditions));
             } else {
-              agentInvocationsResult = await db.select({ count: count() }).from(schema.agentSpawns);
+              agentInvocationsResult = await db
+                .select({ count: count() })
+                .from(schema.agentSpawns);
             }
             const agentInvocations = agentInvocationsResult[0]?.count ?? 0;
 
@@ -719,26 +823,30 @@ export const SessionAnalyticsServiceLive = Layer.effect(
                 .select({
                   total:
                     sql<number>`SUM(COALESCE(${schema.sessions.totalInputTokens}, 0) + COALESCE(${schema.sessions.totalOutputTokens}, 0))`.as(
-                      "total"
+                      "total",
                     ),
                 })
                 .from(schema.sessions)
-                .where(and(eq(schema.sessions.isSubagent, false), ...dateConditions));
+                .where(
+                  and(eq(schema.sessions.isSubagent, false), ...dateConditions),
+                );
               subagentTokensResult = await db
                 .select({
                   total:
                     sql<number>`SUM(COALESCE(${schema.sessions.totalInputTokens}, 0) + COALESCE(${schema.sessions.totalOutputTokens}, 0))`.as(
-                      "total"
+                      "total",
                     ),
                 })
                 .from(schema.sessions)
-                .where(and(eq(schema.sessions.isSubagent, true), ...dateConditions));
+                .where(
+                  and(eq(schema.sessions.isSubagent, true), ...dateConditions),
+                );
             } else {
               mainTokensResult = await db
                 .select({
                   total:
                     sql<number>`SUM(COALESCE(${schema.sessions.totalInputTokens}, 0) + COALESCE(${schema.sessions.totalOutputTokens}, 0))`.as(
-                      "total"
+                      "total",
                     ),
                 })
                 .from(schema.sessions)
@@ -747,7 +855,7 @@ export const SessionAnalyticsServiceLive = Layer.effect(
                 .select({
                   total:
                     sql<number>`SUM(COALESCE(${schema.sessions.totalInputTokens}, 0) + COALESCE(${schema.sessions.totalOutputTokens}, 0))`.as(
-                      "total"
+                      "total",
                     ),
                 })
                 .from(schema.sessions)
@@ -764,14 +872,16 @@ export const SessionAnalyticsServiceLive = Layer.effect(
                 .select({
                   totalInput:
                     sql<number>`SUM(COALESCE(${schema.sessions.totalInputTokens}, 0))`.as(
-                      "total_input"
+                      "total_input",
                     ),
-                  cacheRead: sql<number>`SUM(COALESCE(${schema.sessions.totalCacheRead}, 0))`.as(
-                    "cache_read"
-                  ),
-                  cacheWrite: sql<number>`SUM(COALESCE(${schema.sessions.totalCacheWrite}, 0))`.as(
-                    "cache_write"
-                  ),
+                  cacheRead:
+                    sql<number>`SUM(COALESCE(${schema.sessions.totalCacheRead}, 0))`.as(
+                      "cache_read",
+                    ),
+                  cacheWrite:
+                    sql<number>`SUM(COALESCE(${schema.sessions.totalCacheWrite}, 0))`.as(
+                      "cache_write",
+                    ),
                 })
                 .from(schema.sessions)
                 .where(and(...dateConditions));
@@ -780,14 +890,16 @@ export const SessionAnalyticsServiceLive = Layer.effect(
                 .select({
                   totalInput:
                     sql<number>`SUM(COALESCE(${schema.sessions.totalInputTokens}, 0))`.as(
-                      "total_input"
+                      "total_input",
                     ),
-                  cacheRead: sql<number>`SUM(COALESCE(${schema.sessions.totalCacheRead}, 0))`.as(
-                    "cache_read"
-                  ),
-                  cacheWrite: sql<number>`SUM(COALESCE(${schema.sessions.totalCacheWrite}, 0))`.as(
-                    "cache_write"
-                  ),
+                  cacheRead:
+                    sql<number>`SUM(COALESCE(${schema.sessions.totalCacheRead}, 0))`.as(
+                      "cache_read",
+                    ),
+                  cacheWrite:
+                    sql<number>`SUM(COALESCE(${schema.sessions.totalCacheWrite}, 0))`.as(
+                      "cache_write",
+                    ),
                 })
                 .from(schema.sessions);
             }
@@ -805,13 +917,19 @@ export const SessionAnalyticsServiceLive = Layer.effect(
             // Cache hit ratio: cacheRead / (uncached + cacheRead + cacheWrite)
             const hitRatio =
               inputWithCache > 0
-                ? cacheHitRatio({ uncachedInput: totalInputTokens, cacheRead, cacheWrite })
+                ? cacheHitRatio({
+                    uncachedInput: totalInputTokens,
+                    cacheRead,
+                    cacheWrite,
+                  })
                 : null;
-            const efficiencyPercent = hitRatio !== null ? Math.round(hitRatio * 100) : null;
+            const efficiencyPercent =
+              hitRatio !== null ? Math.round(hitRatio * 100) : null;
 
             // ─── Context Displacement ───────────────────────────────────────
             const totalTokens = mainSessionTokens + agentTokens;
-            const leverageRatio = totalTokens > 0 ? agentTokens / totalTokens : null;
+            const leverageRatio =
+              totalTokens > 0 ? agentTokens / totalTokens : null;
             const hasAgentUsage = agentInvocations > 0 || subagentSessions > 0;
 
             // ─── Tool Success Rate ──────────────────────────────────────────
@@ -822,13 +940,13 @@ export const SessionAnalyticsServiceLive = Layer.effect(
                   total: count(),
                   errors:
                     sql<number>`SUM(CASE WHEN ${schema.toolUses.hasError} = 1 THEN 1 ELSE 0 END)`.as(
-                      "errors"
+                      "errors",
                     ),
                 })
                 .from(schema.toolUses)
                 .innerJoin(
                   schema.sessions,
-                  eq(schema.toolUses.sessionId, schema.sessions.sessionId)
+                  eq(schema.toolUses.sessionId, schema.sessions.sessionId),
                 )
                 .where(and(...dateConditions));
             } else {
@@ -837,7 +955,7 @@ export const SessionAnalyticsServiceLive = Layer.effect(
                   total: count(),
                   errors:
                     sql<number>`SUM(CASE WHEN ${schema.toolUses.hasError} = 1 THEN 1 ELSE 0 END)`.as(
-                      "errors"
+                      "errors",
                     ),
                 })
                 .from(schema.toolUses);
@@ -846,41 +964,53 @@ export const SessionAnalyticsServiceLive = Layer.effect(
             const totalToolCalls = toolStatsResult[0]?.total ?? 0;
             const toolErrors = toolStatsResult[0]?.errors ?? 0;
             const toolSuccessRate =
-              totalToolCalls > 0 ? (1 - toolErrors / totalToolCalls) * 100 : 100;
+              totalToolCalls > 0
+                ? (1 - toolErrors / totalToolCalls) * 100
+                : 100;
 
             // ─── Query Count for Session Efficiency ─────────────────────────
             let queryCountResult;
             if (hasDateFilter) {
               queryCountResult = await db
                 .select({
-                  total: sql<number>`SUM(${schema.sessions.queryCount})`.as("total"),
+                  total: sql<number>`SUM(${schema.sessions.queryCount})`.as(
+                    "total",
+                  ),
                 })
                 .from(schema.sessions)
                 .where(and(...dateConditions));
             } else {
               queryCountResult = await db
                 .select({
-                  total: sql<number>`SUM(${schema.sessions.queryCount})`.as("total"),
+                  total: sql<number>`SUM(${schema.sessions.queryCount})`.as(
+                    "total",
+                  ),
                 })
                 .from(schema.sessions);
             }
 
             const totalQueries = queryCountResult[0]?.total ?? 0;
-            const avgQueriesPerSession = mainSessions > 0 ? totalQueries / mainSessions : null;
+            const avgQueriesPerSession =
+              mainSessions > 0 ? totalQueries / mainSessions : null;
 
             // Session efficiency: fewer queries per session = more efficient
             // Target: 5-15 queries per session is ideal
             // Score 100 at 10 queries, 70 at 25 queries, 50 at 40+ queries
             const sessionEfficiency =
               avgQueriesPerSession !== null
-                ? Math.max(0, Math.min(100, 100 - (avgQueriesPerSession - 10) * 2))
+                ? Math.max(
+                    0,
+                    Math.min(100, 100 - (avgQueriesPerSession - 10) * 2),
+                  )
                 : null;
 
             // ─── Workflow Overall Score ─────────────────────────────────────
             // Combine cache efficiency, tool success, and session efficiency
             const cacheScore = efficiencyPercent ?? 0;
             const overallScore = Math.round(
-              cacheScore * 0.4 + toolSuccessRate * 0.4 + (sessionEfficiency ?? 50) * 0.2
+              cacheScore * 0.4 +
+                toolSuccessRate * 0.4 +
+                (sessionEfficiency ?? 50) * 0.2,
             );
 
             return {
@@ -913,11 +1043,15 @@ export const SessionAnalyticsServiceLive = Layer.effect(
                 overallScore,
                 cacheEfficiency: efficiencyPercent,
                 toolSuccess: Math.round(toolSuccessRate),
-                sessionEfficiency: sessionEfficiency !== null ? Math.round(sessionEfficiency) : null,
+                sessionEfficiency:
+                  sessionEfficiency !== null
+                    ? Math.round(sessionEfficiency)
+                    : null,
               },
             };
           },
-          catch: (error) => new DatabaseError({ operation: "getDashboardStats", cause: error }),
+          catch: (error) =>
+            new DatabaseError({ operation: "getDashboardStats", cause: error }),
         }),
 
       getTopPrompts: (limit: number, dateFilter: DateFilter = {}) =>
@@ -938,7 +1072,9 @@ export const SessionAnalyticsServiceLive = Layer.effect(
                 .select({
                   prompt: schema.queries.userMessagePreview,
                   sessionId: schema.queries.sessionId,
-                  totalCost: sql<number>`SUM(${schema.queries.cost})`.as("total_cost"),
+                  totalCost: sql<number>`SUM(${schema.queries.cost})`.as(
+                    "total_cost",
+                  ),
                   totalTokens: sql<number>`SUM(
                     COALESCE(${schema.queries.inputTokens}, 0) +
                     COALESCE(${schema.queries.outputTokens}, 0) +
@@ -946,12 +1082,17 @@ export const SessionAnalyticsServiceLive = Layer.effect(
                     COALESCE(${schema.queries.cacheWrite}, 0)
                   )`.as("total_tokens"),
                   queryCount: sql<number>`COUNT(*)`.as("query_count"),
-                  timestamp: sql<number>`MAX(${schema.queries.timestamp})`.as("timestamp"),
+                  timestamp: sql<number>`MAX(${schema.queries.timestamp})`.as(
+                    "timestamp",
+                  ),
                   model: sql<string>`MAX(${schema.queries.model})`.as("model"),
                 })
                 .from(schema.queries)
                 .where(and(...baseConditions))
-                .groupBy(schema.queries.sessionId, schema.queries.userMessagePreview)
+                .groupBy(
+                  schema.queries.sessionId,
+                  schema.queries.userMessagePreview,
+                )
                 .orderBy(sql`total_cost DESC`)
                 .limit(limit);
             } else {
@@ -959,7 +1100,9 @@ export const SessionAnalyticsServiceLive = Layer.effect(
                 .select({
                   prompt: schema.queries.userMessagePreview,
                   sessionId: schema.queries.sessionId,
-                  totalCost: sql<number>`SUM(${schema.queries.cost})`.as("total_cost"),
+                  totalCost: sql<number>`SUM(${schema.queries.cost})`.as(
+                    "total_cost",
+                  ),
                   totalTokens: sql<number>`SUM(
                     COALESCE(${schema.queries.inputTokens}, 0) +
                     COALESCE(${schema.queries.outputTokens}, 0) +
@@ -967,13 +1110,21 @@ export const SessionAnalyticsServiceLive = Layer.effect(
                     COALESCE(${schema.queries.cacheWrite}, 0)
                   )`.as("total_tokens"),
                   queryCount: sql<number>`COUNT(*)`.as("query_count"),
-                  timestamp: sql<number>`MAX(${schema.queries.timestamp})`.as("timestamp"),
+                  timestamp: sql<number>`MAX(${schema.queries.timestamp})`.as(
+                    "timestamp",
+                  ),
                   model: sql<string>`MAX(${schema.queries.model})`.as("model"),
                 })
                 .from(schema.queries)
-                .innerJoin(schema.sessions, eq(schema.queries.sessionId, schema.sessions.sessionId))
+                .innerJoin(
+                  schema.sessions,
+                  eq(schema.queries.sessionId, schema.sessions.sessionId),
+                )
                 .where(and(...baseConditions, ...dateConditions))
-                .groupBy(schema.queries.sessionId, schema.queries.userMessagePreview)
+                .groupBy(
+                  schema.queries.sessionId,
+                  schema.queries.userMessagePreview,
+                )
                 .orderBy(sql`total_cost DESC`)
                 .limit(limit);
             }
@@ -988,7 +1139,8 @@ export const SessionAnalyticsServiceLive = Layer.effect(
               queryCount: row.queryCount ?? 1,
             }));
           },
-          catch: (error) => new DatabaseError({ operation: "getTopPrompts", cause: error }),
+          catch: (error) =>
+            new DatabaseError({ operation: "getTopPrompts", cause: error }),
         }),
 
       getSessionAgentCounts: (dateFilter: DateFilter = {}) =>
@@ -1014,7 +1166,7 @@ export const SessionAnalyticsServiceLive = Layer.effect(
                 .from(schema.agentSpawns)
                 .innerJoin(
                   schema.sessions,
-                  eq(schema.agentSpawns.sessionId, schema.sessions.sessionId)
+                  eq(schema.agentSpawns.sessionId, schema.sessions.sessionId),
                 )
                 .where(and(...dateConditions))
                 .groupBy(schema.agentSpawns.sessionId);
@@ -1026,8 +1178,12 @@ export const SessionAnalyticsServiceLive = Layer.effect(
             }
             return sessionAgentCounts;
           },
-          catch: (error) => new DatabaseError({ operation: "getSessionAgentCounts", cause: error }),
+          catch: (error) =>
+            new DatabaseError({
+              operation: "getSessionAgentCounts",
+              cause: error,
+            }),
         }),
     };
-  })
+  }),
 );

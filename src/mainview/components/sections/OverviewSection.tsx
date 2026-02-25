@@ -1,12 +1,11 @@
 import { Section } from "@/components/layout/Section";
 import { SectionHeader } from "@/components/shared/SectionHeader";
 import { StatCard } from "@/components/shared/StatCard";
-import { InsightCard, type InsightType } from "@/components/shared/InsightCard";
+import { InsightsPanel } from "@/components/shared/InsightsPanel";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { formatCurrency, formatTokens, formatNumber, formatPercent } from "@/lib/utils";
-import type { DashboardData, Insight } from "@shared/rpc-types";
-import { cn } from "@/lib/utils";
+import { formatCurrency, formatTokens, formatNumber, formatPercent, cn } from "@/lib/utils";
+import type { DashboardData } from "@shared/rpc-types";
 
 interface OverviewSectionProps {
   data: DashboardData | null;
@@ -177,56 +176,12 @@ export function OverviewSection({ data, loading, onNavigateToSection }: Overview
         </Card>
 
         {/* Insights Panel */}
-        <Card className="lg:col-span-2">
-          <CardHeader className="pb-2">
-            <CardTitle>Insights</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {loading ? (
-              <div className="space-y-3">
-                <Skeleton className="h-16 w-full" />
-                <Skeleton className="h-16 w-full" />
-                <Skeleton className="h-16 w-full" />
-              </div>
-            ) : data?.insights && data.insights.length > 0 ? (
-              <div className="space-y-3 max-h-[320px] overflow-y-auto pr-1">
-                {data.insights
-                  .sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0))
-                  .slice(0, 5)
-                  .map((insight, i) => (
-                    <InsightCard
-                      key={i}
-                      headline={insight.title}
-                      context={insight.description}
-                      type={mapInsightType(insight.type)}
-                      priority={insight.priority && insight.priority > 5 ? "high" : "medium"}
-                      action={
-                        insight.action
-                          ? {
-                              label: insight.action,
-                              onClick: () => {
-                                // Navigate to relevant section based on action
-                                if (insight.action?.toLowerCase().includes("cost")) {
-                                  onNavigateToSection?.("cost");
-                                } else if (insight.action?.toLowerCase().includes("tool")) {
-                                  onNavigateToSection?.("tools");
-                                } else if (insight.action?.toLowerCase().includes("cache") || insight.action?.toLowerCase().includes("efficiency")) {
-                                  onNavigateToSection?.("efficiency");
-                                }
-                              },
-                            }
-                          : undefined
-                      }
-                    />
-                  ))}
-              </div>
-            ) : (
-              <p className="text-center text-muted-foreground py-8">
-                No insights available
-              </p>
-            )}
-          </CardContent>
-        </Card>
+        <InsightsPanel
+          insights={data?.insights ?? []}
+          loading={loading}
+          onNavigateToSection={onNavigateToSection}
+          className="lg:col-span-2"
+        />
       </div>
 
       {/* Weekly Comparison */}
@@ -354,16 +309,4 @@ function ComparisonCard({ label, thisWeek, lastWeek, change, isInverse = false }
       </div>
     </div>
   );
-}
-
-function mapInsightType(type: Insight["type"]): InsightType {
-  switch (type) {
-    case "success":
-      return "success";
-    case "warning":
-      return "warning";
-    case "info":
-    default:
-      return "info";
-  }
 }

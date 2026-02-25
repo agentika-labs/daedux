@@ -136,11 +136,17 @@ export interface WeeklyComparison {
   concerns: string[];
 }
 
+/** Target section for insight action navigation */
+export type InsightActionTarget = "overview" | "cost" | "efficiency" | "tools" | "sessions" | "projects";
+
 export interface Insight {
   type: "success" | "warning" | "info";
   title: string;
   description: string;
   action: string;
+  actionLabel?: string;
+  actionTarget?: InsightActionTarget;
+  dollarImpact?: number;
   priority?: number;
   comparison?: {
     thisWeek: number;

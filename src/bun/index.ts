@@ -36,7 +36,7 @@ import {
 } from "./analytics/index";
 import { SchedulerService, parseDaysOfWeek } from "./services/scheduler";
 import { AnthropicUsageService } from "./services/anthropic-usage";
-import { modelDisplayNameWithVersion } from "@shared/model-utils";
+import { modelDisplayNameWithVersion } from "../shared/model-utils";
 import { toDateString } from "./utils/formatting";
 
 // ─── App State ──────────────────────────────────────────────────────────────
@@ -231,6 +231,9 @@ const loadDashboardData = (dateFilter: DateFilter = {}) =>
       title: i.title,
       description: i.message,
       action: i.action ?? "",
+      actionLabel: i.actionLabel,
+      actionTarget: i.actionTarget,
+      dollarImpact: i.dollarImpact,
       priority: i.priority,
       comparison: i.comparison,
     }));
