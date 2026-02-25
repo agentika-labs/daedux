@@ -236,7 +236,8 @@ export interface DashboardData {
 
 export interface AnthropicUsageWindow {
   percentUsed: number; // 0-100
-  resetAt: number | null; // Unix timestamp (seconds)
+  resetAt: number | null; // Unix timestamp (seconds) - may be null if parsing fails
+  resetAtRaw: string | null; // Raw reset string e.g. "4am (Europe/London)" or "Mar 3 at 4pm (Europe/London)"
   limit: string | null; // Human-readable limit description
 }
 
@@ -246,8 +247,10 @@ export interface AnthropicUsage {
   sonnet: AnthropicUsageWindow | null; // Model-specific (if applicable)
   opus: AnthropicUsageWindow | null; // Model-specific (if applicable)
   extraUsage?: {
+    percentUsed: number; // 100% when over limit
     spentUsd: number;
     limitUsd: number | null;
+    resetAtRaw: string | null; // e.g. "Mar 1 (Europe/London)"
   };
   subscription?: {
     type: string; // "max", "pro", "free", etc.

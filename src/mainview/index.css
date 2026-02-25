@@ -128,11 +128,11 @@
   * {
     @apply border-border outline-ring/50;
   }
-  body {
-    @apply font-sans bg-background text-foreground antialiased;
-  }
   html {
-    @apply font-sans;
+    @apply font-sans overflow-hidden;
+  }
+  body {
+    @apply font-sans bg-background text-foreground antialiased overflow-hidden h-screen;
   }
 }
 

@@ -1,4 +1,4 @@
-import { Context, Effect, Layer, Schema } from "effect";
+import { Context, Duration, Effect, Layer, Schedule, Schema } from "effect";
 import { AnthropicUsageError } from "../errors";
 import type { AnthropicUsage, AnthropicUsageWindow } from "../../shared/rpc-types";
 
@@ -67,84 +67,216 @@ interface CachedUsage {
 
 let usageCache: CachedUsage | null = null;
 
-// ─── Expect-Based CLI Probe ──────────────────────────────────────────────────
+// ─── Native PTY-Based CLI Probe ──────────────────────────────────────────────
 //
 // NOTE: The CLI probe is a best-effort fallback when the OAuth API is unavailable.
-// It uses `expect` to automate the Claude CLI's interactive TUI, which is inherently
-// fragile (prompt format, ANSI codes, etc. can change). The parsing logic is unit
-// tested separately in tests/unit/anthropic-usage-parser.test.ts.
-
-/**
- * Parse "2h 30m" or "4d 12h" duration string to Unix timestamp.
- */
-const parseResetTime = (timeStr: string): number | null => {
-  const now = Date.now();
-  let ms = 0;
-
-  const days = timeStr.match(/(\d+)d/);
-  const hours = timeStr.match(/(\d+)h/);
-  const mins = timeStr.match(/(\d+)m/);
-
-  if (days?.[1]) ms += parseInt(days[1], 10) * 24 * 60 * 60 * 1000;
-  if (hours?.[1]) ms += parseInt(hours[1], 10) * 60 * 60 * 1000;
-  if (mins?.[1]) ms += parseInt(mins[1], 10) * 60 * 1000;
-
-  return ms > 0 ? Math.floor((now + ms) / 1000) : null;
-};
+// It uses Bun's native PTY support to automate the Claude CLI's interactive TUI.
+// This is more reliable than expect-based automation because it provides real
+// terminal emulation. The parsing logic is unit tested separately in
+// tests/unit/anthropic-usage-parser.test.ts.
 
 /**
  * Parse TUI output to extract usage percentages.
  * Strips ANSI escape codes and extracts numbers.
  *
- * Expected output format from /usage:
+ * Expected output format from /usage (as of 2026):
  * ```
- * Session usage: 45% (resets in 2h 30m)
- * Weekly usage: 62% (resets in 4d 12h)
- * Opus: 78% (resets in 4d 12h)
+ * Current session
+ * [progress bar]                          21% used
+ * Resets 3:59am (Europe/London)
+ *
+ * Current week (all models)
+ * [progress bar]                          2% used
+ * Resets Mar 3 at 4pm (Europe/London)
+ *
+ * Current week (Sonnet only)
+ * [progress bar]                          0% used
+ *
+ * Extra usage
+ * [progress bar]                          100% used
+ * $40.42 / $37.50 spent · Resets Mar 1 (Europe/London)
  * ```
  */
 const parseUsageOutput = (output: string): AnthropicUsage => {
-  // Strip ANSI escape codes
-  const clean = output.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, "");
+  // Strip all ANSI escape sequences comprehensively
+  const clean = output
+    .replace(/\x1b\[[0-9;?]*[a-zA-Z]/g, "") // CSI sequences (colors, cursor)
+    .replace(/\x1b\][^\x07]*\x07/g, "") // OSC sequences (title, etc)
+    .replace(/\x1b[PX^_][^\x1b]*\x1b\\/g, "") // DCS/PM/APC sequences
+    .replace(/\x1b[()][AB012]/g, "") // Character set selection
+    .replace(/\x1b[=>]/g, "") // Keypad mode
+    .replace(/[\x00-\x08\x0b\x0c\x0e-\x1a]/g, ""); // Control chars except \t\n\r
 
-  // Extract percentages using regex
-  const sessionMatch = clean.match(/Session.*?(\d+)%/i);
-  const weeklyMatch = clean.match(/Weekly.*?(\d+)%/i);
-  const opusMatch = clean.match(/Opus.*?(\d+)%/i);
-  const sonnetMatch = clean.match(/Sonnet.*?(\d+)%/i);
+  // DEBUG: Find ALL percentage patterns in the output
+  const allPercentages = clean.match(/\d+%/g) || [];
+  const allUsedPatterns = clean.match(/\d+%\s*used/gi) || [];
+  const allSpentPatterns = clean.match(/\$[\d.]+\s*\/\s*\$[\d.]+\s*spent/gi) || [];
 
-  // Extract reset times (e.g., "resets in 2h 30m")
-  const sessionResetMatch = clean.match(/Session.*?resets in ([^)]+)/i);
-  const weeklyResetMatch = clean.match(/Weekly.*?resets in ([^)]+)/i);
+  // Extract reset patterns with timezone - formats:
+  // "Resets 4am (Europe/London)" - session
+  // "Resets Mar 3 at 4pm (Europe/London)" - weekly
+  // "Resets Mar 1 (Europe/London)" - extra usage
+  const allResetPatterns = clean.match(/Resets\s+[^(]+\([^)]+\)/gi) || [];
 
-  return {
+  console.log("[anthropic-usage] DEBUG - All patterns found:", {
+    percentages: allPercentages,
+    usedPatterns: allUsedPatterns,
+    spentPatterns: allSpentPatterns,
+    resetPatterns: allResetPatterns,
+    hasCurrentSession: clean.includes("Current session"),
+    hasCurrentWeek: clean.includes("Current week"),
+    hasSonnet: clean.includes("Sonnet"),
+    hasExtraUsage: clean.includes("Extra usage"),
+  });
+
+  // Try the original regex approach first
+  const sessionMatch = clean.match(/Current session[\s\S]*?(\d+)%\s*used/i);
+  const weeklyMatch = clean.match(/Current week\s*\(all models\)[\s\S]*?(\d+)%\s*used/i);
+  const sonnetMatch = clean.match(/Sonnet only[\s\S]*?(\d+)%\s*used/i);
+  const extraUsageMatch = clean.match(/Extra usage[\s\S]*?(\d+)%\s*used/i);
+  const extraSpendingMatch = clean.match(/\$([0-9.]+)\s*\/\s*\$([0-9.]+)\s*spent/i);
+
+  // FALLBACK: Use positional extraction from "X% used" patterns
+  // The usage panel renders in order: session, weekly (all models), sonnet, extra
+  // This is more reliable than label-based regex since TUI cursor positioning
+  // separates labels from values
+  const extractPct = (s: string) => parseInt(s.match(/(\d+)%/)?.[1] || "0", 10);
+
+  let sessionPct = 0;
+  let weeklyPct = 0;
+  let sonnetPct = 0;
+  let extraPct = 0;
+
+  if (allUsedPatterns.length >= 4) {
+    // We have all 4 patterns - use positional extraction
+    console.log("[anthropic-usage] Using positional extraction from:", allUsedPatterns);
+    sessionPct = extractPct(allUsedPatterns[0]!);
+    weeklyPct = extractPct(allUsedPatterns[1]!);
+    sonnetPct = extractPct(allUsedPatterns[2]!);
+    extraPct = extractPct(allUsedPatterns[3]!);
+  } else {
+    // Fallback to label-based regex (less reliable with TUI output)
+    sessionPct = sessionMatch?.[1] ? parseInt(sessionMatch[1], 10) : 0;
+    weeklyPct = weeklyMatch?.[1] ? parseInt(weeklyMatch[1], 10) : 0;
+    sonnetPct = sonnetMatch?.[1] ? parseInt(sonnetMatch[1], 10) : 0;
+    extraPct = extraUsageMatch?.[1] ? parseInt(extraUsageMatch[1], 10) : 0;
+  }
+
+  // Extract reset times with timezone by position
+  // Order: session reset, weekly reset, extra usage reset (sonnet has no reset)
+  // Format: "Resets 4am (Europe/London)" -> "4am (Europe/London)"
+  const extractResetRaw = (s: string) => s.replace(/^Resets\s+/i, "").trim();
+  let sessionResetRaw: string | null = null;
+  let weeklyResetRaw: string | null = null;
+  let extraResetRaw: string | null = null;
+
+  if (allResetPatterns.length >= 1) sessionResetRaw = extractResetRaw(allResetPatterns[0]!);
+  if (allResetPatterns.length >= 2) weeklyResetRaw = extractResetRaw(allResetPatterns[1]!);
+  if (allResetPatterns.length >= 3) extraResetRaw = extractResetRaw(allResetPatterns[2]!);
+
+  // Also try label-based extraction as fallback
+  const sessionResetMatch = clean.match(/Current session[\s\S]*?Resets\s+([^\n(]+\([^)]+\))/i);
+  const weeklyResetMatch = clean.match(/Current week\s*\(all models\)[\s\S]*?Resets\s+([^\n(]+\([^)]+\))/i);
+
+  if (!sessionResetRaw && sessionResetMatch?.[1]) sessionResetRaw = sessionResetMatch[1].trim();
+  if (!weeklyResetRaw && weeklyResetMatch?.[1]) weeklyResetRaw = weeklyResetMatch[1].trim();
+
+  const result: AnthropicUsage = {
     session: {
-      percentUsed: sessionMatch?.[1] ? parseInt(sessionMatch[1], 10) : 0,
-      resetAt: sessionResetMatch?.[1] ? parseResetTime(sessionResetMatch[1]) : null,
+      percentUsed: sessionPct,
+      resetAt: sessionResetRaw ? parseResetTimeFromDate(sessionResetRaw) : null,
+      resetAtRaw: sessionResetRaw,
       limit: "5-hour window",
     },
     weekly: {
-      percentUsed: weeklyMatch?.[1] ? parseInt(weeklyMatch[1], 10) : 0,
-      resetAt: weeklyResetMatch?.[1] ? parseResetTime(weeklyResetMatch[1]) : null,
+      percentUsed: weeklyPct,
+      resetAt: weeklyResetRaw ? parseResetTimeFromDate(weeklyResetRaw) : null,
+      resetAtRaw: weeklyResetRaw,
       limit: "7-day limit",
     },
-    opus: opusMatch?.[1]
+    opus: null,
+    // Always include sonnet if we have data (even 0% is valid)
+    sonnet: allUsedPatterns.length >= 3
       ? {
-          percentUsed: parseInt(opusMatch[1], 10),
+          percentUsed: sonnetPct,
           resetAt: null,
-          limit: "Opus 7-day",
-        }
-      : null,
-    sonnet: sonnetMatch?.[1]
-      ? {
-          percentUsed: parseInt(sonnetMatch[1], 10),
-          resetAt: null,
+          resetAtRaw: null, // Sonnet doesn't show reset time
           limit: "Sonnet 7-day",
         }
       : null,
+    // Include extraUsage if we have percentage or spending data
+    extraUsage: allUsedPatterns.length >= 4 || extraSpendingMatch
+      ? {
+          percentUsed: extraPct,
+          spentUsd: extraSpendingMatch?.[1] ? parseFloat(extraSpendingMatch[1]) : 0,
+          limitUsd: extraSpendingMatch?.[2] ? parseFloat(extraSpendingMatch[2]) : null,
+          resetAtRaw: extraResetRaw,
+        }
+      : undefined,
     fetchedAt: Date.now(),
     source: "cli",
   };
+
+  console.log("[anthropic-usage] Parsed result:", {
+    session: `${result.session.percentUsed}% (resets: ${sessionResetRaw})`,
+    weekly: `${result.weekly.percentUsed}% (resets: ${weeklyResetRaw})`,
+    sonnet: result.sonnet ? `${result.sonnet.percentUsed}%` : null,
+    extraUsage: `${extraPct}% (resets: ${extraResetRaw})`,
+    extraSpending: extraSpendingMatch ? `$${extraSpendingMatch[1]}/$${extraSpendingMatch[2]}` : null,
+  });
+
+  return result;
+};
+
+/**
+ * Parse reset time from date string like "3:59am" or "Mar 3 at 4pm".
+ * Returns Unix timestamp in seconds.
+ */
+const parseResetTimeFromDate = (dateStr: string): number | null => {
+  const now = new Date();
+
+  // Try to parse "3:59am" format (time today)
+  const timeMatch = dateStr.match(/^(\d{1,2}):(\d{2})(am|pm)$/i);
+  if (timeMatch && timeMatch[1] && timeMatch[2] && timeMatch[3]) {
+    let hours = parseInt(timeMatch[1], 10);
+    const minutes = parseInt(timeMatch[2], 10);
+    const isPM = timeMatch[3].toLowerCase() === "pm";
+
+    if (isPM && hours !== 12) hours += 12;
+    if (!isPM && hours === 12) hours = 0;
+
+    const reset = new Date(now);
+    reset.setHours(hours, minutes, 0, 0);
+    // If the time has passed today, it's tomorrow
+    if (reset.getTime() < now.getTime()) {
+      reset.setDate(reset.getDate() + 1);
+    }
+    return Math.floor(reset.getTime() / 1000);
+  }
+
+  // Try to parse "Mar 3 at 4pm" format
+  const dateTimeMatch = dateStr.match(/^(\w+)\s+(\d{1,2})\s+at\s+(\d{1,2})(am|pm)$/i);
+  if (dateTimeMatch && dateTimeMatch[1] && dateTimeMatch[2] && dateTimeMatch[3] && dateTimeMatch[4]) {
+    const monthNames = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
+    const monthIndex = monthNames.indexOf(dateTimeMatch[1].toLowerCase().slice(0, 3));
+    const day = parseInt(dateTimeMatch[2], 10);
+    let hours = parseInt(dateTimeMatch[3], 10);
+    const isPM = dateTimeMatch[4].toLowerCase() === "pm";
+
+    if (isPM && hours !== 12) hours += 12;
+    if (!isPM && hours === 12) hours = 0;
+
+    if (monthIndex >= 0) {
+      const reset = new Date(now.getFullYear(), monthIndex, day, hours, 0, 0);
+      // If the date has passed this year, it's next year
+      if (reset.getTime() < now.getTime()) {
+        reset.setFullYear(reset.getFullYear() + 1);
+      }
+      return Math.floor(reset.getTime() / 1000);
+    }
+  }
+
+  return null;
 };
 
 /**
@@ -156,12 +288,18 @@ const commandExists = async (cmd: string): Promise<boolean> => {
 };
 
 /**
- * Probe Claude CLI for /usage data using expect.
- * Uses the expect command to automate the interactive CLI.
+ * Probe Claude CLI for /usage data using native Bun PTY.
+ * Uses Bun's native PTY API for real terminal emulation.
  *
  * The CLI probe is disabled in test environments (BUN_TEST=1) because:
  * 1. It spawns real processes that are hard to clean up
  * 2. Tests should use the credentials-only fallback instead
+ *
+ * Key API notes:
+ * - `terminal: { cols, rows, data() }` provides PTY emulation (not stdin/stdout pipes)
+ * - Write via `proc.terminal.write()` (not proc.stdin)
+ * - Use `\r` for line endings (not `\n`) in PTY mode
+ * - Data callback receives Uint8Array, decode with TextDecoder
  */
 const tryCliUsage = () =>
   Effect.tryPromise({
@@ -171,65 +309,152 @@ const tryCliUsage = () =>
         throw new Error("CLI probe disabled in test environment");
       }
 
-      // Check if expect is available before attempting to spawn
-      if (!(await commandExists("expect"))) {
-        throw new Error("expect binary not found");
-      }
+      // Check if claude is available before attempting to spawn
       if (!(await commandExists("claude"))) {
-        throw new Error("claude binary not found");
+        console.log(
+          "[anthropic-usage] claude not in PATH. PATH:",
+          process.env.PATH?.split(":").slice(0, 5).join(":"),
+          "..."
+        );
+        throw new Error("claude binary not found in PATH");
       }
 
-      // Create expect script inline
-      // log_user 0 suppresses echoing to stdout
-      // spawn -noecho prevents spawn line from appearing in output
-      // We wait for the prompt, send /usage, wait for percentage output, then exit
-      const expectScript = `
-        log_user 0
-        set timeout 15
-        spawn -noecho env CLAUDECODE= claude
-        expect {
-          "❯" { send "/usage\\r" }
-          timeout { exit 1 }
-        }
-        expect {
-          -re {.*[0-9]+%.*} { }
-          timeout { exit 1 }
-        }
-        sleep 1
-        send "/exit\\r"
-        expect eof
-        puts $expect_out(buffer)
-      `;
+      let output = "";
+      let resolved = false;
+      let dataCallbackCount = 0; // DEBUG: track callback invocations
+      const decoder = new TextDecoder();
 
-      const proc = Bun.spawn(["expect", "-c", expectScript], {
-        stdout: "pipe",
-        stderr: "pipe",
-        env: { ...process.env, CLAUDECODE: "" },
+      return new Promise<AnthropicUsage>((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          if (!resolved) {
+            resolved = true;
+            proc.kill();
+
+            // Strip ANSI for debug display
+            const cleanedForDebug = output
+              .replace(/\x1b\[[0-9;?]*[a-zA-Z]/g, "")
+              .replace(/\x1b\][^\x07]*\x07/g, "")
+              .replace(/\x1b[PX^_][^\x1b]*\x1b\\/g, "")
+              .replace(/\x1b[()][AB012]/g, "")
+              .replace(/\x1b[=>]/g, "")
+              .replace(/[\x00-\x08\x0b\x0c\x0e-\x1a]/g, "");
+
+            // DEBUG: Log state at timeout with CLEANED output
+            console.log("[anthropic-usage] TIMEOUT DEBUG:", {
+              dataCallbackCount,
+              outputLength: output.length,
+              cleanedLength: cleanedForDebug.length,
+              hasPercentUsed: cleanedForDebug.includes("% used"),
+              hasCurrentSession: cleanedForDebug.includes("Current session"),
+              hasCurrentWeek: cleanedForDebug.includes("Current week"),
+              hasTerminal: !!proc.terminal,
+            });
+            // Log first 1000 chars of cleaned output to see actual content
+            console.log("[anthropic-usage] CLEANED OUTPUT:", cleanedForDebug.slice(0, 1000));
+            reject(new Error("CLI probe timed out after 10s"));
+          }
+        }, 10_000);
+
+        // Use Bun's native PTY API - this provides real terminal emulation
+        // that the Claude CLI's TUI requires to render properly
+        const proc = Bun.spawn(["claude"], {
+          env: { ...process.env, CLAUDECODE: "" },
+          terminal: {
+            cols: 120,
+            rows: 40,
+            data(terminal, data) {
+              dataCallbackCount++;
+              const chunk = decoder.decode(data, { stream: true });
+              output += chunk;
+
+              // DEBUG: Log each chunk received (first 100 chars, newlines escaped)
+              console.log(
+                `[anthropic-usage] PTY data #${dataCallbackCount}:`,
+                chunk.slice(0, 100).replace(/\n/g, "\\n").replace(/\r/g, "\\r")
+              );
+
+              // Strip ANSI codes before pattern matching (same logic as parseUsageOutput)
+              const clean = output
+                .replace(/\x1b\[[0-9;?]*[a-zA-Z]/g, "") // CSI sequences
+                .replace(/\x1b\][^\x07]*\x07/g, "") // OSC sequences
+                .replace(/\x1b[PX^_][^\x1b]*\x1b\\/g, "") // DCS/PM/APC
+                .replace(/\x1b[()][AB012]/g, "") // Character set
+                .replace(/\x1b[=>]/g, ""); // Keypad mode
+
+              // Check if we have the usage output panel
+              // The usage panel shows "Current session" and ends with "Esc" (to cancel)
+              // We also look for "$X.XX" spending pattern or "Resets" text as confirmation
+              const hasUsagePanel =
+                clean.includes("Current session") &&
+                (clean.includes("Esc") || clean.includes("Resets") || clean.includes("spent"));
+
+              // Also check for percentage pattern with regex (handles ANSI-broken strings)
+              // Look for patterns like "69% used" in the raw output
+              const hasPercentPattern = /\d+%\s*used/i.test(clean);
+
+              const hasUsageData = hasUsagePanel || hasPercentPattern;
+
+              if (hasUsageData) {
+                console.log("[anthropic-usage] Usage data detected!", {
+                  hasUsagePanel,
+                  hasPercentPattern,
+                  hasCurrentSession: clean.includes("Current session"),
+                  hasEsc: clean.includes("Esc"),
+                  hasResets: clean.includes("Resets"),
+                  hasSpent: clean.includes("spent"),
+                });
+                setTimeout(() => {
+                  if (!resolved) {
+                    resolved = true;
+                    clearTimeout(timeout);
+
+                    // Send exit command via terminal (use \r for PTY)
+                    terminal.write("/exit\r");
+
+                    setTimeout(() => {
+                      try {
+                        const usage = parseUsageOutput(output);
+                        resolve(usage);
+                      } catch (e) {
+                        reject(e);
+                      }
+                    }, 100);
+                  }
+                }, 300);
+              }
+            },
+            // DEBUG: Add exit callback to detect unexpected exits
+            exit(_terminal, exitCode, signal) {
+              console.log("[anthropic-usage] PTY exit:", { exitCode, signal });
+            },
+          },
+        });
+
+        // DEBUG: Check if terminal exists immediately after spawn
+        console.log("[anthropic-usage] PTY spawned, terminal exists:", !!proc.terminal);
+
+        // Wait for prompt, then send /usage command (use \r for PTY)
+        // NOTE: /usage opens a command palette menu, so we need to:
+        // 1. Send "/usage\r" to type the command and open the menu
+        // 2. Wait for menu to render
+        // 3. Send "\r" again to select the first menu item
+        setTimeout(() => {
+          if (!resolved && proc.terminal) {
+            console.log("[anthropic-usage] Sending /usage command...");
+            proc.terminal.write("/usage\r");
+
+            // After a short delay, press Enter to select the menu item
+            setTimeout(() => {
+              if (!resolved && proc.terminal) {
+                console.log("[anthropic-usage] Pressing Enter to select menu item...");
+                proc.terminal.write("\r");
+              }
+            }, 300);
+          } else if (!proc.terminal) {
+            console.log("[anthropic-usage] ERROR: proc.terminal is undefined!");
+          }
+        }, 500);
       });
-
-      // Race between process completion and 20s timeout
-      let timeoutId: ReturnType<typeof setTimeout> | undefined;
-      const timeoutPromise = new Promise<never>((_, reject) => {
-        timeoutId = setTimeout(() => {
-          // Use SIGKILL to ensure process tree is terminated
-          proc.kill("SIGKILL");
-          reject(new Error("CLI probe timed out after 20s"));
-        }, 20_000);
-      });
-
-      try {
-        const exitCode = await Promise.race([proc.exited, timeoutPromise]);
-
-        if (exitCode !== 0) {
-          const stderr = await new Response(proc.stderr).text();
-          throw new Error(`expect failed: ${stderr}`);
-        }
-
-        const output = await new Response(proc.stdout).text();
-        return parseUsageOutput(output);
-      } finally {
-        if (timeoutId) clearTimeout(timeoutId);
-      }
     },
     catch: (e) =>
       new AnthropicUsageError({
@@ -238,6 +463,19 @@ const tryCliUsage = () =>
         cause: e,
       }),
   });
+
+/**
+ * CLI probe with retry logic.
+ * Retries up to 2 times with 500ms delay between attempts.
+ */
+const tryCliUsageWithRetry = () =>
+  tryCliUsage().pipe(
+    Effect.retry(Schedule.recurs(2).pipe(Schedule.addDelay(() => Duration.millis(500)))),
+    Effect.catchAll((err) => {
+      console.log("[anthropic-usage] CLI probe failed after retries:", err);
+      return Effect.succeed(null);
+    })
+  );
 
 // ─── Service Interface ──────────────────────────────────────────────────────
 
@@ -261,8 +499,8 @@ export class AnthropicUsageService extends Context.Tag("AnthropicUsageService")<
  * Create an "unavailable" usage object when we can't fetch real data.
  */
 const createUnavailableUsage = (): AnthropicUsage => ({
-  session: { percentUsed: 0, resetAt: null, limit: null },
-  weekly: { percentUsed: 0, resetAt: null, limit: null },
+  session: { percentUsed: 0, resetAt: null, resetAtRaw: null, limit: null },
+  weekly: { percentUsed: 0, resetAt: null, resetAtRaw: null, limit: null },
   sonnet: null,
   opus: null,
   fetchedAt: Date.now(),
@@ -276,8 +514,8 @@ const createUnavailableUsage = (): AnthropicUsage => ({
 const createCredentialsOnlyUsage = (
   creds: Schema.Schema.Type<typeof KeychainCredentials>
 ): AnthropicUsage => ({
-  session: { percentUsed: 0, resetAt: null, limit: null },
-  weekly: { percentUsed: 0, resetAt: null, limit: null },
+  session: { percentUsed: 0, resetAt: null, resetAtRaw: null, limit: null },
+  weekly: { percentUsed: 0, resetAt: null, resetAtRaw: null, limit: null },
   sonnet: null,
   opus: null,
   subscription: {
@@ -360,17 +598,33 @@ const fetchUsageFromAPI = (accessToken: string) =>
         }),
     });
 
-    if (response.status === 401) {
-      return yield* new AnthropicUsageError({
-        reason: "token_expired",
-        message: "OAuth access token has expired",
-      });
-    }
-
     if (!response.ok) {
+      // Try to parse error response for better error messages
+      const errorResult = yield* Effect.tryPromise({
+        try: () => response.json() as Promise<{ error?: { message?: string } }>,
+        catch: () => null,
+      }).pipe(Effect.catchAll(() => Effect.succeed(null)));
+
+      let errorMessage = `Anthropic API returned status ${response.status}`;
+      let reason: "token_expired" | "api_error" | "not_supported" = "api_error";
+
+      if (errorResult?.error?.message) {
+        errorMessage = errorResult.error.message;
+        // Check if OAuth is not supported (different from token expiry)
+        if (errorMessage.includes("not supported")) {
+          reason = "not_supported";
+          console.log("[anthropic-usage] OAuth API not supported by Anthropic yet");
+        } else if (response.status === 401) {
+          reason = "token_expired";
+        }
+      } else if (response.status === 401) {
+        reason = "token_expired";
+        errorMessage = "OAuth access token has expired";
+      }
+
       return yield* new AnthropicUsageError({
-        reason: "api_error",
-        message: `Anthropic API returned status ${response.status}`,
+        reason,
+        message: errorMessage,
       });
     }
 
@@ -411,6 +665,7 @@ const transformUsageResponse = (
   ): AnthropicUsageWindow => ({
     percentUsed: data.percent_used,
     resetAt: data.reset_at,
+    resetAtRaw: null, // OAuth API provides Unix timestamp, not raw string
     limit: limitDesc,
   });
 
@@ -423,8 +678,13 @@ const transformUsageResponse = (
     opus: response.seven_day_opus ? makeWindow(response.seven_day_opus, "Opus 7-day") : null,
     extraUsage: response.extra_usage
       ? {
+          // Calculate percentUsed from spent/limit (caps at 100 when over limit)
+          percentUsed: response.extra_usage.limit_usd
+            ? Math.min(100, Math.round((response.extra_usage.spent_usd / response.extra_usage.limit_usd) * 100))
+            : 0,
           spentUsd: response.extra_usage.spent_usd,
           limitUsd: response.extra_usage.limit_usd,
+          resetAtRaw: null, // OAuth API doesn't provide this
         }
       : undefined,
     fetchedAt: Date.now(),
@@ -433,13 +693,19 @@ const transformUsageResponse = (
 };
 
 /**
- * Attempt to refresh OAuth token using Claude CLI.
+ * Attempt to refresh OAuth token by running a simple Claude command.
+ * The CLI should auto-refresh the token when making authenticated requests.
+ *
+ * NOTE: `claude auth refresh` doesn't exist, so we run `claude auth status`
+ * which triggers the OAuth flow and may refresh the token automatically.
  */
 const refreshOAuthToken = () =>
   Effect.gen(function* () {
-    const proc = Bun.spawn(["claude", "auth", "refresh"], {
+    // Run auth status which should trigger token refresh if needed
+    const proc = Bun.spawn(["claude", "auth", "status"], {
       stdout: "pipe",
       stderr: "pipe",
+      env: { ...process.env, CLAUDECODE: "" }, // Avoid nested session check
     });
 
     const exitCode = yield* Effect.promise(() => proc.exited);
@@ -451,6 +717,9 @@ const refreshOAuthToken = () =>
         message: `Failed to refresh OAuth token: ${stderr.trim()}`,
       });
     }
+
+    // Give a moment for keychain to update
+    yield* Effect.promise(() => new Promise(resolve => setTimeout(resolve, 500)));
   });
 
 /**
@@ -462,29 +731,46 @@ const refreshOAuthToken = () =>
 const tryOAuthAPI = () =>
   Effect.gen(function* () {
     // Read credentials from Keychain
+    console.log("[anthropic-usage] Reading credentials from Keychain...");
     const credentials = yield* readKeychainCredentials();
+    console.log("[anthropic-usage] Credentials found, subscription:", credentials.claudeAiOauth.subscriptionType);
 
     // Try to fetch usage from API
+    console.log("[anthropic-usage] Trying OAuth API...");
     const apiResult = yield* fetchUsageFromAPI(credentials.claudeAiOauth.accessToken).pipe(
       Effect.catchTag("AnthropicUsageError", (error) => {
+        console.log("[anthropic-usage] OAuth API error:", error.reason, error.message);
+
+        // If OAuth is not supported yet, skip directly to CLI probe (no retry)
+        if (error.reason === "not_supported") {
+          console.log("[anthropic-usage] OAuth API not available yet, skipping to CLI probe");
+          return Effect.succeed(null);
+        }
+
         // If token expired, try to refresh and retry
         if (error.reason === "token_expired") {
           return Effect.gen(function* () {
+            console.log("[anthropic-usage] Token expired, attempting refresh...");
             yield* refreshOAuthToken();
             // Re-read credentials (token may have changed)
             const newCredentials = yield* readKeychainCredentials();
             return yield* fetchUsageFromAPI(newCredentials.claudeAiOauth.accessToken);
           });
         }
+
         // For other API errors, we'll fall back to CLI probe
         return Effect.fail(error);
       }),
       // If API fails, return null to signal fallback
-      Effect.catchAll(() => Effect.succeed(null))
+      Effect.catchAll((err) => {
+        console.log("[anthropic-usage] OAuth API failed, will try CLI probe. Error:", err);
+        return Effect.succeed(null);
+      })
     );
 
     // If API succeeded, transform and return
     if (apiResult) {
+      console.log("[anthropic-usage] OAuth API succeeded!");
       const usage = transformUsageResponse(apiResult);
       // Augment with subscription info from credentials
       return {
@@ -497,12 +783,18 @@ const tryOAuthAPI = () =>
       };
     }
 
-    // Fallback to CLI /usage probe
-    const cliResult = yield* tryCliUsage().pipe(
-      Effect.catchAll(() => Effect.succeed(null))
-    );
+    // Fallback to CLI /usage probe with retry
+    console.log("[anthropic-usage] Trying CLI probe via native PTY...");
+    const cliResult = yield* tryCliUsageWithRetry();
 
     if (cliResult) {
+      console.log("[anthropic-usage] CLI probe succeeded! Source:", cliResult.source);
+      console.log("[anthropic-usage] Usage data:", JSON.stringify({
+        session: cliResult.session,
+        weekly: cliResult.weekly,
+        opus: cliResult.opus,
+        sonnet: cliResult.sonnet,
+      }, null, 2));
       // Augment CLI result with subscription info from credentials
       return {
         ...cliResult,
@@ -515,6 +807,7 @@ const tryOAuthAPI = () =>
     }
 
     // Final fallback: credentials-only usage (no usage percentages, but subscription info)
+    console.log("[anthropic-usage] Falling back to credentials-only (no percentages)");
     return createCredentialsOnlyUsage(credentials);
   });
 

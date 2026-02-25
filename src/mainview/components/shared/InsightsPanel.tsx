@@ -22,7 +22,7 @@ export function InsightsPanel({
   insights,
   loading,
   onNavigateToSection,
-  maxHeight = "320px",
+  maxHeight = "240px",
   maxInsights = 5,
   className,
 }: InsightsPanelProps) {
