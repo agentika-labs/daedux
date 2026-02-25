@@ -211,6 +211,33 @@ export const parseSessionFile = (
 
       // ─── Human/user messages ───────────────────────────────────────────────
       if ((type === "user" || type === "human") && obj.message) {
+        // Skip meta messages (skill/persona injections from hooks)
+        // Skip context compaction summaries (system-generated continuations)
+        if (obj.isMeta === true || obj.isCompactSummary === true) {
+          // Still process tool results for error tracking, but skip lastUserPreview update
+          const message = obj.message as Record<string, unknown>;
+          const rawContent = message.content;
+          const content: Array<Record<string, unknown>> = Array.isArray(
+            rawContent,
+          )
+            ? (rawContent as Array<Record<string, unknown>>)
+            : [];
+
+          for (const block of content) {
+            if (block.type === "tool_result") {
+              const toolUseId = block.tool_use_id as string;
+              const isError = block.is_error === true;
+              toolResultMap.set(toolUseId, {
+                isError,
+                errorContent: isError
+                  ? extractErrorContent(block.content)
+                  : undefined,
+              });
+            }
+          }
+          continue; // Skip to next JSONL entry - don't update lastUserPreview
+        }
+
         const message = obj.message as Record<string, unknown>;
         const rawContent = message.content;
         // Content can be string, array of blocks, or undefined - normalize to array
@@ -225,13 +252,12 @@ export const parseSessionFile = (
         // Only update lastUserPreview for genuine user prompts, not:
         // - Tool results (content is only tool_result blocks)
         // - System injections (<task-notification>, <system-reminder>, etc.)
-        // - Subagent instructions ("Your task is to...")
         const hasTextBlock = content.some((b) => b.type === "text");
         const hasOnlyToolResults = content.length > 0 && content.every((b) => b.type === "tool_result");
 
         if (hasTextBlock && !hasOnlyToolResults) {
           const preview = extractPreview(content);
-          // Skip system-injected content
+          // Skip system-injected content (pattern-based fallback for entries without metadata flags)
           if (preview && !isSystemContent(preview)) {
             lastUserPreview = preview;
             if (!displayName) {

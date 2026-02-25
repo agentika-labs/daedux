@@ -1058,9 +1058,17 @@ export const SessionAnalyticsServiceLive = Layer.effect(
         Effect.tryPromise({
           try: async () => {
             const dateConditions = buildDateConditions(dateFilter);
+            // Filter out system-generated content that slipped through parse-time filters
+            // (needed for historical data parsed before metadata checks were added)
             const baseConditions: SQL[] = [
               sql`${schema.queries.userMessagePreview} IS NOT NULL`,
               sql`${schema.queries.userMessagePreview} != ''`,
+              // Exclude task-notification (not marked by isMeta flag)
+              sql`${schema.queries.userMessagePreview} NOT LIKE '<task-notification>%'`,
+              // Exclude other system tags for legacy data
+              sql`${schema.queries.userMessagePreview} NOT LIKE '<system-reminder>%'`,
+              // Exclude context compaction summaries for legacy data
+              sql`${schema.queries.userMessagePreview} NOT LIKE 'This session is being continued%'`,
             ];
 
             // Aggregate costs across all API calls for each user prompt

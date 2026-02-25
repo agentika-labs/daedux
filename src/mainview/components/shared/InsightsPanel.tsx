@@ -9,7 +9,6 @@ interface InsightsPanelProps {
   insights: Insight[];
   loading?: boolean;
   onNavigateToSection?: (section: string) => void;
-  maxHeight?: string;
   maxInsights?: number;
   className?: string;
 }
@@ -22,7 +21,6 @@ export function InsightsPanel({
   insights,
   loading,
   onNavigateToSection,
-  maxHeight = "240px",
   maxInsights = 5,
   className,
 }: InsightsPanelProps) {
@@ -52,8 +50,8 @@ export function InsightsPanel({
             <Skeleton className="h-16 w-full" />
           </div>
         ) : processedInsights.length > 0 ? (
-          <ScrollArea style={{ maxHeight }}>
-            <div className="space-y-3 pr-2">
+          <ScrollArea className="h-[340px]">
+            <div className="space-y-3 pr-4">
               {processedInsights.map(({ insight, type, priority, action }, i) => (
                 <InsightCard
                   key={insight.title + i}

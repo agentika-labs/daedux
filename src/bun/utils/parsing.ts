@@ -154,16 +154,21 @@ export const toolToOperation = (toolName: string): string | null => {
  *
  * Note: This is intentionally conservative to avoid false positives. We only
  * detect patterns that are definitively system-generated.
+ *
+ * Metadata-based filtering (isMeta, isCompactSummary) happens in parser.ts
+ * before this function is called. This pattern matching is a fallback for
+ * content not caught by metadata flags (e.g., task-notification tags).
  */
 export const isSystemContent = (text: string): boolean => {
   const trimmed = text.trimStart()
   // XML-like system tags injected by Claude Code
+  // (task-notification is NOT marked by isMeta flag, so we must detect it here)
   if (trimmed.startsWith("<task-notification>")) return true
   if (trimmed.startsWith("<system-reminder>")) return true
   if (trimmed.startsWith("<hook-output>")) return true
   if (trimmed.startsWith("<new-diagnostics>")) return true
   if (trimmed.startsWith("<auto-memory-update>")) return true
-  // Task tool subagent instruction prefix (specific to Task tool prompts)
-  if (trimmed.startsWith("Your task is to")) return true
+  // Context compaction continuation prefix (fallback if isCompactSummary not checked)
+  if (trimmed.startsWith("This session is being continued from")) return true
   return false
 }

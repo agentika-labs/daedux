@@ -52,10 +52,15 @@ let isQuitting = false;
 let lastScanAt: string | null = null;
 let scanIntervalId: ReturnType<typeof setInterval> | null = null;
 let schedulerIntervalId: ReturnType<typeof setInterval> | null = null;
+let usageIntervalId: ReturnType<typeof setInterval> | null = null;
 let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
 let isMainViewReady = false;
 const pendingWebviewMessages: Array<() => void> = [];
+
+// Cached Anthropic usage for tray updates (avoid refetch during sync)
+import type { AnthropicUsage } from "../shared/rpc-types";
+let cachedAnthropicUsage: AnthropicUsage | null = null;
 
 // App settings (persisted via settings file)
 let settings: AppSettings = {
@@ -276,7 +281,8 @@ const runSyncWithNotifications = async (fullScan = false): Promise<SyncResult> =
   }
 
   isScanning = true;
-  updateTrayMenu();
+  // Use quick update to show "Scanning..." without triggering CLI probe
+  void updateTrayMenuQuick();
   dispatchToWebview(() => {
     rpc.send.syncStarted({});
   });
@@ -300,12 +306,17 @@ const runSyncWithNotifications = async (fullScan = false): Promise<SyncResult> =
     return { synced: 0, total: 0, unchanged: 0, errors: 1 };
   } finally {
     isScanning = false;
-    updateTrayMenu();
+    // Use quick update here too - we'll get fresh usage from periodic refresh
+    void updateTrayMenuQuick();
   }
 };
 
 // ─── Tray Stats ─────────────────────────────────────────────────────────────
 
+/**
+ * Full tray stats - fetches fresh Anthropic usage data.
+ * Use for initial load and periodic refresh (every 5 min).
+ */
 const getTrayStats = async (): Promise<TrayStats> => {
   const dateFilter = parseDateFilter("today");
 
@@ -326,6 +337,9 @@ const getTrayStats = async (): Promise<TrayStats> => {
 
     const { totals, anthropicUsage } = result;
 
+    // Cache usage for quick updates during sync
+    cachedAnthropicUsage = anthropicUsage;
+
     return {
       todayTokens:
         totals.totalInputTokens +
@@ -345,6 +359,46 @@ const getTrayStats = async (): Promise<TrayStats> => {
       todaySessions: 0,
       todayEvents: 0,
       activeSessions: 0,
+    };
+  }
+};
+
+/**
+ * Quick tray stats - reuses cached Anthropic usage.
+ * Use during sync start/end to update "Scanning..." label without
+ * triggering expensive CLI probes.
+ */
+const getTrayStatsQuick = async (): Promise<TrayStats> => {
+  const dateFilter = parseDateFilter("today");
+
+  try {
+    const totals = await runEffect(
+      Effect.gen(function* () {
+        const sessions = yield* SessionAnalyticsService;
+        return yield* sessions.getTotals(dateFilter);
+      })
+    );
+
+    return {
+      todayTokens:
+        totals.totalInputTokens +
+        totals.totalOutputTokens +
+        totals.totalCacheRead +
+        totals.totalCacheWrite,
+      todayCost: totals.totalCost,
+      todaySessions: totals.totalSessions,
+      todayEvents: totals.totalQueries + totals.totalToolUses,
+      activeSessions: 0,
+      anthropicUsage: cachedAnthropicUsage ?? undefined,
+    };
+  } catch {
+    return {
+      todayTokens: 0,
+      todayCost: 0,
+      todaySessions: 0,
+      todayEvents: 0,
+      activeSessions: 0,
+      anthropicUsage: cachedAnthropicUsage ?? undefined,
     };
   }
 };
@@ -515,6 +569,21 @@ const updateTrayMenu = async () => {
   }
 };
 
+/**
+ * Quick tray menu update - reuses cached Anthropic usage.
+ * Use during sync to update "Scanning..." label without triggering CLI probes.
+ */
+const updateTrayMenuQuick = async () => {
+  if (!tray) return;
+
+  try {
+    const stats = await getTrayStatsQuick();
+    tray.setMenu(buildTrayMenu(stats));
+  } catch (error) {
+    console.warn("[tray] Failed to update stats (quick)", error);
+  }
+};
+
 // ─── Window Management ──────────────────────────────────────────────────────
 
 const createMainWindow = () => {
@@ -648,6 +717,37 @@ const configureScheduler = (enabled: boolean) => {
   ).catch((err) => {
     console.warn("[scheduler] Missed check failed:", err);
   });
+};
+
+// ─── Usage Refresh Configuration ─────────────────────────────────────────────
+
+/**
+ * Configure periodic refresh of Anthropic usage data.
+ * Keeps tray menu usage limits up-to-date without relying on user actions.
+ */
+const configureUsageRefresh = (intervalMinutes = 5) => {
+  if (usageIntervalId) {
+    clearInterval(usageIntervalId);
+    usageIntervalId = null;
+  }
+
+  console.log(`[usage] Starting usage refresh (every ${intervalMinutes}m)`);
+
+  usageIntervalId = setInterval(() => {
+    void runEffect(
+      Effect.gen(function* () {
+        const anthropicService = yield* AnthropicUsageService;
+        // refreshUsage bypasses cache, forcing a fresh CLI probe
+        yield* anthropicService.refreshUsage();
+      })
+    )
+      .then(() => {
+        void updateTrayMenu();
+      })
+      .catch((err) => {
+        console.warn("[usage] Refresh failed:", err);
+      });
+  }, intervalMinutes * 60_000);
 };
 
 // ─── RPC Definition ─────────────────────────────────────────────────────────
@@ -1114,6 +1214,9 @@ const bootstrap = async () => {
   // Configure background scan
   configureBackgroundScan(settings.scanIntervalMinutes);
 
+  // Configure periodic usage refresh (every 5 minutes)
+  configureUsageRefresh(5);
+
   // Configure scheduler if enabled
   if (settings.schedulerEnabled) {
     configureScheduler(true);
@@ -1140,6 +1243,11 @@ process.on("exit", () => {
   if (schedulerIntervalId) {
     clearInterval(schedulerIntervalId);
     schedulerIntervalId = null;
+  }
+
+  if (usageIntervalId) {
+    clearInterval(usageIntervalId);
+    usageIntervalId = null;
   }
 
   if (tray) {

@@ -570,15 +570,16 @@ describe("isSystemContent", () => {
     })
   })
 
-  describe("Task tool subagent instructions", () => {
-    test("detects 'Your task is to' prefix", () => {
-      expect(isSystemContent("Your task is to create a detailed summary")).toBe(true)
-      expect(isSystemContent("Your task is to analyze the error")).toBe(true)
+  describe("Context compaction continuation", () => {
+    // Note: "Your task is to" was removed - it's now caught at parse-time by isCompactSummary flag
+    test("detects context compaction continuation prefix", () => {
+      expect(isSystemContent("This session is being continued from a previous conversation")).toBe(true)
+      expect(isSystemContent("This session is being continued from message 5")).toBe(true)
     })
 
-    test("handles leading whitespace for task prefix", () => {
-      expect(isSystemContent("  Your task is to review the code")).toBe(true)
-      expect(isSystemContent("\nYour task is to debug the issue")).toBe(true)
+    test("handles leading whitespace for compaction prefix", () => {
+      expect(isSystemContent("  This session is being continued from...")).toBe(true)
+      expect(isSystemContent("\nThis session is being continued from a prior context")).toBe(true)
     })
   })
 
