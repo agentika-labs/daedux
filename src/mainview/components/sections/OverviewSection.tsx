@@ -50,7 +50,7 @@ export function OverviewSection({ data, loading, onNavigateToSection }: Overview
       />
 
       {/* Hero Stats Row */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-6">
         <StatCard
           label="Total Cost"
           value={formatCurrency(totals?.totalCost ?? 0)}
@@ -69,6 +69,12 @@ export function OverviewSection({ data, loading, onNavigateToSection }: Overview
           label="Total Tokens"
           value={formatTokens(totals?.totalTokens ?? 0)}
           subtext={`${formatTokens(totals?.totalInputTokens ?? 0)} input`}
+          loading={loading}
+        />
+        <StatCard
+          label="Avg Turns"
+          value={(totals?.avgTurnsPerSession ?? 0).toFixed(1)}
+          subtext={`${formatNumber(totals?.totalTurns ?? 0)} total turns`}
           loading={loading}
         />
         <StatCard

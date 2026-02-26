@@ -1,12 +1,14 @@
 import { existsSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { Effect, type Layer } from "effect";
+import { dlopen, FFIType } from "bun:ffi";
+import { Effect, type Layer, ManagedRuntime } from "effect";
 import Electrobun, {
   ApplicationMenu,
   BrowserView,
   BrowserWindow,
   PATHS,
   Tray,
+  Updater,
   Utils,
 } from "electrobun/bun";
 
@@ -47,6 +49,153 @@ import {
 // ─── App State ──────────────────────────────────────────────────────────────
 
 const isMac = process.platform === "darwin";
+
+// macOS native window effect constants
+const MAC_TRAFFIC_LIGHTS_X = 14;
+const MAC_TRAFFIC_LIGHTS_Y = 22; // Vertically centered with header content
+
+// Header height for native drag region (matches py-3 padding + content)
+const MAC_HEADER_HEIGHT = 60;
+
+// Reference to the loaded native library for drag exclusion zones
+let nativeLib: ReturnType<
+  typeof dlopen<{
+    enableWindowVibrancy: {
+      args: [typeof FFIType.ptr];
+      returns: typeof FFIType.bool;
+    };
+    ensureWindowShadow: {
+      args: [typeof FFIType.ptr];
+      returns: typeof FFIType.bool;
+    };
+    setWindowTrafficLightsPosition: {
+      args: [typeof FFIType.ptr, typeof FFIType.f64, typeof FFIType.f64];
+      returns: typeof FFIType.bool;
+    };
+    setNativeWindowDragRegion: {
+      args: [typeof FFIType.ptr, typeof FFIType.f64, typeof FFIType.f64];
+      returns: typeof FFIType.bool;
+    };
+    setDragExclusionZones: {
+      args: [typeof FFIType.ptr, typeof FFIType.ptr, typeof FFIType.i32];
+      returns: typeof FFIType.bool;
+    };
+  }>
+> | null = null;
+
+/**
+ * Update drag exclusion zones - areas where clicks pass through to the WebView.
+ * Called from renderer when button positions change.
+ */
+function updateDragExclusionZones(
+  zones: Array<{ x: number; y: number; width: number; height: number }>,
+) {
+  if (!mainWindow || !nativeLib) return false;
+
+  // Flatten zones to contiguous Float64Array: [x1, y1, w1, h1, x2, y2, w2, h2, ...]
+  const flatArray = new Float64Array(zones.length * 4);
+  zones.forEach((zone, i) => {
+    flatArray[i * 4] = zone.x;
+    flatArray[i * 4 + 1] = zone.y;
+    flatArray[i * 4 + 2] = zone.width;
+    flatArray[i * 4 + 3] = zone.height;
+  });
+
+  return nativeLib.symbols.setDragExclusionZones(
+    mainWindow.ptr,
+    flatArray,
+    zones.length,
+  );
+}
+
+/**
+ * Apply native macOS vibrancy, traffic light positioning, and drag region.
+ * Uses FFI to call into libMacWindowEffects.dylib.
+ *
+ * The native drag view captures mouse events for window dragging, but uses
+ * exclusion zones to pass clicks through to buttons in the header.
+ */
+function applyMacOSWindowEffects(window: BrowserWindow) {
+  if (!isMac) return;
+
+  const dylibPath = join(import.meta.dir, "libMacWindowEffects.dylib");
+
+  if (!existsSync(dylibPath)) {
+    console.warn(
+      `[macos] Native effects lib not found at ${dylibPath}. Falling back to transparent-only mode.`,
+    );
+    return;
+  }
+
+  try {
+    nativeLib = dlopen(dylibPath, {
+      enableWindowVibrancy: {
+        args: [FFIType.ptr],
+        returns: FFIType.bool,
+      },
+      ensureWindowShadow: {
+        args: [FFIType.ptr],
+        returns: FFIType.bool,
+      },
+      extendTitlebarWithToolbar: {
+        args: [FFIType.ptr],
+        returns: FFIType.bool,
+      },
+      setWindowTrafficLightsPosition: {
+        args: [FFIType.ptr, FFIType.f64, FFIType.f64],
+        returns: FFIType.bool,
+      },
+      setNativeWindowDragRegion: {
+        args: [FFIType.ptr, FFIType.f64, FFIType.f64],
+        returns: FFIType.bool,
+      },
+      setDragExclusionZones: {
+        args: [FFIType.ptr, FFIType.ptr, FFIType.i32],
+        returns: FFIType.bool,
+      },
+    });
+
+    const vibrancyEnabled = nativeLib.symbols.enableWindowVibrancy(window.ptr);
+    const shadowEnabled = nativeLib.symbols.ensureWindowShadow(window.ptr);
+    const toolbarExtended = nativeLib.symbols.extendTitlebarWithToolbar(
+      window.ptr,
+    );
+
+    const alignButtons = () =>
+      nativeLib!.symbols.setWindowTrafficLightsPosition(
+        window.ptr,
+        MAC_TRAFFIC_LIGHTS_X,
+        MAC_TRAFFIC_LIGHTS_Y,
+      );
+
+    const buttonsAlignedNow = alignButtons();
+
+    // Set up native drag region for header area
+    // X offset accounts for traffic lights area
+    const dragRegionEnabled = nativeLib.symbols.setNativeWindowDragRegion(
+      window.ptr,
+      0, // Start from left edge - exclusion zones handle traffic lights
+      MAC_HEADER_HEIGHT,
+    );
+
+    // Re-align after brief delay (window may still be setting up)
+    setTimeout(() => {
+      alignButtons();
+    }, 120);
+
+    // Re-align on resize
+    window.on("resize", () => {
+      alignButtons();
+    });
+
+    console.log(
+      `[macos] Native effects applied (vibrancy=${vibrancyEnabled}, shadow=${shadowEnabled}, toolbar=${toolbarExtended}, trafficLights=${buttonsAlignedNow}, dragRegion=${dragRegionEnabled})`,
+    );
+  } catch (error) {
+    console.warn("[macos] Failed to apply native window effects:", error);
+  }
+}
+
 let isScanning = false;
 let isQuitting = false;
 let lastScanAt: string | null = null;
@@ -61,6 +210,10 @@ const pendingWebviewMessages: Array<() => void> = [];
 // Cached Anthropic usage for tray updates (avoid refetch during sync)
 import type { AnthropicUsage } from "../shared/rpc-types";
 let cachedAnthropicUsage: AnthropicUsage | null = null;
+
+// Update state
+let updateAvailable = false;
+let updateVersion: string | null = null;
 
 // App settings (persisted via settings file)
 let settings: AppSettings = {
@@ -101,10 +254,30 @@ const parseDateFilter = (filter?: string): DateFilter => {
 type AppContext = Layer.Layer.Success<typeof AppLive>;
 
 /**
- * Run an Effect with the AppLive layer and return a Promise.
+ * Shared ManagedRuntime instance - ensures all Effect fibers share the same
+ * synchronization context, making semaphores work correctly across calls.
+ *
+ * Without this, each Effect.runPromise() creates a new runtime, and semaphores
+ * don't synchronize across different runtimes (causing race conditions).
  */
-const runEffect = <A, E>(effect: Effect.Effect<A, E, AppContext>): Promise<A> => {
-  return Effect.runPromise(effect.pipe(Effect.provide(AppLive)));
+let managedRuntime: ManagedRuntime.ManagedRuntime<AppContext, never> | null =
+  null;
+
+const getRuntime = () => {
+  if (!managedRuntime) {
+    managedRuntime = ManagedRuntime.make(AppLive);
+  }
+  return managedRuntime;
+};
+
+/**
+ * Run an Effect with the shared ManagedRuntime.
+ * Using a single runtime ensures semaphores work correctly across all calls.
+ */
+const runEffect = <A, E>(
+  effect: Effect.Effect<A, E, AppContext>,
+): Promise<A> => {
+  return getRuntime().runPromise(effect);
 };
 
 // ─── Dashboard Data Loading ─────────────────────────────────────────────────
@@ -139,6 +312,9 @@ const loadDashboardData = (dateFilter: DateFilter = {}) =>
       weeklyComparison,
       agentROI,
       toolHealthReportCard,
+      skillROI,
+      hookStats,
+      skillImpact,
     ] = yield* Effect.all([
       sessions.getTotals(dateFilter),
       sessions.getExtendedTotals(dateFilter),
@@ -159,6 +335,9 @@ const loadDashboardData = (dateFilter: DateFilter = {}) =>
       insightsService.getWeeklyComparison(dateFilter),
       agents.getAgentROI(dateFilter),
       tools.getToolHealthReportCard(dateFilter),
+      agents.getSkillROI(dateFilter),
+      agents.getHookStats(dateFilter),
+      agents.getSkillImpactComparison(dateFilter),
     ]);
 
     // Transform data for dashboard
@@ -194,11 +373,18 @@ const loadDashboardData = (dateFilter: DateFilter = {}) =>
         return newTokensSent > 0 ? totals.totalOutputTokens / newTokensSent : 0;
       })(),
       totalSkillInvocations: extendedTotals.totalSkillInvocations,
+      totalTurns: sessionList.reduce((sum, s) => sum + (s.turnCount ?? 0), 0),
+      avgTurnsPerSession:
+        sessionList.length > 0
+          ? sessionList.reduce((sum, s) => sum + (s.turnCount ?? 0), 0) /
+            sessionList.length
+          : 0,
     };
 
     // Transform sessions
     const dashboardSessions = sessionList.map((s) => {
-      const sessionModel = sessionPrimaryModels.get(s.sessionId) ?? "claude-sonnet-4-5-20251022";
+      const sessionModel =
+        sessionPrimaryModels.get(s.sessionId) ?? "claude-sonnet-4-5-20251022";
       const sessionTools = sessionToolCounts.get(s.sessionId) ?? {};
       const sessionFileOps = sessionFileOperations.get(s.sessionId) ?? [];
 
@@ -212,6 +398,7 @@ const loadDashboardData = (dateFilter: DateFilter = {}) =>
         totalCost: s.totalCost ?? 0,
         queryCount: s.queryCount ?? 0,
         toolUseCount: s.toolUseCount ?? 0,
+        turnCount: s.turnCount ?? 0,
         isSubagent: s.isSubagent ?? false,
         model: sessionModel,
         modelShort: modelDisplayNameWithVersion(sessionModel),
@@ -228,7 +415,8 @@ const loadDashboardData = (dateFilter: DateFilter = {}) =>
         bashCommandCount: sessionTools.Bash ?? 0,
         fileReadCount: sessionFileOps.filter((op) => op.tool === "Read").length,
         fileEditCount: sessionFileOps.filter((op) => op.tool === "Edit").length,
-        fileWriteCount: sessionFileOps.filter((op) => op.tool === "Write").length,
+        fileWriteCount: sessionFileOps.filter((op) => op.tool === "Write")
+          .length,
         toolCounts: sessionTools,
         queries: [],
         fileActivityDetails: sessionFileOps,
@@ -237,7 +425,10 @@ const loadDashboardData = (dateFilter: DateFilter = {}) =>
 
     // Transform insights
     const transformedInsights = insights.map((i) => ({
-      type: (i.type === "tip" ? "info" : i.type) as "success" | "warning" | "info",
+      type: (i.type === "tip" ? "info" : i.type) as
+        | "success"
+        | "warning"
+        | "info",
       title: i.title,
       description: i.message,
       action: i.action ?? "",
@@ -262,6 +453,9 @@ const loadDashboardData = (dateFilter: DateFilter = {}) =>
       toolHealth,
       agentROI,
       toolHealthReportCard,
+      skillROI,
+      hookStats,
+      skillImpact,
     } as DashboardData;
   }).pipe(Effect.withSpan("rpc.loadDashboardData"));
 
@@ -275,7 +469,9 @@ const runSync = (fullResync = false) =>
       : yield* syncService.syncIncremental({ verbose: false });
   }).pipe(Effect.withSpan("rpc.runSync", { attributes: { fullResync } }));
 
-const runSyncWithNotifications = async (fullScan = false): Promise<SyncResult> => {
+const runSyncWithNotifications = async (
+  fullScan = false,
+): Promise<SyncResult> => {
   if (isScanning) {
     return { synced: 0, total: 0, unchanged: 0, errors: 0 };
   }
@@ -332,7 +528,7 @@ const getTrayStats = async (): Promise<TrayStats> => {
         ]);
 
         return { totals, anthropicUsage };
-      })
+      }),
     );
 
     const { totals, anthropicUsage } = result;
@@ -376,7 +572,7 @@ const getTrayStatsQuick = async (): Promise<TrayStats> => {
       Effect.gen(function* () {
         const sessions = yield* SessionAnalyticsService;
         return yield* sessions.getTotals(dateFilter);
-      })
+      }),
     );
 
     return {
@@ -480,14 +676,22 @@ const buildTrayMenu = (stats: TrayStats) => {
     if (anthropicUsage.source === "oauth" || anthropicUsage.source === "cli") {
       // Session usage (5-hour window)
       items.push({
-        label: formatRateLimitItem("Session", anthropicUsage.session.percentUsed, "5h"),
+        label: formatRateLimitItem(
+          "Session",
+          anthropicUsage.session.percentUsed,
+          "5h",
+        ),
         type: "normal" as const,
         enabled: false,
       });
 
       // Weekly usage (7-day window)
       items.push({
-        label: formatRateLimitItem("Weekly", anthropicUsage.weekly.percentUsed, "7d"),
+        label: formatRateLimitItem(
+          "Weekly",
+          anthropicUsage.weekly.percentUsed,
+          "7d",
+        ),
         type: "normal" as const,
         enabled: false,
       });
@@ -503,7 +707,10 @@ const buildTrayMenu = (stats: TrayStats) => {
 
       if (anthropicUsage.sonnet) {
         items.push({
-          label: formatRateLimitItem("Sonnet", anthropicUsage.sonnet.percentUsed),
+          label: formatRateLimitItem(
+            "Sonnet",
+            anthropicUsage.sonnet.percentUsed,
+          ),
           type: "normal" as const,
           enabled: false,
         });
@@ -515,7 +722,7 @@ const buildTrayMenu = (stats: TrayStats) => {
         items.push({
           label: formatExtraUsage(
             anthropicUsage.extraUsage.spentUsd,
-            anthropicUsage.extraUsage.limitUsd
+            anthropicUsage.extraUsage.limitUsd,
           ),
           type: "normal" as const,
           enabled: false,
@@ -547,12 +754,30 @@ const buildTrayMenu = (stats: TrayStats) => {
       action: "rescan-sessions",
       enabled: !isScanning,
     },
+  );
+
+  // ── Update Actions ──
+  if (updateAvailable && updateVersion) {
+    items.push({
+      label: `Install Update (v${updateVersion})`,
+      type: "normal" as const,
+      action: "install-update",
+    });
+  } else {
+    items.push({
+      label: "Check for Updates",
+      type: "normal" as const,
+      action: "check-for-updates",
+    });
+  }
+
+  items.push(
     { type: "separator" as const },
     {
       label: "Quit",
       type: "normal" as const,
       action: "quit-app",
-    }
+    },
   );
 
   return items;
@@ -587,8 +812,12 @@ const updateTrayMenuQuick = async () => {
 // ─── Window Management ──────────────────────────────────────────────────────
 
 const createMainWindow = () => {
-  const devUrl = process.env.ELECTROBUN_RENDERER_URL ?? process.env.VITE_DEV_SERVER_URL ?? null;
-  const url = devUrl && devUrl.trim().length > 0 ? devUrl : "views://mainview/index.html";
+  const devUrl =
+    process.env.ELECTROBUN_RENDERER_URL ??
+    process.env.VITE_DEV_SERVER_URL ??
+    null;
+  const url =
+    devUrl && devUrl.trim().length > 0 ? devUrl : "views://mainview/index.html";
   isMainViewReady = false;
 
   const window = new BrowserWindow({
@@ -601,9 +830,22 @@ const createMainWindow = () => {
     },
     url,
     renderer: "native",
-    titleBarStyle: "default",
     rpc,
+    // macOS: Use hidden inset title bar with native traffic lights, and enable transparency for vibrancy
+    ...(isMac
+      ? {
+          titleBarStyle: "hiddenInset" as const,
+          transparent: true,
+        }
+      : {
+          titleBarStyle: "default" as const,
+        }),
   });
+
+  // Apply native macOS vibrancy effects
+  if (isMac) {
+    applyMacOSWindowEffects(window);
+  }
 
   const webviewWithEvents = window.webview as unknown as {
     on?: (event: string, handler: () => void) => void;
@@ -671,7 +913,9 @@ const configureBackgroundScan = (intervalMinutes: number) => {
     scanIntervalId = null;
   }
 
-  const safeMinutes = Number.isFinite(intervalMinutes) ? Math.max(1, Math.floor(intervalMinutes)) : 5;
+  const safeMinutes = Number.isFinite(intervalMinutes)
+    ? Math.max(1, Math.floor(intervalMinutes))
+    : 5;
   scanIntervalId = setInterval(() => {
     void runSyncWithNotifications(false);
   }, safeMinutes * 60_000);
@@ -699,7 +943,7 @@ const configureScheduler = (enabled: boolean) => {
       Effect.gen(function* () {
         const scheduler = yield* SchedulerService;
         yield* scheduler.checkSchedules();
-      })
+      }),
     ).catch((err) => {
       console.warn("[scheduler] Check failed:", err);
     });
@@ -713,7 +957,7 @@ const configureScheduler = (enabled: boolean) => {
       if (missed.length > 0) {
         console.log(`[scheduler] Executed ${missed.length} missed schedule(s)`);
       }
-    })
+    }),
   ).catch((err) => {
     console.warn("[scheduler] Missed check failed:", err);
   });
@@ -739,7 +983,7 @@ const configureUsageRefresh = (intervalMinutes = 5) => {
         const anthropicService = yield* AnthropicUsageService;
         // refreshUsage bypasses cache, forcing a fresh CLI probe
         yield* anthropicService.refreshUsage();
-      })
+      }),
     )
       .then(() => {
         void updateTrayMenu();
@@ -778,17 +1022,32 @@ const rpc = BrowserView.defineRPC<UsageMonitorRPC>({
               case "tools": {
                 const tools = yield* ToolAnalyticsService;
                 const agents = yield* AgentAnalyticsService;
-                const [toolUsage, toolHealth, bashCommands, hookStats, apiErrors, agentStats, skillROI] =
-                  yield* Effect.all([
-                    tools.getToolUsage(dateFilter),
-                    tools.getToolHealth(dateFilter),
-                    tools.getBashCommandStats(dateFilter),
-                    agents.getHookStats(dateFilter),
-                    tools.getApiErrors(dateFilter),
-                    agents.getAgentStats(dateFilter),
-                    agents.getSkillROI(dateFilter),
-                  ]);
-                return { toolUsage, toolHealth, bashCommands, hookStats, apiErrors, agentStats, skillROI };
+                const [
+                  toolUsage,
+                  toolHealth,
+                  bashCommands,
+                  hookStats,
+                  apiErrors,
+                  agentStats,
+                  skillROI,
+                ] = yield* Effect.all([
+                  tools.getToolUsage(dateFilter),
+                  tools.getToolHealth(dateFilter),
+                  tools.getBashCommandStats(dateFilter),
+                  agents.getHookStats(dateFilter),
+                  tools.getApiErrors(dateFilter),
+                  agents.getAgentStats(dateFilter),
+                  agents.getSkillROI(dateFilter),
+                ]);
+                return {
+                  toolUsage,
+                  toolHealth,
+                  bashCommands,
+                  hookStats,
+                  apiErrors,
+                  agentStats,
+                  skillROI,
+                };
               }
               case "files": {
                 const files = yield* FileAnalyticsService;
@@ -800,19 +1059,28 @@ const rpc = BrowserView.defineRPC<UsageMonitorRPC>({
               }
               case "context": {
                 const context = yield* ContextAnalyticsService;
-                const [contextHeatmap, cacheEfficiencyCurve, compactionAnalysis, contextWindowFill] =
-                  yield* Effect.all([
-                    context.getContextHeatmap(dateFilter),
-                    context.getCacheEfficiencyCurve(dateFilter),
-                    context.getCompactionAnalysis(dateFilter),
-                    context.getContextWindowFill(dateFilter),
-                  ]);
-                return { contextHeatmap, cacheEfficiencyCurve, compactionAnalysis, contextWindowFill };
+                const [
+                  contextHeatmap,
+                  cacheEfficiencyCurve,
+                  compactionAnalysis,
+                  contextWindowFill,
+                ] = yield* Effect.all([
+                  context.getContextHeatmap(dateFilter),
+                  context.getCacheEfficiencyCurve(dateFilter),
+                  context.getCompactionAnalysis(dateFilter),
+                  context.getContextWindowFill(dateFilter),
+                ]);
+                return {
+                  contextHeatmap,
+                  cacheEfficiencyCurve,
+                  compactionAnalysis,
+                  contextWindowFill,
+                };
               }
               default:
                 return {};
             }
-          })
+          }),
         );
       },
 
@@ -821,7 +1089,10 @@ const rpc = BrowserView.defineRPC<UsageMonitorRPC>({
         return runEffect(
           Effect.gen(function* () {
             const sessions = yield* SessionAnalyticsService;
-            const list = yield* sessions.getSessionSummaries({ includeSubagents: true, dateFilter: {} });
+            const list = yield* sessions.getSessionSummaries({
+              includeSubagents: true,
+              dateFilter: {},
+            });
             const session = list.find((s) => s.sessionId === sessionId);
             if (!session) return null;
 
@@ -836,11 +1107,14 @@ const rpc = BrowserView.defineRPC<UsageMonitorRPC>({
               totalCost: session.totalCost ?? 0,
               queryCount: session.queryCount ?? 0,
               toolUseCount: session.toolUseCount ?? 0,
+              turnCount: session.turnCount ?? 0,
               isSubagent: session.isSubagent ?? false,
               model: "claude-sonnet-4-5-20251022",
               modelShort: "Sonnet",
               firstPrompt: session.displayName ?? "Session",
-              totalTokens: (session.totalInputTokens ?? 0) + (session.totalOutputTokens ?? 0),
+              totalTokens:
+                (session.totalInputTokens ?? 0) +
+                (session.totalOutputTokens ?? 0),
               savedByCaching: session.savedByCaching ?? 0,
               uncachedInput: session.totalInputTokens ?? 0,
               cacheRead: session.totalCacheRead ?? 0,
@@ -857,7 +1131,7 @@ const rpc = BrowserView.defineRPC<UsageMonitorRPC>({
               queries: [],
               fileActivityDetails: [],
             } satisfies SessionSummary;
-          })
+          }),
         );
       },
 
@@ -871,7 +1145,7 @@ const rpc = BrowserView.defineRPC<UsageMonitorRPC>({
             const sessions = yield* SessionAnalyticsService;
             const totals = yield* sessions.getTotals({});
             return totals.totalSessions;
-          })
+          }),
         );
 
         return {
@@ -928,9 +1202,9 @@ const rpc = BrowserView.defineRPC<UsageMonitorRPC>({
                 lastRunAt: s.lastRunAt,
                 nextRunAt: s.nextRunAt,
                 createdAt: s.createdAt,
-              })
+              }),
             );
-          })
+          }),
         );
       },
 
@@ -951,7 +1225,7 @@ const rpc = BrowserView.defineRPC<UsageMonitorRPC>({
               nextRunAt: schedule.nextRunAt,
               createdAt: schedule.createdAt,
             } satisfies SessionSchedule;
-          })
+          }),
         );
       },
 
@@ -960,7 +1234,7 @@ const rpc = BrowserView.defineRPC<UsageMonitorRPC>({
           Effect.gen(function* () {
             const scheduler = yield* SchedulerService;
             return yield* scheduler.updateSchedule(id, patch);
-          })
+          }),
         );
       },
 
@@ -969,7 +1243,7 @@ const rpc = BrowserView.defineRPC<UsageMonitorRPC>({
           Effect.gen(function* () {
             const scheduler = yield* SchedulerService;
             return yield* scheduler.deleteSchedule(id);
-          })
+          }),
         );
       },
 
@@ -978,7 +1252,7 @@ const rpc = BrowserView.defineRPC<UsageMonitorRPC>({
           Effect.gen(function* () {
             const scheduler = yield* SchedulerService;
             return yield* scheduler.runScheduleNow(id);
-          })
+          }),
         );
 
         // Notify webview of execution result
@@ -993,14 +1267,17 @@ const rpc = BrowserView.defineRPC<UsageMonitorRPC>({
         return runEffect(
           Effect.gen(function* () {
             const scheduler = yield* SchedulerService;
-            const history = yield* scheduler.getScheduleHistory(scheduleId, limit ?? 20);
+            const history = yield* scheduler.getScheduleHistory(
+              scheduleId,
+              limit ?? 20,
+            );
 
             // Cast status to union type (DB stores as string)
             return history.map((h) => ({
               ...h,
               status: h.status as "success" | "error" | "skipped",
             }));
-          })
+          }),
         );
       },
 
@@ -1009,7 +1286,7 @@ const rpc = BrowserView.defineRPC<UsageMonitorRPC>({
           Effect.gen(function* () {
             const scheduler = yield* SchedulerService;
             return yield* scheduler.checkAuthStatus();
-          })
+          }),
         );
       },
 
@@ -1018,8 +1295,13 @@ const rpc = BrowserView.defineRPC<UsageMonitorRPC>({
           Effect.gen(function* () {
             const anthropicService = yield* AnthropicUsageService;
             return yield* anthropicService.getUsage();
-          })
+          }),
         );
+      },
+
+      updateDragExclusionZones: async ({ zones }) => {
+        const success = updateDragExclusionZones(zones);
+        return { success };
       },
     },
 
@@ -1102,7 +1384,10 @@ const refreshApplicationMenu = () => {
       label: "View",
       submenu: [
         {
-          label: settings.theme === "dark" ? "Switch to Light Mode" : "Switch to Dark Mode",
+          label:
+            settings.theme === "dark"
+              ? "Switch to Light Mode"
+              : "Switch to Dark Mode",
           type: "normal" as const,
           action: "toggle-dark-mode",
         },
@@ -1112,7 +1397,8 @@ const refreshApplicationMenu = () => {
 };
 
 const toggleDarkMode = () => {
-  const nextTheme: AppSettings["theme"] = settings.theme === "dark" ? "light" : "dark";
+  const nextTheme: AppSettings["theme"] =
+    settings.theme === "dark" ? "light" : "dark";
   settings.theme = nextTheme;
 
   dispatchToWebview(() => {
@@ -1140,8 +1426,16 @@ const createTray = () => {
   tray.setMenu([
     { label: "Loading...", type: "normal" as const, enabled: false },
     { type: "separator" as const },
-    { label: "Show Dashboard", type: "normal" as const, action: "show-dashboard" },
-    { label: "Rescan Sessions", type: "normal" as const, action: "rescan-sessions" },
+    {
+      label: "Show Dashboard",
+      type: "normal" as const,
+      action: "show-dashboard",
+    },
+    {
+      label: "Rescan Sessions",
+      type: "normal" as const,
+      action: "rescan-sessions",
+    },
     { type: "separator" as const },
     { label: "Quit", type: "normal" as const, action: "quit-app" },
   ]);
@@ -1163,6 +1457,12 @@ const createTray = () => {
         break;
       case "rescan-sessions":
         void runSyncWithNotifications(false);
+        break;
+      case "check-for-updates":
+        void checkForUpdates(false);
+        break;
+      case "install-update":
+        void downloadAndApplyUpdate();
         break;
       case "quit-app":
         quitApp();
@@ -1202,6 +1502,78 @@ ApplicationMenu.on("application-menu-clicked", (event: unknown) => {
   }
 });
 
+// ─── Auto-Updates ───────────────────────────────────────────────────────────
+
+/**
+ * Check for app updates and update tray menu if available.
+ * Silently fails in dev mode or if update check fails.
+ */
+const checkForUpdates = async (silent = true) => {
+  try {
+    const result = await Updater.checkForUpdate();
+
+    if (result.updateAvailable) {
+      updateAvailable = true;
+      updateVersion = result.version;
+      console.log(`[update] Update available: ${result.version}`);
+
+      // Refresh tray to show update indicator
+      void updateTrayMenuQuick();
+
+      // Show notification unless silent
+      if (!silent) {
+        Utils.showNotification({
+          title: "Update Available",
+          body: `Version ${result.version} is available. Click "Check for Updates" in the tray menu to install.`,
+        });
+      }
+    } else if (!silent) {
+      Utils.showNotification({
+        title: "No Updates Available",
+        body: "You're running the latest version.",
+      });
+    }
+  } catch (error) {
+    // Silently fail - updates are optional
+    console.warn("[update] Failed to check for updates:", error);
+  }
+};
+
+/**
+ * Download and apply update, then restart the app.
+ */
+const downloadAndApplyUpdate = async () => {
+  try {
+    Utils.showNotification({
+      title: "Downloading Update",
+      body: "Downloading update... The app will restart when ready.",
+    });
+
+    await Updater.downloadUpdate();
+
+    const info = Updater.updateInfo();
+    if (info?.updateReady) {
+      Utils.showNotification({
+        title: "Installing Update",
+        body: "Update downloaded. Restarting...",
+      });
+      await Updater.applyUpdate();
+    } else {
+      Utils.showNotification({
+        title: "Update Failed",
+        body:
+          info?.error || "Failed to download update. Please try again later.",
+      });
+    }
+  } catch (error) {
+    console.error("[update] Failed to apply update:", error);
+    Utils.showNotification({
+      title: "Update Failed",
+      body: "Failed to apply update. Please try again later.",
+    });
+  }
+};
+
 // ─── Bootstrap ──────────────────────────────────────────────────────────────
 
 const bootstrap = async () => {
@@ -1226,6 +1598,9 @@ const bootstrap = async () => {
   if (settings.scanOnLaunch) {
     await runSyncWithNotifications(false);
   }
+
+  // Check for updates in background (silent)
+  void checkForUpdates(true);
 };
 
 // Initialize
@@ -1253,5 +1628,11 @@ process.on("exit", () => {
   if (tray) {
     tray.remove();
     tray = null;
+  }
+
+  // Dispose the managed runtime to clean up Effect fibers
+  if (managedRuntime) {
+    managedRuntime.dispose();
+    managedRuntime = null;
   }
 });

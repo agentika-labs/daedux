@@ -15,28 +15,28 @@ describe("statusIndicator", () => {
   });
 
   it("returns warning indicator at 70%", () => {
-    expect(statusIndicator(70)).toBe("⚠");
+    expect(statusIndicator(70)).toBe(" ⚠");
   });
 
   it("returns warning indicator at 70%+", () => {
-    expect(statusIndicator(78)).toBe("⚠");
-    expect(statusIndicator(89)).toBe("⚠");
-    expect(statusIndicator(90)).toBe("⚠");
-    expect(statusIndicator(95)).toBe("⚠");
-    expect(statusIndicator(100)).toBe("⚠");
+    expect(statusIndicator(78)).toBe(" ⚠");
+    expect(statusIndicator(89)).toBe(" ⚠");
+    expect(statusIndicator(90)).toBe(" ⚠");
+    expect(statusIndicator(95)).toBe(" ⚠");
+    expect(statusIndicator(100)).toBe(" ⚠");
   });
 });
 
 describe("formatRateLimitItem", () => {
-  it("formats with window hint in two-column layout", () => {
+  it("formats with window hint using em-dash separator", () => {
     const result = formatRateLimitItem("Session", 78, "5h");
-    // Label left-aligned, percentage right-aligned with warning
-    expect(result).toBe("Session (5h)       78%⚠");
+    // Em-dash separates label from percentage (tabs render as small spaces in NSMenu)
+    expect(result).toBe("Session (5h) — 78% ⚠");
   });
 
   it("formats without window hint", () => {
     const result = formatRateLimitItem("Opus", 25);
-    expect(result).toBe("Opus               25%");
+    expect(result).toBe("Opus — 25%");
   });
 
   it("shows warning indicator at 70%+", () => {
@@ -44,30 +44,30 @@ describe("formatRateLimitItem", () => {
     expect(result).toContain("⚠");
   });
 
-  it("aligns percentages correctly for various values", () => {
+  it("formats percentages correctly for various values", () => {
     // Single digit
-    expect(formatRateLimitItem("Sonnet", 0)).toBe("Sonnet              0%");
+    expect(formatRateLimitItem("Sonnet", 0)).toBe("Sonnet — 0%");
     // Double digit
-    expect(formatRateLimitItem("Weekly", 9, "7d")).toBe("Weekly (7d)         9%");
+    expect(formatRateLimitItem("Weekly", 9, "7d")).toBe("Weekly (7d) — 9%");
     // Triple digit
-    expect(formatRateLimitItem("Session", 100, "5h")).toBe("Session (5h)      100%⚠");
+    expect(formatRateLimitItem("Session", 100, "5h")).toBe("Session (5h) — 100% ⚠");
   });
 });
 
 describe("formatExtraUsage", () => {
   it("formats under limit", () => {
     const result = formatExtraUsage(20.5, 50);
-    expect(result).toBe("$20.50 / $50.00");
+    expect(result).toBe("$20.50 / $50.00 extra");
   });
 
   it("formats over limit with warning", () => {
     const result = formatExtraUsage(40.42, 37.5);
-    expect(result).toBe("$40.42 over cap ⚠");
+    expect(result).toBe("$40.42 / $37.50 extra ⚠");
   });
 
   it("formats with no cap", () => {
     const result = formatExtraUsage(100, null);
-    expect(result).toBe("$100.00 (no cap)");
+    expect(result).toBe("$100.00 extra");
   });
 });
 

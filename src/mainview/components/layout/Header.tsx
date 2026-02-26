@@ -1,3 +1,4 @@
+import { useEffect, useRef, useCallback } from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { SECTIONS, scrollToSection, type SectionId } from "@/hooks/useActiveSection";
@@ -14,6 +15,12 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { ScheduleSettings } from "@/components/settings/ScheduleSettings";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { RefreshIcon, Settings02Icon } from "@hugeicons/core-free-icons";
+import { rpcRequest } from "@/hooks/useRPC";
+
+// Detect macOS for traffic light padding
+const isMacOS =
+  typeof navigator !== "undefined" &&
+  navigator.platform.toLowerCase().includes("mac");
 
 export type FilterOption = "today" | "7d" | "30d" | "all";
 
@@ -39,9 +46,53 @@ export function Header({
   onSync,
   isSyncing,
 }: HeaderProps) {
+  const headerRef = useRef<HTMLElement>(null);
+
+  // Calculate button bounds and send to main process for native drag exclusion zones
+  const updateExclusionZones = useCallback(() => {
+    if (!headerRef.current || !isMacOS) return;
+
+    const buttons = headerRef.current.querySelectorAll('button, [role="button"]');
+    const zones = Array.from(buttons).map((btn) => {
+      const rect = btn.getBoundingClientRect();
+      return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
+    });
+
+    // Send zones to main process (fire and forget)
+    rpcRequest("updateDragExclusionZones", { zones }).catch(() => {
+      // Silently ignore errors - drag region is a nice-to-have
+    });
+  }, []);
+
+  // Update exclusion zones on mount and resize
+  useEffect(() => {
+    if (!isMacOS) return;
+
+    // Initial update after brief delay (let layout settle)
+    const initialTimeout = setTimeout(updateExclusionZones, 100);
+
+    // Update on resize
+    window.addEventListener("resize", updateExclusionZones);
+
+    return () => {
+      clearTimeout(initialTimeout);
+      window.removeEventListener("resize", updateExclusionZones);
+    };
+  }, [updateExclusionZones]);
+
+  // Update exclusion zones when filter changes (button positions may shift)
+  useEffect(() => {
+    if (!isMacOS) return;
+    const timeout = setTimeout(updateExclusionZones, 50);
+    return () => clearTimeout(timeout);
+  }, [filter, activeSection, updateExclusionZones]);
+
   return (
-    <header className="sticky top-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b border-border">
-      <div className="px-6 py-3">
+    <header
+      ref={headerRef}
+      className="sticky top-0 z-50 bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b border-border"
+    >
+      <div className={cn("px-6 py-3", isMacOS && "pl-24")}>
         <div className="flex items-center justify-between">
           {/* Title and nav */}
           <div className="flex items-center gap-6">

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 
-export type SectionId = "overview" | "cost" | "efficiency" | "tools" | "sessions" | "projects";
+export type SectionId = "overview" | "cost" | "efficiency" | "tools" | "automation" | "sessions" | "projects";
 
 export interface Section {
   id: SectionId;
@@ -12,6 +12,7 @@ export const SECTIONS: Section[] = [
   { id: "cost", label: "Cost" },
   { id: "efficiency", label: "Efficiency" },
   { id: "tools", label: "Tools" },
+  { id: "automation", label: "Automation" },
   { id: "projects", label: "Projects" },
   { id: "sessions", label: "Sessions" },
 ];
@@ -80,17 +81,21 @@ export function useActiveSection(): SectionId {
 
 /**
  * Smooth scroll to a section with offset for sticky header.
- * Uses scrollIntoView() which automatically finds the correct scrollable ancestor
- * (the <main> element with overflow-auto, not the window).
+ * Directly scrolls the <main> element rather than using scrollIntoView(),
+ * which can scroll the document level and push the header out of view.
  */
 export function scrollToSection(sectionId: SectionId) {
   const element = document.getElementById(sectionId);
-  if (element) {
-    // scrollIntoView works with any scrollable ancestor container
-    // The scroll-mt-20 class on Section components provides the header offset
-    element.scrollIntoView({
+  const main = document.querySelector("main");
+  if (element && main) {
+    const mainRect = main.getBoundingClientRect();
+    const elementRect = element.getBoundingClientRect();
+    // Calculate target scroll position: current scroll + element offset from main top - header offset
+    const targetScroll = main.scrollTop + (elementRect.top - mainRect.top) - 80;
+
+    main.scrollTo({
+      top: Math.max(0, targetScroll),
       behavior: "smooth",
-      block: "start",
     });
   }
 }

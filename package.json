@@ -3,13 +3,27 @@
   "version": "0.1.0",
   "description": "Claude Code token usage dashboard - Desktop app",
   "type": "module",
+  "bin": {
+    "claude-usage-monitor": "./bin/cli.js"
+  },
+  "files": [
+    "bin/",
+    "src/bun/",
+    "src/shared/",
+    "dist/",
+    "public/",
+    "electrobun.config.ts",
+    "icon.*"
+  ],
   "scripts": {
+    "prepack": "bun run build:frontend",
     "dev": "vite",
-    "dev:app": "bun run build:frontend && electrobun dev --console",
-    "dev:hmr": "concurrently \"vite --port 5173\" \"sleep 2 && VITE_DEV_SERVER_URL=http://localhost:5173 electrobun dev --console\"",
+    "dev:app": "bun run build:native-effects && bun run build:frontend && electrobun dev --console",
+    "dev:hmr": "bun run build:native-effects && concurrently \"vite --port 5173\" \"sleep 2 && VITE_DEV_SERVER_URL=http://localhost:5173 electrobun dev --console\"",
+    "build:native-effects": "bash scripts/build-macos-effects.sh",
     "build:frontend": "vite build",
-    "build": "vite build && electrobun build",
-    "build:prod": "vite build && electrobun build --env=stable",
+    "build": "bun run build:native-effects && vite build && electrobun build",
+    "build:prod": "bun run build:native-effects && vite build && electrobun build --env=stable",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "typecheck:app": "tsc -p tsconfig.app.json --noEmit",

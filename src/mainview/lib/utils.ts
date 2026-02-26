@@ -72,6 +72,83 @@ export function shortenPath(path: string): string {
   return decoded;
 }
 
+// ─── Automation Analytics Helpers ───────────────────────────────────────────
+
+export type ProductivityRating = {
+  stars: number;
+  label: string;
+  variant: "success" | "warning" | "destructive";
+};
+
+/**
+ * Convert success rate and average actions to a productivity rating (for agents).
+ * High success + high actions = excellent productivity.
+ */
+export function getProductivityRating(successRate: number, avgActions: number): ProductivityRating {
+  if (successRate >= 95 && avgActions >= 5) return { stars: 5, label: "Excellent", variant: "success" };
+  if (successRate >= 85) return { stars: 4, label: "Great", variant: "success" };
+  if (successRate >= 70) return { stars: 3, label: "Good", variant: "success" };
+  if (successRate >= 50) return { stars: 2, label: "Needs Work", variant: "warning" };
+  return { stars: 1, label: "High Friction", variant: "destructive" };
+}
+
+export type ReliabilityStatus = {
+  label: string;
+  icon: "check" | "warning" | "error";
+  variant: "success" | "warning" | "destructive";
+};
+
+/**
+ * Convert completion rate to reliability status (for skills).
+ */
+export function getReliabilityStatus(completionRate: number): ReliabilityStatus {
+  if (completionRate >= 0.95) return { label: "Highly Reliable", icon: "check", variant: "success" };
+  if (completionRate >= 0.85) return { label: "Reliable", icon: "check", variant: "success" };
+  if (completionRate >= 0.70) return { label: "Mostly Reliable", icon: "warning", variant: "warning" };
+  if (completionRate >= 0.50) return { label: "Needs Attention", icon: "warning", variant: "warning" };
+  return { label: "Unreliable", icon: "error", variant: "destructive" };
+}
+
+export type HookHealth = {
+  label: string;
+  icon: "check" | "warning" | "error";
+  variant: "success" | "warning" | "destructive";
+};
+
+/**
+ * Convert hook metrics to health status.
+ * Considers both failure rate and latency.
+ */
+export function getHookHealth(failureRate: number, avgDurationMs: number): HookHealth {
+  const isSlow = avgDurationMs > 500; // > 500ms is slow
+  const isHighFailure = failureRate > 0.2; // > 20% failure
+
+  if (failureRate === 0 && !isSlow) return { label: "Perfect", icon: "check", variant: "success" };
+  if (failureRate < 0.1 && !isSlow) return { label: "Healthy", icon: "check", variant: "success" };
+  if (isHighFailure) return { label: "High Friction", icon: "error", variant: "destructive" };
+  if (isSlow) return { label: "Slow", icon: "warning", variant: "warning" };
+  return { label: "Needs Review", icon: "warning", variant: "warning" };
+}
+
+/**
+ * Format a percentage change with direction indicator.
+ * Positive values show improvement, negative show decline.
+ */
+export function formatImpactPercent(value: number, lowerIsBetter = false): string {
+  const absValue = Math.abs(value * 100);
+  const isPositive = lowerIsBetter ? value > 0 : value > 0;
+  const direction = isPositive ? "▼" : "▲";
+  return `${direction} ${absValue.toFixed(0)}%`;
+}
+
+/**
+ * Format average duration in human-readable form.
+ */
+export function formatAvgDuration(ms: number): string {
+  if (ms < 1000) return `${Math.round(ms)}ms`;
+  return `${(ms / 1000).toFixed(1)}s`;
+}
+
 /**
  * Smart project name with disambiguation context.
  * Uses cwd (actual filesystem path) when available, falls back to decoding hyphenated projectPath.

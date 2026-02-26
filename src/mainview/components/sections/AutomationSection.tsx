@@ -1,0 +1,579 @@
+import { useMemo } from "react";
+import { Section } from "@/components/layout/Section";
+import { SectionHeader } from "@/components/shared/SectionHeader";
+import { InsightCard } from "@/components/shared/InsightCard";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  XAxis,
+  YAxis,
+} from "recharts";
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  ChartLegend,
+  ChartLegendContent,
+  type ChartConfig,
+} from "@/components/ui/chart";
+import {
+  cn,
+  formatPercent,
+  formatNumber,
+  getProductivityRating,
+  getReliabilityStatus,
+  getHookHealth,
+  formatAvgDuration,
+} from "@/lib/utils";
+import type { DashboardData, AgentROIEntry, SkillROIEntry, HookStatEntry } from "@shared/rpc-types";
+import { HugeiconsIcon } from "@hugeicons/react";
+import {
+  CheckmarkCircle02Icon,
+  AlertCircleIcon,
+  Clock01Icon,
+  StarIcon,
+} from "@hugeicons/core-free-icons";
+
+interface AutomationSectionProps {
+  data: DashboardData | null;
+  loading?: boolean;
+}
+
+export function AutomationSection({ data, loading }: AutomationSectionProps) {
+  const agentROI = data?.agentROI;
+  const skillROI = data?.skillROI ?? [];
+  const hookStats = data?.hookStats ?? [];
+  const skillImpact = data?.skillImpact;
+
+  // Generate headline insight based on data
+  const headline = useMemo(() => {
+    if (!agentROI?.agents.length && !skillROI.length && !hookStats.length) {
+      return null;
+    }
+
+    // Check for high-value agents
+    const highValueAgents = agentROI?.agents.filter(a => a.category === "high-value") ?? [];
+    const firstHighValueAgent = highValueAgents[0];
+    if (firstHighValueAgent) {
+      return {
+        text: `${highValueAgents.length} high-value agents identified`,
+        context: `${firstHighValueAgent.agentType} has ${firstHighValueAgent.successRate}% success rate`,
+        type: "success" as const,
+      };
+    }
+
+    // Check for skill impact
+    if (skillImpact && skillImpact.impact.errorRateReduction > 0.05) {
+      return {
+        text: `Skills reduce tool errors by ${(skillImpact.impact.errorRateReduction * 100).toFixed(0)}%`,
+        context: "Sessions using skills have fewer tool errors",
+        type: "success" as const,
+      };
+    }
+
+    // Check for hook issues
+    const problematicHooks = hookStats.filter(h => h.totalExecutions > 0 && h.failures / h.totalExecutions > 0.2);
+    const firstProblematicHook = problematicHooks[0];
+    if (firstProblematicHook) {
+      const failureRate = firstProblematicHook.totalExecutions > 0 ? firstProblematicHook.failures / firstProblematicHook.totalExecutions : 0;
+      return {
+        text: `${problematicHooks.length} hooks need attention`,
+        context: `${firstProblematicHook.hookName ?? "unknown"} has ${formatPercent(failureRate)} failure rate`,
+        type: "warning" as const,
+      };
+    }
+
+    return null;
+  }, [agentROI, skillROI, skillImpact, hookStats]);
+
+  return (
+    <Section id="automation">
+      <SectionHeader
+        id="automation-header"
+        title="Automation Analytics"
+        subtitle="Track agents, skills, and hooks efficiency"
+      />
+
+      {/* Headline Insight */}
+      {headline && (
+        <InsightCard
+          headline={headline.text}
+          context={headline.context}
+          type={headline.type}
+          priority="medium"
+          className="mb-6"
+        />
+      )}
+
+      {/* Tabbed Content */}
+      <Tabs defaultValue="agents">
+        <TabsList variant="line" className="mb-4">
+          <TabsTrigger value="agents">
+            Agents ({formatNumber(agentROI?.summary.totalSpawns ?? 0)})
+          </TabsTrigger>
+          <TabsTrigger value="skills">
+            Skills ({formatNumber(skillROI.length)})
+          </TabsTrigger>
+          <TabsTrigger value="hooks">
+            Hooks ({formatNumber(hookStats.length)})
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="agents">
+          <AgentsTab agents={agentROI?.agents ?? []} loading={loading} />
+        </TabsContent>
+
+        <TabsContent value="skills">
+          <SkillsTab skills={skillROI} impact={skillImpact ?? null} loading={loading} />
+        </TabsContent>
+
+        <TabsContent value="hooks">
+          <HooksTab hooks={hookStats} loading={loading} />
+        </TabsContent>
+      </Tabs>
+    </Section>
+  );
+}
+
+// ─── Agents Tab ────────────────────────────────────────────────────────────────
+
+interface AgentsTabProps {
+  agents: AgentROIEntry[];
+  loading?: boolean;
+}
+
+function AgentsTab({ agents, loading }: AgentsTabProps) {
+  if (loading) {
+    return (
+      <Card>
+        <CardContent className="p-6 space-y-3">
+          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-10 w-full" />
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (agents.length === 0) {
+    return (
+      <Card>
+        <CardContent className="p-8 text-center text-muted-foreground">
+          No agent spawns recorded yet. Agents are created via the Task tool.
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle>Agent Performance</CardTitle>
+        <CardDescription>
+          Reliability and productivity of Task tool agents
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-2 max-h-[400px] overflow-y-auto pr-2">
+          {agents.map((agent) => {
+            const rating = getProductivityRating(agent.successRate, agent.avgToolsPerSpawn);
+            const errors = Math.round(agent.toolsTriggered * (1 - agent.successRate / 100));
+
+            return (
+              <div
+                key={agent.agentType}
+                className={cn(
+                  "flex items-center justify-between p-3 rounded-lg border",
+                  agent.successRate >= 90
+                    ? "bg-success/5 border-success/20"
+                    : agent.successRate >= 70
+                      ? "bg-muted/50 border-border"
+                      : "bg-destructive/5 border-destructive/20"
+                )}
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="min-w-0">
+                    <div className="font-medium truncate">{agent.agentType}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {formatNumber(agent.spawns)} spawns
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-4 shrink-0">
+                  {/* Success Rate */}
+                  <div className="text-right">
+                    <Badge
+                      variant="outline"
+                      className={cn(
+                        "text-xs",
+                        agent.successRate >= 90
+                          ? "bg-success/10 text-success border-success/30"
+                          : agent.successRate >= 70
+                            ? "bg-muted text-muted-foreground"
+                            : "bg-destructive/10 text-destructive border-destructive/30"
+                      )}
+                    >
+                      {formatPercent(agent.successRate / 100)}
+                    </Badge>
+                  </div>
+
+                  {/* Errors */}
+                  {errors > 0 && (
+                    <span className="text-xs text-destructive">
+                      {errors} errors
+                    </span>
+                  )}
+
+                  {/* Productivity Rating */}
+                  <div className="flex items-center gap-1">
+                    {Array.from({ length: 5 }).map((_, i) => (
+                      <HugeiconsIcon
+                        key={i}
+                        icon={StarIcon}
+                        className={cn(
+                          "h-3 w-3",
+                          i < rating.stars ? "text-chart-4" : "text-muted"
+                        )}
+                      />
+                    ))}
+                    <span className={cn("text-xs ml-1", `text-${rating.variant}`)}>
+                      {rating.label}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ─── Skills Tab ────────────────────────────────────────────────────────────────
+
+interface SkillsTabProps {
+  skills: SkillROIEntry[];
+  impact: DashboardData["skillImpact"];
+  loading?: boolean;
+}
+
+const skillImpactChartConfig = {
+  withSkills: {
+    label: "With Skills",
+    color: "var(--chart-2)",
+  },
+  withoutSkills: {
+    label: "Without Skills",
+    color: "var(--muted)",
+  },
+} satisfies ChartConfig;
+
+function SkillsTab({ skills, impact, loading }: SkillsTabProps) {
+  // Prepare impact chart data
+  const impactData = useMemo(() => {
+    if (!impact) return [];
+
+    return [
+      {
+        metric: "Error Rate",
+        withSkills: Math.round(impact.withSkills.avgToolErrorRate * 100),
+        withoutSkills: Math.round(impact.withoutSkills.avgToolErrorRate * 100),
+      },
+      {
+        metric: "Completion",
+        withSkills: Math.round(impact.withSkills.avgCompletionRate * 100),
+        withoutSkills: Math.round(impact.withoutSkills.avgCompletionRate * 100),
+      },
+      {
+        metric: "Cache Hit",
+        withSkills: Math.round(impact.withSkills.avgCacheHitRatio * 100),
+        withoutSkills: Math.round(impact.withoutSkills.avgCacheHitRatio * 100),
+      },
+    ];
+  }, [impact]);
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <Skeleton className="h-[200px] w-full" />
+        <Skeleton className="h-[200px] w-full" />
+      </div>
+    );
+  }
+
+  if (skills.length === 0) {
+    return (
+      <Card>
+        <CardContent className="p-8 text-center text-muted-foreground">
+          No skill invocations recorded yet. Skills are invoked via /skill-name commands.
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Impact Comparison Chart */}
+      {impact && impactData.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Do Skills Improve Output?</CardTitle>
+            <CardDescription>
+              Comparing {impact.withSkills.sessionCount} sessions with skills vs {impact.withoutSkills.sessionCount} without
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-col lg:flex-row gap-6">
+              {/* Chart */}
+              <ChartContainer config={skillImpactChartConfig} className="min-h-[200px] flex-1">
+                <BarChart data={impactData} accessibilityLayer layout="vertical">
+                  <CartesianGrid horizontal={false} />
+                  <XAxis type="number" tickLine={false} axisLine={false} domain={[0, 100]} />
+                  <YAxis dataKey="metric" type="category" tickLine={false} axisLine={false} width={80} />
+                  <ChartTooltip content={<ChartTooltipContent />} animationDuration={150} isAnimationActive={false} />
+                  <ChartLegend content={<ChartLegendContent />} />
+                  <Bar dataKey="withSkills" fill="var(--color-withSkills)" radius={4} />
+                  <Bar dataKey="withoutSkills" fill="var(--color-withoutSkills)" radius={4} />
+                </BarChart>
+              </ChartContainer>
+
+              {/* Impact Badges */}
+              <div className="flex flex-col gap-3 min-w-[180px]">
+                <ImpactBadge
+                  label="Error Rate"
+                  value={impact.impact.errorRateReduction}
+                  lowerIsBetter
+                />
+                <ImpactBadge
+                  label="Completion"
+                  value={impact.impact.completionImprovement}
+                />
+                <ImpactBadge
+                  label="Avg Turns"
+                  value={impact.impact.turnsReduction}
+                  lowerIsBetter
+                />
+                <ImpactBadge
+                  label="Cache Hit"
+                  value={impact.impact.cacheImprovement}
+                />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Skills Table */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle>Skill Reliability</CardTitle>
+          <CardDescription>
+            Completion rates and usage frequency
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2">
+            {skills.map((skill) => {
+              const status = getReliabilityStatus(skill.completionRate);
+
+              return (
+                <div
+                  key={skill.skillName}
+                  className={cn(
+                    "flex items-center justify-between p-3 rounded-lg border",
+                    skill.completionRate >= 0.85
+                      ? "bg-success/5 border-success/20"
+                      : skill.completionRate >= 0.7
+                        ? "bg-muted/50 border-border"
+                        : "bg-warning/5 border-warning/20"
+                  )}
+                >
+                  <div className="min-w-0">
+                    <div className="font-medium font-mono truncate">{skill.skillName}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {formatNumber(skill.invocationCount)} uses &middot; {skill.avgToolsTriggered} avg actions
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3 shrink-0">
+                    <Badge
+                      variant="outline"
+                      className={cn(
+                        "text-xs",
+                        status.variant === "success"
+                          ? "bg-success/10 text-success border-success/30"
+                          : status.variant === "warning"
+                            ? "bg-warning/10 text-warning border-warning/30"
+                            : "bg-destructive/10 text-destructive border-destructive/30"
+                      )}
+                    >
+                      {formatPercent(skill.completionRate)}
+                    </Badge>
+                    <span className={cn("text-xs", `text-${status.variant}`)}>
+                      {status.label}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+// ─── Hooks Tab ─────────────────────────────────────────────────────────────────
+
+interface HooksTabProps {
+  hooks: HookStatEntry[];
+  loading?: boolean;
+}
+
+function HooksTab({ hooks, loading }: HooksTabProps) {
+  if (loading) {
+    return (
+      <Card>
+        <CardContent className="p-6 space-y-3">
+          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-10 w-full" />
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (hooks.length === 0) {
+    return (
+      <Card>
+        <CardContent className="p-8 text-center text-muted-foreground">
+          No hook executions recorded yet. Hooks run on events like PreToolUse, PostToolUse, etc.
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle>Hook Health</CardTitle>
+        <CardDescription>
+          Execution frequency, failures, and latency
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-2 max-h-[400px] overflow-y-auto pr-2">
+          {hooks.map((hook) => {
+            const failureRate = hook.totalExecutions > 0 ? hook.failures / hook.totalExecutions : 0;
+            const health = getHookHealth(failureRate, hook.avgDurationMs);
+
+            return (
+              <div
+                key={`${hook.hookType}-${hook.hookName}`}
+                className={cn(
+                  "flex items-center justify-between p-3 rounded-lg border",
+                  health.variant === "success"
+                    ? "bg-success/5 border-success/20"
+                    : health.variant === "warning"
+                      ? "bg-warning/5 border-warning/20"
+                      : "bg-destructive/5 border-destructive/20"
+                )}
+              >
+                <div className="min-w-0">
+                  <div className="font-medium truncate">{hook.hookName ?? "unnamed"}</div>
+                  <div className="text-xs text-muted-foreground flex items-center gap-2">
+                    <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                      {hook.hookType}
+                    </Badge>
+                    <span>{formatNumber(hook.totalExecutions)} triggers</span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-4 shrink-0">
+                  {/* Failures */}
+                  {hook.failures > 0 && (
+                    <span className={cn(
+                      "text-xs",
+                      failureRate > 0.1 ? "text-destructive" : "text-muted-foreground"
+                    )}>
+                      {hook.failures} ({formatPercent(failureRate)}) failures
+                    </span>
+                  )}
+
+                  {/* Latency */}
+                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <HugeiconsIcon icon={Clock01Icon} className="h-3 w-3" />
+                    {formatAvgDuration(hook.avgDurationMs)}
+                  </div>
+
+                  {/* Health Status */}
+                  <div className="flex items-center gap-1">
+                    <HugeiconsIcon
+                      icon={health.icon === "check" ? CheckmarkCircle02Icon : AlertCircleIcon}
+                      className={cn(
+                        "h-4 w-4",
+                        health.variant === "success"
+                          ? "text-success"
+                          : health.variant === "warning"
+                            ? "text-warning"
+                            : "text-destructive"
+                      )}
+                    />
+                    <span className={cn("text-xs", `text-${health.variant}`)}>
+                      {health.label}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ─── Helper Components ──────────────────────────────────────────────────────────
+
+interface ImpactBadgeProps {
+  label: string;
+  value: number;
+  lowerIsBetter?: boolean;
+}
+
+function ImpactBadge({ label, value, lowerIsBetter = false }: ImpactBadgeProps) {
+  const isPositive = lowerIsBetter ? value > 0 : value > 0;
+  const absPercent = Math.abs(value * 100);
+  const direction = isPositive ? (lowerIsBetter ? "fewer" : "more") : (lowerIsBetter ? "more" : "less");
+
+  if (absPercent < 1) {
+    return (
+      <div className="p-2 rounded-lg bg-muted/50 text-center">
+        <div className="text-xs text-muted-foreground">{label}</div>
+        <div className="text-sm font-medium text-muted-foreground">No difference</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className={cn(
+      "p-2 rounded-lg text-center",
+      isPositive ? "bg-success/10" : "bg-destructive/10"
+    )}>
+      <div className="text-xs text-muted-foreground">{label}</div>
+      <div className={cn(
+        "text-sm font-medium",
+        isPositive ? "text-success" : "text-destructive"
+      )}>
+        {isPositive ? "▼" : "▲"} {absPercent.toFixed(0)}% {direction}
+      </div>
+    </div>
+  );
+}

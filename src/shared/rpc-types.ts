@@ -44,6 +44,8 @@ export interface DashboardTotals {
   totalAgentSpawns: number;
   promptEfficiencyRatio: number;
   totalSkillInvocations: number;
+  avgTurnsPerSession: number;
+  totalTurns: number;
 }
 
 export interface DailyStat {
@@ -68,6 +70,7 @@ export interface SessionSummary {
   totalCost: number;
   queryCount: number;
   toolUseCount: number;
+  turnCount: number;
   isSubagent: boolean;
   model: string;
   modelShort: string;
@@ -183,6 +186,49 @@ export interface AgentROI {
   summary: AgentROISummary;
 }
 
+// ─── Skill ROI Types ─────────────────────────────────────────────────────────
+
+export interface SkillROIEntry {
+  skillName: string;
+  invocationCount: number;
+  avgCostTokens: number;
+  avgToolsTriggered: number;
+  totalCost: number;
+  completionRate: number;
+  roiScore: number;
+}
+
+// ─── Hook Stats Types ────────────────────────────────────────────────────────
+
+export interface HookStatEntry {
+  hookName: string;
+  hookType: string;
+  totalExecutions: number;
+  failures: number;
+  avgDurationMs: number;
+}
+
+// ─── Skill Impact Comparison ─────────────────────────────────────────────────
+
+export interface SkillImpactMetrics {
+  sessionCount: number;
+  avgToolErrorRate: number;
+  avgCompletionRate: number;
+  avgTurnCount: number;
+  avgCacheHitRatio: number;
+}
+
+export interface SkillImpactComparison {
+  withSkills: SkillImpactMetrics;
+  withoutSkills: SkillImpactMetrics;
+  impact: {
+    errorRateReduction: number;     // Positive = fewer errors with skills
+    completionImprovement: number;  // Positive = higher completion with skills
+    turnsReduction: number;         // Positive = fewer turns with skills
+    cacheImprovement: number;       // Positive = better cache with skills
+  };
+}
+
 export interface ToolHealthEntry {
   name: string;
   totalCalls: number;
@@ -230,6 +276,10 @@ export interface DashboardData {
   toolHealth: ToolHealthEntry[];
   agentROI: AgentROI;
   toolHealthReportCard: ToolHealthReportCard;
+  // Automation analytics (Phase 2)
+  skillROI: SkillROIEntry[];
+  hookStats: HookStatEntry[];
+  skillImpact: SkillImpactComparison | null;
 }
 
 // ─── Anthropic Usage (from OAuth API) ────────────────────────────────────────
@@ -410,6 +460,10 @@ export type UsageMonitorRPC = {
       getAnthropicUsage: {
         params: Record<string, never>;
         response: AnthropicUsage;
+      };
+      updateDragExclusionZones: {
+        params: { zones: Array<{ x: number; y: number; width: number; height: number }> };
+        response: { success: boolean };
       };
     };
     messages: {

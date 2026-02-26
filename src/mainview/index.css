@@ -132,7 +132,44 @@
     @apply font-sans overflow-hidden;
   }
   body {
-    @apply font-sans bg-background text-foreground antialiased overflow-hidden h-screen;
+    @apply font-sans text-foreground antialiased overflow-hidden h-screen;
+    /* Fallback background for non-macOS; macOS uses native vibrancy */
+    background: var(--background);
+  }
+}
+
+/* ─── macOS Vibrancy Support ─────────────────────────────────────────────── */
+/* Native blur (NSVisualEffectView) sits behind all content.
+   Semi-transparent CSS backgrounds let the blur show through while
+   maintaining visual hierarchy and text readability.
+
+   Visual Hierarchy (opacity values tuned for beauty):
+   - --background: Most transparent - blur shows through clearly
+   - --card: Slightly more opaque - cards "float" above background
+   - --popover: Nearly opaque - dropdowns/sheets need contrast for readability
+   - --muted: Subtle elements blend smoothly */
+
+@supports (-webkit-backdrop-filter: blur(1px)) {
+  /* Only html/body transparent - #root needs stacking context */
+  html,
+  body {
+    background: transparent !important;
+  }
+
+  :root {
+    /* Light mode - subtle frosted glass */
+    --background: oklch(1 0 0 / 80%);
+    --card: oklch(1 0 0 / 85%);
+    --popover: oklch(1 0 0 / 90%);
+    --muted: oklch(0.967 0.001 286.375 / 90%);
+  }
+
+  .dark {
+    /* Dark mode - rich frosted glass with depth */
+    --background: oklch(0.141 0.005 285.823 / 70%);
+    --card: oklch(0.21 0.006 285.885 / 80%);
+    --popover: oklch(0.21 0.006 285.885 / 88%);
+    --muted: oklch(0.274 0.006 286.033 / 85%);
   }
 }
 

@@ -47,7 +47,8 @@ CREATE TABLE IF NOT EXISTS sessions (
   compactions INTEGER DEFAULT 0,
   saved_by_caching REAL DEFAULT 0,
   total_ephemeral_5m_tokens INTEGER DEFAULT 0,
-  total_ephemeral_1h_tokens INTEGER DEFAULT 0
+  total_ephemeral_1h_tokens INTEGER DEFAULT 0,
+  turn_count INTEGER DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS sessions_project_idx ON sessions(project_path);
 CREATE INDEX IF NOT EXISTS sessions_start_time_idx ON sessions(start_time);

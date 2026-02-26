@@ -198,6 +198,24 @@ export function SessionsSection({ data, loading }: SessionsSectionProps) {
         meta: { align: "right" },
       },
       {
+        id: "turns",
+        header: ({ column }) => (
+          <SortableHeaderCell
+            label="Turns"
+            sorted={column.getIsSorted()}
+            onToggle={() =>
+              column.toggleSorting(column.getIsSorted() === "asc")
+            }
+            align="right"
+          />
+        ),
+        accessorKey: "turnCount",
+        cell: ({ row }) => (
+          <span className="text-sm">{row.original.turnCount}</span>
+        ),
+        meta: { align: "right" },
+      },
+      {
         id: "tokens",
         header: ({ column }) => (
           <SortableHeaderCell
@@ -547,6 +565,7 @@ function SessionDetail({ session }: { session: SessionRow }) {
             label="Tool Uses"
             value={session.toolUseCount.toString()}
           />
+          <MetricRow label="Turns" value={session.turnCount.toString()} />
           <MetricRow
             label="Total Tokens"
             value={formatTokens(session.totalTokens)}
