@@ -30,6 +30,7 @@
   },
   "include": [
     "src/bun/**/*",
+    "src/cli/**/*",
     "src/shared/**/*",
     "electrobun.config.ts",
     "vite.config.ts"

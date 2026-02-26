@@ -11,7 +11,7 @@ import { ProjectsSection } from "./components/sections/ProjectsSection";
 import { SessionsSection } from "./components/sections/SessionsSection";
 import { ToolsSection } from "./components/sections/ToolsSection";
 import { useActiveSection, scrollToSection } from "./hooks/useActiveSection";
-import { useRPC, rpcRequest } from "./hooks/useRPC";
+import { useApi, useIsDesktop } from "./hooks/useApi";
 
 type ThemeMode = "system" | "light" | "dark";
 
@@ -29,7 +29,8 @@ const applyTheme = (theme: ThemeMode) => {
 };
 
 const App = () => {
-  const rpc = useRPC();
+  const api = useApi();
+  const isDesktop = useIsDesktop();
   const activeSection = useActiveSection();
   const [isLoading, setIsLoading] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -47,62 +48,76 @@ const App = () => {
     return () => mediaQuery.removeEventListener("change", handleChange);
   }, []);
 
-  // Listen for theme changes from main process
+  // Listen for theme changes from main process (desktop only)
   useEffect(() => {
-    const listener = (payload: unknown) => {
-      if (!payload || typeof payload !== "object") {
-        return;
-      }
-      const { theme } = payload as { theme?: ThemeMode };
-      if (theme === "system" || theme === "light" || theme === "dark") {
-        applyTheme(theme);
-      }
-    };
+    if (!isDesktop) return;
 
-    rpc.addMessageListener("themeChanged", listener);
-    return () => {
-      rpc.removeMessageListener("themeChanged", listener);
-    };
-  }, []);
+    // Dynamically import RPC for desktop mode
+    import("./hooks/useRPC").then(({ electroview }) => {
+      const listener = (payload: unknown) => {
+        if (!payload || typeof payload !== "object") {
+          return;
+        }
+        const { theme } = payload as { theme?: ThemeMode };
+        if (theme === "system" || theme === "light" || theme === "dark") {
+          applyTheme(theme);
+        }
+      };
+
+      electroview.addMessageListener("themeChanged", listener);
+      return () => {
+        electroview.removeMessageListener("themeChanged", listener);
+      };
+    });
+  }, [isDesktop]);
 
   // Load dashboard data
   const loadData = useCallback(async () => {
     try {
       setIsLoading(true);
       setError(null);
-      const dashboardData = await rpcRequest("getDashboardData", { filter });
+      const dashboardData = await api.getDashboardData({ filter });
       setData(dashboardData);
-    } catch (error) {
-      console.error("Failed to load dashboard data:", error);
-      setError(error instanceof Error ? error.message : "Failed to load data");
+    } catch (err) {
+      console.error("Failed to load dashboard data:", err);
+      setError(err instanceof Error ? err.message : "Failed to load data");
     } finally {
       setIsLoading(false);
     }
-  }, [filter]);
+  }, [api, filter]);
 
   // Initial load and filter changes
   useEffect(() => {
     loadData();
   }, [loadData]);
 
-  // Listen for data updates from main process
+  // Listen for data updates from main process (desktop only)
   useEffect(() => {
-    const handleUpdate = () => {
-      loadData();
-    };
+    if (!isDesktop) return;
 
-    rpc.addMessageListener("sessionsUpdated", handleUpdate);
-    return () => rpc.removeMessageListener("sessionsUpdated", handleUpdate);
-  }, [loadData]);
+    let cleanup: (() => void) | undefined;
+
+    import("./hooks/useRPC").then(({ electroview }) => {
+      const handleUpdate = () => {
+        loadData();
+      };
+
+      electroview.addMessageListener("sessionsUpdated", handleUpdate);
+      cleanup = () =>
+        electroview.removeMessageListener("sessionsUpdated", handleUpdate);
+    });
+
+    return () => cleanup?.();
+  }, [isDesktop, loadData]);
 
   // Trigger sync
   const handleSync = async () => {
     try {
       setIsSyncing(true);
-      await rpcRequest("triggerSync", { fullResync: false });
+      await api.triggerSync({ fullResync: false });
       await loadData();
-    } catch (error) {
-      console.error("Sync failed:", error);
+    } catch (err) {
+      console.error("Sync failed:", err);
     } finally {
       setIsSyncing(false);
     }

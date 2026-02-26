@@ -8,9 +8,16 @@ export const electroview = Electroview.defineRPC<UsageMonitorRPC>({
   handlers: {},
 });
 
-// Instantiate Electroview to connect the WebSocket transport.
-// Without this, the RPC stays on a stub transport (no `send` method).
-new Electroview({ rpc: electroview });
+// Only initialize Electrobun WebSocket if we're actually in Electrobun environment.
+// In CLI/browser mode, window.__electrobun doesn't exist, and attempting to connect
+// would produce "Invalid url for WebSocket ws://localhost:undefined/socket" errors.
+const isElectrobun = typeof window !== "undefined" && "__electrobun" in window;
+
+if (isElectrobun) {
+  // Instantiate Electroview to connect the WebSocket transport.
+  // Without this, the RPC stays on a stub transport (no `send` method).
+  new Electroview({ rpc: electroview });
+}
 
 // ─── Type Helpers ────────────────────────────────────────────────────────────
 
