@@ -1,7 +1,10 @@
+import { RefreshIcon, Settings02Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { useEffect, useRef, useCallback } from "react";
-import { cn } from "@/lib/utils";
+
+import { ScheduleSettings } from "@/components/settings/ScheduleSettings";
 import { Button } from "@/components/ui/button";
-import { SECTIONS, scrollToSection, type SectionId } from "@/hooks/useActiveSection";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import {
   Sheet,
@@ -11,11 +14,10 @@ import {
   SheetTitle,
   SheetDescription,
 } from "@/components/ui/sheet";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { ScheduleSettings } from "@/components/settings/ScheduleSettings";
-import { HugeiconsIcon } from "@hugeicons/react";
-import { RefreshIcon, Settings02Icon } from "@hugeicons/core-free-icons";
+import { SECTIONS, scrollToSection } from "@/hooks/useActiveSection";
+import type { SectionId } from "@/hooks/useActiveSection";
 import { rpcRequest } from "@/hooks/useRPC";
+import { cn } from "@/lib/utils";
 
 // Detect macOS for traffic light padding
 const isMacOS =
@@ -33,10 +35,10 @@ interface HeaderProps {
 }
 
 const FILTER_OPTIONS: { value: FilterOption; label: string }[] = [
-  { value: "today", label: "Today" },
-  { value: "7d", label: "7D" },
-  { value: "30d", label: "30D" },
-  { value: "all", label: "All" },
+  { label: "Today", value: "today" },
+  { label: "7D", value: "7d" },
+  { label: "30D", value: "30d" },
+  { label: "All", value: "all" },
 ];
 
 export function Header({
@@ -50,12 +52,16 @@ export function Header({
 
   // Calculate button bounds and send to main process for native drag exclusion zones
   const updateExclusionZones = useCallback(() => {
-    if (!headerRef.current || !isMacOS) return;
+    if (!headerRef.current || !isMacOS) {
+      return;
+    }
 
-    const buttons = headerRef.current.querySelectorAll('button, [role="button"]');
-    const zones = Array.from(buttons).map((btn) => {
+    const buttons = headerRef.current.querySelectorAll(
+      'button, [role="button"]'
+    );
+    const zones = [...buttons].map((btn) => {
       const rect = btn.getBoundingClientRect();
-      return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
+      return { height: rect.height, width: rect.width, x: rect.x, y: rect.y };
     });
 
     // Send zones to main process (fire and forget)
@@ -66,7 +72,9 @@ export function Header({
 
   // Update exclusion zones on mount and resize
   useEffect(() => {
-    if (!isMacOS) return;
+    if (!isMacOS) {
+      return;
+    }
 
     // Initial update after brief delay (let layout settle)
     const initialTimeout = setTimeout(updateExclusionZones, 100);
@@ -82,7 +90,9 @@ export function Header({
 
   // Update exclusion zones when filter changes (button positions may shift)
   useEffect(() => {
-    if (!isMacOS) return;
+    if (!isMacOS) {
+      return;
+    }
     const timeout = setTimeout(updateExclusionZones, 50);
     return () => clearTimeout(timeout);
   }, [filter, activeSection, updateExclusionZones]);
@@ -90,7 +100,7 @@ export function Header({
   return (
     <header
       ref={headerRef}
-      className="sticky top-0 z-50 bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b border-border"
+      className="bg-background/80 supports-[backdrop-filter]:bg-background/60 border-border sticky top-0 z-50 border-b backdrop-blur"
     >
       <div className={cn("px-6 py-3", isMacOS && "pl-24")}>
         <div className="flex items-center justify-between">
@@ -101,6 +111,7 @@ export function Header({
             <nav className="flex items-center gap-1">
               {SECTIONS.map(({ id, label }) => (
                 <button
+                  type="button"
                   key={id}
                   onClick={() => scrollToSection(id)}
                   className={cn(
@@ -118,9 +129,10 @@ export function Header({
 
           {/* Filter and sync */}
           <div className="flex items-center gap-3">
-            <div className="flex items-center rounded-lg bg-muted p-1">
+            <div className="bg-muted flex items-center rounded-lg p-1">
               {FILTER_OPTIONS.map(({ value, label }) => (
                 <button
+                  type="button"
                   key={value}
                   onClick={() => onFilterChange(value)}
                   className={cn(
@@ -167,7 +179,7 @@ export function Header({
                     Configure session warm-up schedules and other preferences.
                   </SheetDescription>
                 </SheetHeader>
-                <ScrollArea className="flex-1 min-h-0 overflow-hidden p-6 pt-0">
+                <ScrollArea className="min-h-0 flex-1 overflow-hidden p-6 pt-0">
                   <ScheduleSettings />
                 </ScrollArea>
               </SheetContent>

@@ -1,5 +1,5 @@
-import { Electroview } from "electrobun/view";
 import type { UsageMonitorRPC } from "@shared/rpc-types";
+import { Electroview } from "electrobun/view";
 
 // ─── Electrobun RPC Setup ────────────────────────────────────────────────────
 
@@ -16,8 +16,10 @@ new Electroview({ rpc: electroview });
 
 type BunRequests = UsageMonitorRPC["bun"]["requests"];
 export type RPCRequestName = keyof BunRequests;
-export type RPCRequestParams<K extends RPCRequestName> = BunRequests[K]["params"];
-export type RPCRequestResponse<K extends RPCRequestName> = BunRequests[K]["response"];
+export type RPCRequestParams<K extends RPCRequestName> =
+  BunRequests[K]["params"];
+export type RPCRequestResponse<K extends RPCRequestName> =
+  BunRequests[K]["response"];
 
 type BunMessages = UsageMonitorRPC["bun"]["messages"];
 export type RPCMessageName = keyof BunMessages;
@@ -41,8 +43,13 @@ export const rpcRequest = <K extends RPCRequestName>(
 /**
  * Send a one-way message to the bun process (fire-and-forget).
  */
-export const rpcSend = <K extends RPCMessageName>(method: K, params: RPCMessageParams<K>): void => {
-  const sendFn = electroview.send[method] as (input: RPCMessageParams<K>) => void;
+export const rpcSend = <K extends RPCMessageName>(
+  method: K,
+  params: RPCMessageParams<K>
+): void => {
+  const sendFn = electroview.send[method] as (
+    input: RPCMessageParams<K>
+  ) => void;
   sendFn(params);
 };
 
@@ -61,8 +68,8 @@ export const useRPC = () => electroview;
  */
 export function useLogger() {
   return {
-    info: (msg: string) => rpcSend("log", { msg, level: "info" }),
-    warn: (msg: string) => rpcSend("log", { msg, level: "warn" }),
-    error: (msg: string) => rpcSend("log", { msg, level: "error" }),
+    error: (msg: string) => rpcSend("log", { level: "error", msg }),
+    info: (msg: string) => rpcSend("log", { level: "info", msg }),
+    warn: (msg: string) => rpcSend("log", { level: "warn", msg }),
   };
 }

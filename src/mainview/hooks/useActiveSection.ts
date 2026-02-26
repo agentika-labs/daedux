@@ -1,6 +1,13 @@
 import { useState, useEffect, useRef } from "react";
 
-export type SectionId = "overview" | "cost" | "efficiency" | "tools" | "automation" | "sessions" | "projects";
+export type SectionId =
+  | "overview"
+  | "cost"
+  | "efficiency"
+  | "tools"
+  | "automation"
+  | "sessions"
+  | "projects";
 
 export interface Section {
   id: SectionId;
@@ -63,7 +70,7 @@ export function useActiveSection(): SectionId {
 
     // Observe all section elements
     SECTIONS.forEach(({ id }) => {
-      const element = document.getElementById(id);
+      const element = document.querySelector(`#${id}`);
       if (element && observer.current) {
         observer.current.observe(element);
       }
@@ -85,7 +92,7 @@ export function useActiveSection(): SectionId {
  * which can scroll the document level and push the header out of view.
  */
 export function scrollToSection(sectionId: SectionId) {
-  const element = document.getElementById(sectionId);
+  const element = document.querySelector(`#${sectionId}`);
   const main = document.querySelector("main");
   if (element && main) {
     const mainRect = main.getBoundingClientRect();
@@ -94,8 +101,8 @@ export function scrollToSection(sectionId: SectionId) {
     const targetScroll = main.scrollTop + (elementRect.top - mainRect.top) - 80;
 
     main.scrollTo({
-      top: Math.max(0, targetScroll),
       behavior: "smooth",
+      top: Math.max(0, targetScroll),
     });
   }
 }

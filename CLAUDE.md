@@ -45,6 +45,7 @@ AppLive (composed layer)
 ```
 
 Services are defined in `src/services/`:
+
 - `db.ts` - SQLite connection (WAL mode, 64MB cache), transaction helper
 - `sync.ts` - File discovery, incremental sync by mtime, batch inserts
 - `analytics.ts` - All read queries with date filtering support
@@ -65,6 +66,7 @@ Services are defined in `src/services/`:
 - Migrations: Manual via `drizzle-kit push`
 
 Key tables:
+
 - `sessions` - Aggregated session data (costs, tokens)
 - `queries` - Per-API-call token breakdown
 - `tool_uses` - Tool invocations with error tracking

@@ -1,14 +1,29 @@
+import type { DashboardData, DailyStat } from "@shared/rpc-types";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  XAxis,
+  YAxis,
+  ComposedChart,
+  Line,
+  Cell,
+} from "recharts";
+
+import { ExpensivePromptsCard } from "@/components/cards/ExpensivePromptsCard";
 import { Section } from "@/components/layout/Section";
-import { SectionHeader } from "@/components/shared/SectionHeader";
 import { ChartCard } from "@/components/shared/ChartCard";
-import { StatCard } from "@/components/shared/StatCard";
 import { EmptyChartState } from "@/components/shared/EmptyChartState";
 import { LegendItem } from "@/components/shared/LegendItem";
-import { ExpensivePromptsCard } from "@/components/cards/ExpensivePromptsCard";
-import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
+import { SectionHeader } from "@/components/shared/SectionHeader";
+import { StatCard } from "@/components/shared/StatCard";
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+} from "@/components/ui/chart";
+import type { ChartConfig } from "@/components/ui/chart";
 import { formatCurrency, formatTokens } from "@/lib/utils";
-import type { DashboardData, DailyStat } from "@shared/rpc-types";
-import { Bar, BarChart, CartesianGrid, XAxis, YAxis, ComposedChart, Line, Cell } from "recharts";
 
 interface CostSectionProps {
   data: DashboardData | null;
@@ -17,38 +32,38 @@ interface CostSectionProps {
 
 const dailyCostConfig = {
   cost: {
-    label: "Cost",
     color: "var(--chart-1)",
+    label: "Cost",
   },
   cumulativeCost: {
-    label: "Cumulative",
     color: "var(--chart-2)",
+    label: "Cumulative",
   },
 } satisfies ChartConfig;
 
 const modelConfig = {
   cost: {
-    label: "Cost",
     color: "var(--chart-1)",
+    label: "Cost",
   },
 } satisfies ChartConfig;
 
 const tokenConfig = {
-  uncachedInput: {
-    label: "Uncached Input",
-    color: "var(--chart-1)",
+  cacheCreation: {
+    color: "var(--chart-3)",
+    label: "Cache Creation",
   },
   cacheRead: {
-    label: "Cache Read",
     color: "var(--chart-2)",
-  },
-  cacheCreation: {
-    label: "Cache Creation",
-    color: "var(--chart-3)",
+    label: "Cache Read",
   },
   output: {
-    label: "Output",
     color: "var(--chart-4)",
+    label: "Output",
+  },
+  uncachedInput: {
+    color: "var(--chart-1)",
+    label: "Uncached Input",
   },
 } satisfies ChartConfig;
 
@@ -58,25 +73,26 @@ export function CostSection({ data, loading }: CostSectionProps) {
   const modelBreakdown = data?.modelBreakdown ?? [];
 
   // Calculate cumulative cost for the chart
-  const dailyWithCumulative = dailyUsage.reduce<(DailyStat & { cumulativeCost: number })[]>(
-    (acc, day) => {
-      const lastItem = acc[acc.length - 1];
-      const prev = lastItem?.cumulativeCost ?? 0;
-      return [...acc, { ...day, cumulativeCost: prev + day.totalCost }];
-    },
-    []
-  );
+  const dailyWithCumulative = dailyUsage.reduce<
+    (DailyStat & { cumulativeCost: number })[]
+  >((acc, day) => {
+    const lastItem = acc.at(-1);
+    const prev = lastItem?.cumulativeCost ?? 0;
+    return [...acc, { ...day, cumulativeCost: prev + day.totalCost }];
+  }, []);
 
   // Token breakdown for stacked bar
-  const tokenBreakdown = totals ? [
-    {
-      name: "Tokens",
-      uncachedInput: totals.uncachedInput,
-      cacheRead: totals.cacheRead,
-      cacheCreation: totals.cacheCreation,
-      output: totals.output,
-    },
-  ] : [];
+  const tokenBreakdown = totals
+    ? [
+        {
+          cacheCreation: totals.cacheCreation,
+          cacheRead: totals.cacheRead,
+          name: "Tokens",
+          output: totals.output,
+          uncachedInput: totals.uncachedInput,
+        },
+      ]
+    : [];
 
   return (
     <Section id="cost">
@@ -87,7 +103,7 @@ export function CostSection({ data, loading }: CostSectionProps) {
       />
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-3 gap-4 mb-6">
+      <div className="mb-6 grid grid-cols-3 gap-4">
         <StatCard
           label="Total Cost"
           value={formatCurrency(totals?.totalCost ?? 0)}
@@ -106,7 +122,7 @@ export function CostSection({ data, loading }: CostSectionProps) {
       </div>
 
       {/* Charts Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+      <div className="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
         {/* Daily Cost Trend */}
         <ChartCard
           title="Daily Cost Trend"
@@ -114,7 +130,10 @@ export function CostSection({ data, loading }: CostSectionProps) {
           loading={loading}
         >
           {dailyWithCumulative.length > 0 ? (
-            <ChartContainer config={dailyCostConfig} className="h-[250px] w-full">
+            <ChartContainer
+              config={dailyCostConfig}
+              className="h-[250px] w-full"
+            >
               <ComposedChart data={dailyWithCumulative} accessibilityLayer>
                 <CartesianGrid vertical={false} strokeDasharray="3 3" />
                 <XAxis
@@ -124,7 +143,10 @@ export function CostSection({ data, loading }: CostSectionProps) {
                   tickMargin={8}
                   tickFormatter={(value) => {
                     const date = new Date(value);
-                    return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+                    return date.toLocaleDateString("en-US", {
+                      day: "numeric",
+                      month: "short",
+                    });
                   }}
                 />
                 <YAxis
@@ -144,7 +166,10 @@ export function CostSection({ data, loading }: CostSectionProps) {
                   content={
                     <ChartTooltipContent
                       formatter={(value, name) => (
-                        <span>{name === "cost" ? "Daily" : "Cumulative"}: {formatCurrency(value as number)}</span>
+                        <span>
+                          {name === "cost" ? "Daily" : "Cumulative"}:{" "}
+                          {formatCurrency(value as number)}
+                        </span>
                       )}
                     />
                   }
@@ -181,7 +206,9 @@ export function CostSection({ data, loading }: CostSectionProps) {
           {modelBreakdown.length > 0 ? (
             <ChartContainer config={modelConfig} className="h-[250px] w-full">
               <BarChart
-                data={modelBreakdown.sort((a, b) => b.totalCost - a.totalCost).slice(0, 6)}
+                data={modelBreakdown
+                  .toSorted((a, b) => b.totalCost - a.totalCost)
+                  .slice(0, 6)}
                 layout="vertical"
                 accessibilityLayer
               >
@@ -223,7 +250,7 @@ export function CostSection({ data, loading }: CostSectionProps) {
       </div>
 
       {/* Token Breakdown */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+      <div className="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
         <ChartCard
           title="Token Breakdown"
           subtitle="Distribution of token types"
@@ -231,7 +258,11 @@ export function CostSection({ data, loading }: CostSectionProps) {
         >
           {tokenBreakdown.length > 0 ? (
             <ChartContainer config={tokenConfig} className="h-[100px] w-full">
-              <BarChart data={tokenBreakdown} layout="vertical" accessibilityLayer>
+              <BarChart
+                data={tokenBreakdown}
+                layout="vertical"
+                accessibilityLayer
+              >
                 <XAxis type="number" hide />
                 <YAxis type="category" dataKey="name" hide />
                 <ChartTooltip
@@ -241,21 +272,55 @@ export function CostSection({ data, loading }: CostSectionProps) {
                     />
                   }
                 />
-                <Bar dataKey="uncachedInput" stackId="a" fill="var(--color-uncachedInput)" radius={[4, 0, 0, 4]} />
-                <Bar dataKey="cacheRead" stackId="a" fill="var(--color-cacheRead)" />
-                <Bar dataKey="cacheCreation" stackId="a" fill="var(--color-cacheCreation)" />
-                <Bar dataKey="output" stackId="a" fill="var(--color-output)" radius={[0, 4, 4, 0]} />
+                <Bar
+                  dataKey="uncachedInput"
+                  stackId="a"
+                  fill="var(--color-uncachedInput)"
+                  radius={[4, 0, 0, 4]}
+                />
+                <Bar
+                  dataKey="cacheRead"
+                  stackId="a"
+                  fill="var(--color-cacheRead)"
+                />
+                <Bar
+                  dataKey="cacheCreation"
+                  stackId="a"
+                  fill="var(--color-cacheCreation)"
+                />
+                <Bar
+                  dataKey="output"
+                  stackId="a"
+                  fill="var(--color-output)"
+                  radius={[0, 4, 4, 0]}
+                />
               </BarChart>
             </ChartContainer>
           ) : (
             <EmptyChartState height={100} />
           )}
           {/* Legend */}
-          <div className="flex flex-wrap gap-4 mt-4 text-xs">
-            <LegendItem color="var(--chart-1)" label="Uncached Input" value={formatTokens(totals?.uncachedInput ?? 0)} />
-            <LegendItem color="var(--chart-2)" label="Cache Read" value={formatTokens(totals?.cacheRead ?? 0)} />
-            <LegendItem color="var(--chart-3)" label="Cache Creation" value={formatTokens(totals?.cacheCreation ?? 0)} />
-            <LegendItem color="var(--chart-4)" label="Output" value={formatTokens(totals?.output ?? 0)} />
+          <div className="mt-4 flex flex-wrap gap-4 text-xs">
+            <LegendItem
+              color="var(--chart-1)"
+              label="Uncached Input"
+              value={formatTokens(totals?.uncachedInput ?? 0)}
+            />
+            <LegendItem
+              color="var(--chart-2)"
+              label="Cache Read"
+              value={formatTokens(totals?.cacheRead ?? 0)}
+            />
+            <LegendItem
+              color="var(--chart-3)"
+              label="Cache Creation"
+              value={formatTokens(totals?.cacheCreation ?? 0)}
+            />
+            <LegendItem
+              color="var(--chart-4)"
+              label="Output"
+              value={formatTokens(totals?.output ?? 0)}
+            />
           </div>
         </ChartCard>
 
@@ -265,4 +330,3 @@ export function CostSection({ data, loading }: CostSectionProps) {
     </Section>
   );
 }
-

@@ -2,11 +2,13 @@
  * Test database helper for creating in-memory SQLite databases with the schema.
  * Used for integration testing database operations.
  */
-import { Database } from "bun:sqlite"
-import { drizzle } from "drizzle-orm/bun-sqlite"
-import { Effect, Layer } from "effect"
-import * as schema from "../../src/bun/db/schema"
-import { DatabaseService } from "../../src/bun/db"
+import { Database } from "bun:sqlite";
+
+import { drizzle } from "drizzle-orm/bun-sqlite";
+import { Effect, Layer } from "effect";
+
+import { DatabaseService } from "../../src/bun/db";
+import * as schema from "../../src/bun/db/schema";
 
 // ─── Schema DDL ──────────────────────────────────────────────────────────────
 
@@ -234,7 +236,7 @@ CREATE TABLE IF NOT EXISTS schedule_executions (
 );
 CREATE INDEX IF NOT EXISTS schedule_executions_schedule_idx ON schedule_executions(schedule_id);
 CREATE INDEX IF NOT EXISTS schedule_executions_executed_at_idx ON schedule_executions(executed_at);
-`
+`;
 
 // ─── Test Database Factory ───────────────────────────────────────────────────
 
@@ -243,18 +245,18 @@ CREATE INDEX IF NOT EXISTS schedule_executions_executed_at_idx ON schedule_execu
  * Each call returns a fresh, isolated database.
  */
 export const createTestDb = () => {
-  const sqlite = new Database(":memory:")
+  const sqlite = new Database(":memory:");
 
   // Enable foreign key constraints
-  sqlite.exec("PRAGMA foreign_keys = ON")
+  sqlite.exec("PRAGMA foreign_keys = ON");
 
   // Create all tables
-  sqlite.exec(CREATE_TABLES_SQL)
+  sqlite.exec(CREATE_TABLES_SQL);
 
-  const db = drizzle({ client: sqlite, schema })
+  const db = drizzle({ client: sqlite, schema });
 
-  return { db, sqlite }
-}
+  return { db, sqlite };
+};
 
 /**
  * Creates an Effect Layer that provides DatabaseService with an in-memory database.
@@ -266,19 +268,19 @@ export const TestDatabaseLayer = Layer.scoped(
     Effect.sync(() => createTestDb()),
     ({ sqlite }) => Effect.sync(() => sqlite.close())
   )
-)
+);
 
 /**
  * Creates a fresh test database layer for each test.
  * Returns both the layer and direct database access for assertions.
  */
 export const createTestDatabaseLayer = () => {
-  const { db, sqlite } = createTestDb()
+  const { db, sqlite } = createTestDb();
 
-  const layer = Layer.succeed(DatabaseService, { db, sqlite })
+  const layer = Layer.succeed(DatabaseService, { db, sqlite });
 
-  return { db, sqlite, layer }
-}
+  return { db, layer, sqlite };
+};
 
 // ─── Test Utilities ──────────────────────────────────────────────────────────
 
@@ -289,9 +291,9 @@ export const createTestDatabaseLayer = () => {
 export const runWithTestDb = <A, E>(
   effect: Effect.Effect<A, E, DatabaseService>
 ): Promise<A> => {
-  const testLayer = TestDatabaseLayer
-  return Effect.runPromise(Effect.provide(effect, testLayer))
-}
+  const testLayer = TestDatabaseLayer;
+  return Effect.runPromise(Effect.provide(effect, testLayer));
+};
 
 /**
  * Insert a test session directly into the database.
@@ -300,15 +302,14 @@ export const runWithTestDb = <A, E>(
 export const insertTestSession = (
   db: ReturnType<typeof createTestDb>["db"],
   session: Partial<schema.NewSession> & { sessionId: string }
-) => {
-  return db.insert(schema.sessions).values({
+) =>
+  db.insert(schema.sessions).values({
     projectPath: "/test/project",
-    startTime: Date.now(),
     queryCount: 0,
+    startTime: Date.now(),
     toolUseCount: 0,
     ...session,
-  })
-}
+  });
 
 /**
  * Insert a test query directly into the database.
@@ -316,6 +317,4 @@ export const insertTestSession = (
 export const insertTestQuery = (
   db: ReturnType<typeof createTestDb>["db"],
   query: schema.NewQuery
-) => {
-  return db.insert(schema.queries).values(query)
-}
+) => db.insert(schema.queries).values(query);

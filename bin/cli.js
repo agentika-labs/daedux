@@ -2,17 +2,17 @@
 // CLI entry point for npx daedux
 // This script provides a terminal-based interface to view usage stats
 
+import { existsSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { existsSync } from "node:fs";
 
 const DB_PATH = join(homedir(), ".claude", "daedux.db");
 const CLAUDE_PROJECTS = join(homedir(), ".claude", "projects");
 
 async function main() {
-  const args = process.argv.slice(2);
-  const showHelp = args.includes("--help") || args.includes("-h");
-  const showVersion = args.includes("--version") || args.includes("-v");
+  const args = new Set(process.argv.slice(2));
+  const showHelp = args.has("--help") || args.has("-h");
+  const showVersion = args.has("--version") || args.has("-v");
 
   if (showVersion) {
     const pkg = await import("../package.json");
@@ -44,14 +44,16 @@ The desktop app provides:
     return;
   }
 
-  const showInfo = args.includes("--info");
+  const showInfo = args.has("--info");
 
   console.log("Daedux\n");
 
   // Check if Claude projects directory exists
   if (!existsSync(CLAUDE_PROJECTS)) {
     console.log("No Claude Code projects found at ~/.claude/projects/");
-    console.log("Make sure you have Claude Code installed and have run some sessions.");
+    console.log(
+      "Make sure you have Claude Code installed and have run some sessions."
+    );
     return;
   }
 
@@ -70,7 +72,9 @@ The desktop app provides:
     console.log(`Database: ${DB_PATH} (${sizeMB} MB)`);
   } else {
     console.log("Database: Not yet created");
-    console.log("\nRun the desktop app to initialize the database and sync your sessions.");
+    console.log(
+      "\nRun the desktop app to initialize the database and sync your sessions."
+    );
   }
 
   if (showInfo) {

@@ -14,9 +14,15 @@ const parseResetTime = (timeStr: string): number | null => {
   const hours = timeStr.match(/(\d+)h/);
   const mins = timeStr.match(/(\d+)m/);
 
-  if (days?.[1]) ms += parseInt(days[1], 10) * 24 * 60 * 60 * 1000;
-  if (hours?.[1]) ms += parseInt(hours[1], 10) * 60 * 60 * 1000;
-  if (mins?.[1]) ms += parseInt(mins[1], 10) * 60 * 1000;
+  if (days?.[1]) {
+    ms += Number.parseInt(days[1], 10) * 24 * 60 * 60 * 1000;
+  }
+  if (hours?.[1]) {
+    ms += Number.parseInt(hours[1], 10) * 60 * 60 * 1000;
+  }
+  if (mins?.[1]) {
+    ms += Number.parseInt(mins[1], 10) * 60 * 1000;
+  }
 
   return ms > 0 ? Math.floor((now + ms) / 1000) : null;
 };
@@ -37,7 +43,7 @@ interface ParsedUsage {
 /** Parse TUI output to extract usage percentages */
 const parseUsageOutput = (output: string): ParsedUsage => {
   // Strip ANSI escape codes
-  const clean = output.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, "");
+  const clean = output.replaceAll(/\u001B\[[0-9;]*[a-zA-Z]/g, "");
 
   // Extract percentages using regex
   const sessionMatch = clean.match(/Session.*?(\d+)%/i);
@@ -50,30 +56,34 @@ const parseUsageOutput = (output: string): ParsedUsage => {
   const weeklyResetMatch = clean.match(/Weekly.*?resets in ([^)]+)/i);
 
   return {
-    session: {
-      percentUsed: sessionMatch?.[1] ? parseInt(sessionMatch[1], 10) : 0,
-      resetAt: sessionResetMatch?.[1] ? parseResetTime(sessionResetMatch[1]) : null,
-      limit: "5-hour window",
-    },
-    weekly: {
-      percentUsed: weeklyMatch?.[1] ? parseInt(weeklyMatch[1], 10) : 0,
-      resetAt: weeklyResetMatch?.[1] ? parseResetTime(weeklyResetMatch[1]) : null,
-      limit: "7-day limit",
-    },
     opus: opusMatch?.[1]
       ? {
-          percentUsed: parseInt(opusMatch[1], 10),
-          resetAt: null,
           limit: "Opus 7-day",
+          percentUsed: Number.parseInt(opusMatch[1], 10),
+          resetAt: null,
         }
       : null,
+    session: {
+      limit: "5-hour window",
+      percentUsed: sessionMatch?.[1] ? Number.parseInt(sessionMatch[1], 10) : 0,
+      resetAt: sessionResetMatch?.[1]
+        ? parseResetTime(sessionResetMatch[1])
+        : null,
+    },
     sonnet: sonnetMatch?.[1]
       ? {
-          percentUsed: parseInt(sonnetMatch[1], 10),
-          resetAt: null,
           limit: "Sonnet 7-day",
+          percentUsed: Number.parseInt(sonnetMatch[1], 10),
+          resetAt: null,
         }
       : null,
+    weekly: {
+      limit: "7-day limit",
+      percentUsed: weeklyMatch?.[1] ? Number.parseInt(weeklyMatch[1], 10) : 0,
+      resetAt: weeklyResetMatch?.[1]
+        ? parseResetTime(weeklyResetMatch[1])
+        : null,
+    },
   };
 };
 
@@ -84,7 +94,9 @@ describe("parseResetTime", () => {
     const now = Date.now();
 
     expect(result).toBeGreaterThan(Math.floor(now / 1000));
-    expect(result).toBeLessThanOrEqual(Math.floor((now + expectedMs) / 1000) + 1);
+    expect(result).toBeLessThanOrEqual(
+      Math.floor((now + expectedMs) / 1000) + 1
+    );
   });
 
   it("parses minutes only", () => {
@@ -93,7 +105,9 @@ describe("parseResetTime", () => {
     const now = Date.now();
 
     expect(result).toBeGreaterThan(Math.floor(now / 1000));
-    expect(result).toBeLessThanOrEqual(Math.floor((now + expectedMs) / 1000) + 1);
+    expect(result).toBeLessThanOrEqual(
+      Math.floor((now + expectedMs) / 1000) + 1
+    );
   });
 
   it("parses days only", () => {
@@ -102,7 +116,9 @@ describe("parseResetTime", () => {
     const now = Date.now();
 
     expect(result).toBeGreaterThan(Math.floor(now / 1000));
-    expect(result).toBeLessThanOrEqual(Math.floor((now + expectedMs) / 1000) + 1);
+    expect(result).toBeLessThanOrEqual(
+      Math.floor((now + expectedMs) / 1000) + 1
+    );
   });
 
   it("parses combined hours and minutes", () => {
@@ -111,7 +127,9 @@ describe("parseResetTime", () => {
     const now = Date.now();
 
     expect(result).toBeGreaterThan(Math.floor(now / 1000));
-    expect(result).toBeLessThanOrEqual(Math.floor((now + expectedMs) / 1000) + 1);
+    expect(result).toBeLessThanOrEqual(
+      Math.floor((now + expectedMs) / 1000) + 1
+    );
   });
 
   it("parses combined days and hours", () => {
@@ -120,7 +138,9 @@ describe("parseResetTime", () => {
     const now = Date.now();
 
     expect(result).toBeGreaterThan(Math.floor(now / 1000));
-    expect(result).toBeLessThanOrEqual(Math.floor((now + expectedMs) / 1000) + 1);
+    expect(result).toBeLessThanOrEqual(
+      Math.floor((now + expectedMs) / 1000) + 1
+    );
   });
 
   it("returns null for empty string", () => {
@@ -153,8 +173,8 @@ describe("parseUsageOutput", () => {
 
   it("handles output with ANSI escape codes", () => {
     // Simulated TUI output with ANSI color codes
-    const output = `\x1b[32mSession usage: 45%\x1b[0m (resets in 2h)
-      \x1b[33mWeekly usage: 62%\x1b[0m (resets in 4d)`;
+    const output = `\u001B[32mSession usage: 45%\u001B[0m (resets in 2h)
+      \u001B[33mWeekly usage: 62%\u001B[0m (resets in 4d)`;
 
     const result = parseUsageOutput(output);
 

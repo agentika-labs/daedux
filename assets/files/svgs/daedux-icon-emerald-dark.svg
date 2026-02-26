@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- Background: rich dark black with macOS-style squircle -->
+  <rect width="512" height="512" rx="108" ry="108" fill="#0a0a0a"/>
+  
+  <!--
+    Square spiral labyrinth — single continuous path
+    
+    Grid: 512x512, centered at 256,256
+    Margin from edge: 88px each side
+    Usable area: 88 to 424 (336px wide)
+    
+    Stroke: 14px
+    Gap between strokes: 28px
+    Step size (stroke + gap): 42px
+    
+    The path is one continuous line spiraling inward clockwise.
+    Entry gap is at top-right.
+    The line ends at the center.
+    
+    Coordinates calculated for 4 layers:
+    
+    Outer rect:  88 to 424  (336x336)
+    Layer 2:    130 to 382  (252x252)  
+    Layer 3:    172 to 340  (168x168)
+    Layer 4:    214 to 298  (84x84)
+    Center:     256
+  -->
+  
+  <path 
+    d="
+      M 340,88
+      L 88,88
+      L 88,424
+      L 424,424
+      L 424,88
+      L 382,88
+
+      L 382,382
+      L 130,382
+      L 130,130
+      L 340,130
+
+      L 340,340
+      L 172,340
+      L 172,172
+      L 298,172
+
+      L 298,298
+      L 214,298
+      L 214,214
+      L 256,214
+    "
+    fill="none"
+    stroke="#10B981"
+    stroke-width="14"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+</svg>

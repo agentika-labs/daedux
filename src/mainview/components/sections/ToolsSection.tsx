@@ -1,13 +1,3 @@
-import { Section } from "@/components/layout/Section";
-import { SectionHeader } from "@/components/shared/SectionHeader";
-import { InsightCard } from "@/components/shared/InsightCard";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Badge } from "@/components/ui/badge";
-import { cn, formatPercent, formatOccurrenceCount } from "@/lib/utils";
-import type { DashboardData } from "@shared/rpc-types";
-import { HugeiconsIcon } from "@hugeicons/react";
 import {
   ArrowDown01Icon,
   ArrowUp01Icon,
@@ -21,7 +11,21 @@ import {
   Wifi02Icon,
   CodeIcon,
 } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
+import type { DashboardData } from "@shared/rpc-types";
 import { useState } from "react";
+
+import { Section } from "@/components/layout/Section";
+import { InsightCard } from "@/components/shared/InsightCard";
+import { SectionHeader } from "@/components/shared/SectionHeader";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   parseError,
   matchSuggestionToError,
@@ -29,8 +33,9 @@ import {
   stripXmlTags,
   getSeverityFromErrorRate,
   CATEGORY_STYLES,
-  type ErrorCategory,
 } from "@/lib/error-parsing";
+import type { ErrorCategory } from "@/lib/error-parsing";
+import { cn, formatPercent, formatOccurrenceCount } from "@/lib/utils";
 
 interface ToolsSectionProps {
   data: DashboardData | null;
@@ -60,18 +65,23 @@ export function ToolsSection({ data, loading }: ToolsSectionProps) {
                 ? "warning"
                 : "info"
           }
-          priority={toolHealthReport.frictionPoints.length > 2 ? "high" : "medium"}
+          priority={
+            toolHealthReport.frictionPoints.length > 2 ? "high" : "medium"
+          }
           className="mb-6"
         />
       )}
 
       {/* Tool Lists */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+      <div className="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
         {/* Reliable Tools */}
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2">
-              <HugeiconsIcon icon={CheckmarkCircle02Icon} className="h-5 w-5 text-success" />
+              <HugeiconsIcon
+                icon={CheckmarkCircle02Icon}
+                className="text-success h-5 w-5"
+              />
               Reliable Tools
             </CardTitle>
           </CardHeader>
@@ -82,27 +92,33 @@ export function ToolsSection({ data, loading }: ToolsSectionProps) {
                 <Skeleton className="h-10 w-full" />
                 <Skeleton className="h-10 w-full" />
               </div>
-            ) : toolHealthReport?.reliableTools && toolHealthReport.reliableTools.length > 0 ? (
-              <div className="space-y-2 max-h-[300px] overflow-y-auto pr-3">
+            ) : toolHealthReport?.reliableTools &&
+              toolHealthReport.reliableTools.length > 0 ? (
+              <div className="max-h-[300px] space-y-2 overflow-y-auto pr-3">
                 {toolHealthReport.reliableTools.map((tool, i) => (
                   <div
                     key={i}
-                    className="flex items-center justify-between py-2 px-3 rounded-lg bg-success/5 border border-success/20"
+                    className="bg-success/5 border-success/20 flex items-center justify-between rounded-lg border px-3 py-2"
                   >
                     <div>
-                      <span className="font-medium text-sm">{tool.name}</span>
-                      <span className="text-xs text-muted-foreground ml-2">
+                      <span className="text-sm font-medium">{tool.name}</span>
+                      <span className="text-muted-foreground ml-2 text-xs">
                         {tool.totalCalls} calls
                       </span>
                     </div>
-                    <Badge variant="outline" className="bg-success/10 text-success border-success/30">
+                    <Badge
+                      variant="outline"
+                      className="bg-success/10 text-success border-success/30"
+                    >
                       {formatPercent(tool.successRate)} success
                     </Badge>
                   </div>
                 ))}
               </div>
             ) : (
-              <p className="text-center text-muted-foreground py-8">No reliable tools found</p>
+              <p className="text-muted-foreground py-8 text-center">
+                No reliable tools found
+              </p>
             )}
           </CardContent>
         </Card>
@@ -111,7 +127,10 @@ export function ToolsSection({ data, loading }: ToolsSectionProps) {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2">
-              <HugeiconsIcon icon={AlertCircleIcon} className="h-5 w-5 text-destructive" />
+              <HugeiconsIcon
+                icon={AlertCircleIcon}
+                className="text-destructive h-5 w-5"
+              />
               Friction Points
             </CardTitle>
           </CardHeader>
@@ -122,11 +141,12 @@ export function ToolsSection({ data, loading }: ToolsSectionProps) {
                 <Skeleton className="h-10 w-full" />
                 <Skeleton className="h-10 w-full" />
               </div>
-            ) : toolHealthReport?.frictionPoints && toolHealthReport.frictionPoints.length > 0 ? (
-              <div className="space-y-2 max-h-[400px] overflow-y-auto pr-3">
+            ) : toolHealthReport?.frictionPoints &&
+              toolHealthReport.frictionPoints.length > 0 ? (
+              <div className="max-h-[400px] space-y-2 overflow-y-auto pr-3">
                 {/* Sort by error rate descending (worst first) */}
                 {[...toolHealthReport.frictionPoints]
-                  .sort((a, b) => b.errorRate - a.errorRate)
+                  .toSorted((a, b) => b.errorRate - a.errorRate)
                   .map((tool, i) => (
                     <FrictionPointCard
                       key={i}
@@ -139,7 +159,7 @@ export function ToolsSection({ data, loading }: ToolsSectionProps) {
                   ))}
               </div>
             ) : (
-              <p className="text-center text-muted-foreground py-8">
+              <p className="text-muted-foreground py-8 text-center">
                 No friction points - all tools are working well
               </p>
             )}
@@ -159,14 +179,17 @@ export function ToolsSection({ data, loading }: ToolsSectionProps) {
               <Skeleton className="h-12 w-full" />
               <Skeleton className="h-12 w-full" />
             </div>
-          ) : toolHealthReport?.bashDeepDive && toolHealthReport.bashDeepDive.length > 0 ? (
+          ) : toolHealthReport?.bashDeepDive &&
+            toolHealthReport.bashDeepDive.length > 0 ? (
             <div className="space-y-2">
               {toolHealthReport.bashDeepDive.map((category, i) => (
                 <BashCategoryAccordion key={i} category={category} />
               ))}
             </div>
           ) : (
-            <p className="text-center text-muted-foreground py-8">No bash commands analyzed</p>
+            <p className="text-muted-foreground py-8 text-center">
+              No bash commands analyzed
+            </p>
           )}
         </CardContent>
       </Card>
@@ -178,13 +201,13 @@ export function ToolsSection({ data, loading }: ToolsSectionProps) {
 
 /** Icon mapping for error categories */
 const CATEGORY_ICONS: Record<ErrorCategory, typeof AlertCircleIcon> = {
-  user_rejection: Cancel01Icon,
   exit_code: AlertDiamondIcon,
   file_not_found: Search01Icon,
-  permission_denied: LockIcon,
-  network_error: Wifi02Icon,
-  stack_trace: CodeIcon,
   generic: AlertCircleIcon,
+  network_error: Wifi02Icon,
+  permission_denied: LockIcon,
+  stack_trace: CodeIcon,
+  user_rejection: Cancel01Icon,
 };
 
 // ─── Friction Point Card ─────────────────────────────────────────────────────
@@ -221,22 +244,28 @@ function FrictionPointCard({
 
   return (
     <Collapsible open={isExpanded} onOpenChange={setIsExpanded}>
-      <div className={cn("rounded-lg border", severity.bgClass, severity.borderClass)}>
+      <div
+        className={cn(
+          "rounded-lg border",
+          severity.bgClass,
+          severity.borderClass
+        )}
+      >
         {/* Header */}
         <CollapsibleTrigger className="w-full text-left">
           <div className="px-3 py-2">
-            <div className="flex items-center justify-between mb-1.5">
-              <div className="flex items-center gap-2 min-w-0">
+            <div className="mb-1.5 flex items-center justify-between">
+              <div className="flex min-w-0 items-center gap-2">
                 <HugeiconsIcon
                   icon={Icon}
                   className={cn("h-4 w-4 shrink-0", severity.badgeTextClass)}
                 />
-                <span className="font-medium text-sm truncate">{name}</span>
-                <span className="text-xs text-muted-foreground shrink-0">
+                <span className="truncate text-sm font-medium">{name}</span>
+                <span className="text-muted-foreground shrink-0 text-xs">
                   {totalCalls} calls
                 </span>
               </div>
-              <div className="flex items-center gap-2 shrink-0">
+              <div className="flex shrink-0 items-center gap-2">
                 <Badge
                   variant="outline"
                   className={cn(
@@ -250,33 +279,39 @@ function FrictionPointCard({
                 </Badge>
                 <HugeiconsIcon
                   icon={isExpanded ? ArrowUp01Icon : ArrowDown01Icon}
-                  className="h-4 w-4 text-muted-foreground"
+                  className="text-muted-foreground h-4 w-4"
                 />
               </div>
             </div>
 
             {/* Summary (always visible) */}
-            <p className="text-xs text-muted-foreground truncate">{cleanedSummary}</p>
+            <p className="text-muted-foreground truncate text-xs">
+              {cleanedSummary}
+            </p>
           </div>
         </CollapsibleTrigger>
 
         {/* Expanded content */}
         <CollapsibleContent>
-          <div className="border-t border-border/30 px-3 py-2">
-            <div className="flex items-center justify-between mb-2">
+          <div className="border-border/30 border-t px-3 py-2">
+            <div className="mb-2 flex items-center justify-between">
               <span className="text-xs font-medium">
                 Error Details ({formatOccurrenceCount(errorCount)} occurrences)
               </span>
               <button
+                type="button"
                 onClick={(e) => {
                   e.stopPropagation();
                   handleCopy();
                 }}
-                className="text-muted-foreground hover:text-foreground transition-colors p-1"
+                className="text-muted-foreground hover:text-foreground p-1 transition-colors"
                 title="Copy full error message"
               >
                 {copied ? (
-                  <HugeiconsIcon icon={CheckmarkCircle02Icon} className="h-3.5 w-3.5 text-success" />
+                  <HugeiconsIcon
+                    icon={CheckmarkCircle02Icon}
+                    className="text-success h-3.5 w-3.5"
+                  />
                 ) : (
                   <HugeiconsIcon icon={Copy01Icon} className="h-3.5 w-3.5" />
                 )}
@@ -284,14 +319,14 @@ function FrictionPointCard({
             </div>
 
             {/* Full error message */}
-            <pre className="text-xs text-muted-foreground font-mono whitespace-pre-wrap break-words leading-relaxed bg-muted/30 rounded p-2 mb-2">
+            <pre className="text-muted-foreground bg-muted/30 mb-2 rounded p-2 font-mono text-xs leading-relaxed break-words whitespace-pre-wrap">
               {cleanedError}
             </pre>
 
             {/* Category badge with severity */}
             <div className="flex items-center gap-2 text-xs">
-              <Badge variant="outline" className="text-[10px] px-1.5 py-0">
-                {parsed.category.replace(/_/g, " ")}
+              <Badge variant="outline" className="px-1.5 py-0 text-[10px]">
+                {parsed.category.replaceAll("_", " ")}
               </Badge>
               <span className={cn("text-[10px]", severity.badgeTextClass)}>
                 {severity.label}
@@ -327,22 +362,29 @@ function SmartErrorCard({ message, count, suggestion }: SmartErrorCardProps) {
   return (
     <div className={cn("rounded-lg border", style.bgClass, style.borderClass)}>
       {/* Header: icon + summary + count badge + copy button */}
-      <div className="flex items-center justify-between px-3 py-2 border-b border-border/30">
-        <div className="flex items-center gap-2 min-w-0 flex-1">
-          <HugeiconsIcon icon={Icon} className={cn("h-4 w-4 shrink-0", style.textClass)} />
-          <span className="text-sm font-medium truncate">{parsed.summary}</span>
+      <div className="border-border/30 flex items-center justify-between border-b px-3 py-2">
+        <div className="flex min-w-0 flex-1 items-center gap-2">
+          <HugeiconsIcon
+            icon={Icon}
+            className={cn("h-4 w-4 shrink-0", style.textClass)}
+          />
+          <span className="truncate text-sm font-medium">{parsed.summary}</span>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
-          <Badge variant="outline" className="text-xs px-1.5 py-0">
+        <div className="flex shrink-0 items-center gap-2">
+          <Badge variant="outline" className="px-1.5 py-0 text-xs">
             {formatOccurrenceCount(count)}
           </Badge>
           <button
+            type="button"
             onClick={handleCopy}
-            className="text-muted-foreground hover:text-foreground transition-colors p-1"
+            className="text-muted-foreground hover:text-foreground p-1 transition-colors"
             title="Copy full error message"
           >
             {copied ? (
-              <HugeiconsIcon icon={CheckmarkCircle02Icon} className="h-3.5 w-3.5 text-success" />
+              <HugeiconsIcon
+                icon={CheckmarkCircle02Icon}
+                className="text-success h-3.5 w-3.5"
+              />
             ) : (
               <HugeiconsIcon icon={Copy01Icon} className="h-3.5 w-3.5" />
             )}
@@ -352,13 +394,14 @@ function SmartErrorCard({ message, count, suggestion }: SmartErrorCardProps) {
 
       {/* Collapsible body for stack traces / verbose errors */}
       <div className="px-3 py-2">
-        <pre className="text-xs text-muted-foreground font-mono whitespace-pre-wrap break-words leading-relaxed">
+        <pre className="text-muted-foreground font-mono text-xs leading-relaxed break-words whitespace-pre-wrap">
           {isExpanded ? parsed.originalMessage : parsed.truncatedMessage}
         </pre>
         {parsed.isExpandable && (
           <button
+            type="button"
             onClick={() => setIsExpanded(!isExpanded)}
-            className="text-xs text-primary hover:underline mt-1 flex items-center gap-1"
+            className="text-primary mt-1 flex items-center gap-1 text-xs hover:underline"
           >
             <HugeiconsIcon
               icon={isExpanded ? ArrowUp01Icon : ArrowDown01Icon}
@@ -371,8 +414,8 @@ function SmartErrorCard({ message, count, suggestion }: SmartErrorCardProps) {
 
       {/* Inline suggestion (green accent) */}
       {suggestion && (
-        <div className="px-3 py-2 bg-success/5 border-t border-success/20 rounded-b-lg">
-          <span className="text-xs text-success flex items-start gap-1.5">
+        <div className="bg-success/5 border-success/20 rounded-b-lg border-t px-3 py-2">
+          <span className="text-success flex items-start gap-1.5 text-xs">
             <span className="shrink-0">→</span>
             <span>{suggestion}</span>
           </span>
@@ -387,7 +430,7 @@ interface BashCategory {
   totalCommands: number;
   errorCount: number;
   errorRate: number;
-  topErrors: Array<{ message: string; count: number }>;
+  topErrors: { message: string; count: number }[];
   fixSuggestions: string[];
 }
 
@@ -397,7 +440,7 @@ function BashCategoryAccordion({ category }: { category: BashCategory }) {
 
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen}>
-      <CollapsibleTrigger className="flex items-center justify-between w-full py-3 px-4 rounded-lg hover:bg-muted/50 transition-colors">
+      <CollapsibleTrigger className="hover:bg-muted/50 flex w-full items-center justify-between rounded-lg px-4 py-3 transition-colors">
         <div className="flex items-center gap-3">
           <div
             className={cn(
@@ -405,32 +448,40 @@ function BashCategoryAccordion({ category }: { category: BashCategory }) {
               hasErrors ? "bg-destructive" : "bg-success"
             )}
           />
-          <span className="font-medium capitalize">{category.category.replace(/_/g, " ")}</span>
-          <span className="text-sm text-muted-foreground">
+          <span className="font-medium capitalize">
+            {category.category.replaceAll("_", " ")}
+          </span>
+          <span className="text-muted-foreground text-sm">
             {category.totalCommands} commands
           </span>
         </div>
         <div className="flex items-center gap-2">
           {hasErrors && (
-            <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/30">
+            <Badge
+              variant="outline"
+              className="bg-destructive/10 text-destructive border-destructive/30"
+            >
               {category.errorCount} errors
             </Badge>
           )}
           <HugeiconsIcon
             icon={isOpen ? ArrowUp01Icon : ArrowDown01Icon}
-            className="h-4 w-4 text-muted-foreground"
+            className="text-muted-foreground h-4 w-4"
           />
         </div>
       </CollapsibleTrigger>
       <CollapsibleContent>
-        <div className="px-4 pb-4 space-y-3">
+        <div className="space-y-3 px-4 pb-4">
           {category.topErrors.length > 0 && (
             <div>
-              <p className="text-sm font-medium mb-2">Top Errors</p>
+              <p className="mb-2 text-sm font-medium">Top Errors</p>
               <div className="space-y-2">
                 {category.topErrors.slice(0, 3).map((error, i) => {
                   const parsed = parseError(error.message);
-                  const matchedSuggestion = matchSuggestionToError(parsed, category.fixSuggestions);
+                  const matchedSuggestion = matchSuggestionToError(
+                    parsed,
+                    category.fixSuggestions
+                  );
                   return (
                     <SmartErrorCard
                       key={i}
@@ -443,9 +494,12 @@ function BashCategoryAccordion({ category }: { category: BashCategory }) {
               </div>
             </div>
           )}
-          {category.topErrors.length === 0 && category.fixSuggestions.length === 0 && (
-            <p className="text-sm text-muted-foreground">All commands in this category executed successfully.</p>
-          )}
+          {category.topErrors.length === 0 &&
+            category.fixSuggestions.length === 0 && (
+              <p className="text-muted-foreground text-sm">
+                All commands in this category executed successfully.
+              </p>
+            )}
         </div>
       </CollapsibleContent>
     </Collapsible>

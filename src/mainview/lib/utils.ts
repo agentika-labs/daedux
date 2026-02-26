@@ -1,18 +1,19 @@
-import { clsx, type ClassValue } from "clsx"
-import { twMerge } from "tailwind-merge"
+import { clsx } from "clsx";
+import type { ClassValue } from "clsx";
+import { twMerge } from "tailwind-merge";
 
 export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs))
+  return twMerge(clsx(inputs));
 }
 
 // ─── Number Formatting ───────────────────────────────────────────────────────
 
 export function formatCurrency(value: number): string {
   return new Intl.NumberFormat("en-US", {
-    style: "currency",
     currency: "USD",
-    minimumFractionDigits: 2,
     maximumFractionDigits: 2,
+    minimumFractionDigits: 2,
+    style: "currency",
   }).format(value);
 }
 
@@ -20,8 +21,8 @@ export function formatTokens(value: number): string {
   if (value >= 1_000_000) {
     return `${(value / 1_000_000).toFixed(1)}M`;
   }
-  if (value >= 1_000) {
-    return `${(value / 1_000).toFixed(1)}K`;
+  if (value >= 1000) {
+    return `${(value / 1000).toFixed(1)}K`;
   }
   return value.toLocaleString();
 }
@@ -39,9 +40,15 @@ export function formatOccurrenceCount(count: number): string {
 }
 
 export function formatDuration(ms: number): string {
-  if (ms < 1000) return `${ms}ms`;
-  if (ms < 60_000) return `${(ms / 1000).toFixed(1)}s`;
-  if (ms < 3_600_000) return `${Math.floor(ms / 60_000)}m ${Math.floor((ms % 60_000) / 1000)}s`;
+  if (ms < 1000) {
+    return `${ms}ms`;
+  }
+  if (ms < 60_000) {
+    return `${(ms / 1000).toFixed(1)}s`;
+  }
+  if (ms < 3_600_000) {
+    return `${Math.floor(ms / 60_000)}m ${Math.floor((ms % 60_000) / 1000)}s`;
+  }
   return `${Math.floor(ms / 3_600_000)}h ${Math.floor((ms % 3_600_000) / 60_000)}m`;
 }
 
@@ -54,7 +61,7 @@ export function formatDuration(ms: number): string {
 function decodeProjectPath(encoded: string): string {
   if (encoded.startsWith("-")) {
     // Claude-encoded path: convert leading hyphen and hyphen separators to slashes
-    return "/" + encoded.slice(1).replace(/-/g, "/");
+    return "/" + encoded.slice(1).replaceAll("-", "/");
   }
   return encoded;
 }
@@ -74,67 +81,102 @@ export function shortenPath(path: string): string {
 
 // ─── Automation Analytics Helpers ───────────────────────────────────────────
 
-export type ProductivityRating = {
+export interface ProductivityRating {
   stars: number;
   label: string;
   variant: "success" | "warning" | "destructive";
-};
+}
 
 /**
  * Convert success rate and average actions to a productivity rating (for agents).
  * High success + high actions = excellent productivity.
  */
-export function getProductivityRating(successRate: number, avgActions: number): ProductivityRating {
-  if (successRate >= 95 && avgActions >= 5) return { stars: 5, label: "Excellent", variant: "success" };
-  if (successRate >= 85) return { stars: 4, label: "Great", variant: "success" };
-  if (successRate >= 70) return { stars: 3, label: "Good", variant: "success" };
-  if (successRate >= 50) return { stars: 2, label: "Needs Work", variant: "warning" };
-  return { stars: 1, label: "High Friction", variant: "destructive" };
+export function getProductivityRating(
+  successRate: number,
+  avgActions: number
+): ProductivityRating {
+  if (successRate >= 95 && avgActions >= 5) {
+    return { label: "Excellent", stars: 5, variant: "success" };
+  }
+  if (successRate >= 85) {
+    return { label: "Great", stars: 4, variant: "success" };
+  }
+  if (successRate >= 70) {
+    return { label: "Good", stars: 3, variant: "success" };
+  }
+  if (successRate >= 50) {
+    return { label: "Needs Work", stars: 2, variant: "warning" };
+  }
+  return { label: "High Friction", stars: 1, variant: "destructive" };
 }
 
-export type ReliabilityStatus = {
+export interface ReliabilityStatus {
   label: string;
   icon: "check" | "warning" | "error";
   variant: "success" | "warning" | "destructive";
-};
+}
 
 /**
  * Convert completion rate to reliability status (for skills).
  */
-export function getReliabilityStatus(completionRate: number): ReliabilityStatus {
-  if (completionRate >= 0.95) return { label: "Highly Reliable", icon: "check", variant: "success" };
-  if (completionRate >= 0.85) return { label: "Reliable", icon: "check", variant: "success" };
-  if (completionRate >= 0.70) return { label: "Mostly Reliable", icon: "warning", variant: "warning" };
-  if (completionRate >= 0.50) return { label: "Needs Attention", icon: "warning", variant: "warning" };
-  return { label: "Unreliable", icon: "error", variant: "destructive" };
+export function getReliabilityStatus(
+  completionRate: number
+): ReliabilityStatus {
+  if (completionRate >= 0.95) {
+    return { icon: "check", label: "Highly Reliable", variant: "success" };
+  }
+  if (completionRate >= 0.85) {
+    return { icon: "check", label: "Reliable", variant: "success" };
+  }
+  if (completionRate >= 0.7) {
+    return { icon: "warning", label: "Mostly Reliable", variant: "warning" };
+  }
+  if (completionRate >= 0.5) {
+    return { icon: "warning", label: "Needs Attention", variant: "warning" };
+  }
+  return { icon: "error", label: "Unreliable", variant: "destructive" };
 }
 
-export type HookHealth = {
+export interface HookHealth {
   label: string;
   icon: "check" | "warning" | "error";
   variant: "success" | "warning" | "destructive";
-};
+}
 
 /**
  * Convert hook metrics to health status.
  * Considers both failure rate and latency.
  */
-export function getHookHealth(failureRate: number, avgDurationMs: number): HookHealth {
+export function getHookHealth(
+  failureRate: number,
+  avgDurationMs: number
+): HookHealth {
   const isSlow = avgDurationMs > 500; // > 500ms is slow
   const isHighFailure = failureRate > 0.2; // > 20% failure
 
-  if (failureRate === 0 && !isSlow) return { label: "Perfect", icon: "check", variant: "success" };
-  if (failureRate < 0.1 && !isSlow) return { label: "Healthy", icon: "check", variant: "success" };
-  if (isHighFailure) return { label: "High Friction", icon: "error", variant: "destructive" };
-  if (isSlow) return { label: "Slow", icon: "warning", variant: "warning" };
-  return { label: "Needs Review", icon: "warning", variant: "warning" };
+  if (failureRate === 0 && !isSlow) {
+    return { icon: "check", label: "Perfect", variant: "success" };
+  }
+  if (failureRate < 0.1 && !isSlow) {
+    return { icon: "check", label: "Healthy", variant: "success" };
+  }
+  if (isHighFailure) {
+    return { icon: "error", label: "High Friction", variant: "destructive" };
+  }
+  if (isSlow) {
+    return { icon: "warning", label: "Slow", variant: "warning" };
+  }
+  return { icon: "warning", label: "Needs Review", variant: "warning" };
 }
 
 /**
  * Format a percentage change with direction indicator.
  * Positive values show improvement, negative show decline.
  */
-export function formatImpactPercent(value: number, lowerIsBetter = false): string {
+export function formatImpactPercent(
+  value: number,
+  lowerIsBetter = false
+): string {
   const absValue = Math.abs(value * 100);
   const isPositive = lowerIsBetter ? value > 0 : value > 0;
   const direction = isPositive ? "▼" : "▲";
@@ -145,7 +187,9 @@ export function formatImpactPercent(value: number, lowerIsBetter = false): strin
  * Format average duration in human-readable form.
  */
 export function formatAvgDuration(ms: number): string {
-  if (ms < 1000) return `${Math.round(ms)}ms`;
+  if (ms < 1000) {
+    return `${Math.round(ms)}ms`;
+  }
   return `${(ms / 1000).toFixed(1)}s`;
 }
 
@@ -155,9 +199,9 @@ export function formatAvgDuration(ms: number): string {
  * Shows last 2 segments for clarity, with full path for tooltips.
  */
 export interface SmartProjectName {
-  primary: string;    // Main display name
-  secondary: string;  // Parent context (only if needed for disambiguation)
-  full: string;       // Full path for tooltip
+  primary: string; // Main display name
+  secondary: string; // Parent context (only if needed for disambiguation)
+  full: string; // Full path for tooltip
 }
 
 /**
@@ -172,33 +216,33 @@ export interface SmartProjectNameOptions {
 
 export function getSmartProjectName(
   opts: SmartProjectNameOptions | string,
-  allItems: Array<SmartProjectNameOptions | string>
+  allItems: (SmartProjectNameOptions | string)[]
 ): SmartProjectName {
   // Normalize input to options object
-  const { projectPath, cwd } = typeof opts === "string"
-    ? { projectPath: opts, cwd: undefined }
-    : opts;
+  const { projectPath, cwd } =
+    typeof opts === "string" ? { cwd: undefined, projectPath: opts } : opts;
 
   // Use cwd when available (accurate), fall back to decoding projectPath
   const fullPath = cwd ?? decodeProjectPath(projectPath);
   const parts = fullPath.split("/").filter(Boolean);
 
   // Get last 2 segments for display
-  const lastSegment = parts[parts.length - 1] || projectPath;
-  const parentSegment = parts[parts.length - 2] || "";
+  const lastSegment = parts.at(-1) || projectPath;
+  const parentSegment = parts.at(-2) || "";
 
   // Check for duplicate last segments among all items
-  const duplicates = allItems.filter(item => {
-    const itemOpts = typeof item === "string" ? { projectPath: item, cwd: undefined } : item;
+  const duplicates = allItems.filter((item) => {
+    const itemOpts =
+      typeof item === "string" ? { cwd: undefined, projectPath: item } : item;
     const itemPath = itemOpts.cwd ?? decodeProjectPath(itemOpts.projectPath);
     const otherParts = itemPath.split("/").filter(Boolean);
-    return otherParts[otherParts.length - 1] === lastSegment;
+    return otherParts.at(-1) === lastSegment;
   });
 
   if (duplicates.length <= 1) {
-    return { primary: lastSegment, secondary: "", full: fullPath };
+    return { full: fullPath, primary: lastSegment, secondary: "" };
   }
 
   // Need disambiguation - use parent folder
-  return { primary: lastSegment, secondary: parentSegment, full: fullPath };
+  return { full: fullPath, primary: lastSegment, secondary: parentSegment };
 }

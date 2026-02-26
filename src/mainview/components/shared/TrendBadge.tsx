@@ -11,14 +11,20 @@ export interface TrendBadgeProps {
   className?: string;
 }
 
-export function TrendBadge({ value, direction, inverse = false, className }: TrendBadgeProps) {
+export function TrendBadge({
+  value,
+  direction,
+  inverse = false,
+  className,
+}: TrendBadgeProps) {
   const isPositive = inverse ? direction === "down" : direction === "up";
   const isNegative = inverse ? direction === "up" : direction === "down";
 
   const displayValue = Math.abs(value);
-  const formattedValue = displayValue >= 100
-    ? `${Math.round(displayValue)}%`
-    : `${displayValue.toFixed(1)}%`;
+  const formattedValue =
+    displayValue >= 100
+      ? `${Math.round(displayValue)}%`
+      : `${displayValue.toFixed(1)}%`;
 
   const icon = direction === "up" ? "↑" : direction === "down" ? "↓" : "→";
 
@@ -28,8 +34,10 @@ export function TrendBadge({ value, direction, inverse = false, className }: Tre
       className={cn(
         "text-xs font-medium gap-0.5",
         isPositive && "border-success/30 bg-success/10 text-success",
-        isNegative && "border-destructive/30 bg-destructive/10 text-destructive",
-        direction === "stable" && "border-muted-foreground/30 bg-muted text-muted-foreground",
+        isNegative &&
+          "border-destructive/30 bg-destructive/10 text-destructive",
+        direction === "stable" &&
+          "border-muted-foreground/30 bg-muted text-muted-foreground",
         className
       )}
     >

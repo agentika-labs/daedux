@@ -1,16 +1,21 @@
-import { useState, useEffect, useCallback } from "react";
-import { rpcRequest } from "@/hooks/useRPC";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardAction } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import {
-  Table,
-  TableHeader,
-  TableBody,
-  TableHead,
-  TableRow,
-  TableCell,
-} from "@/components/ui/table";
+  PlayIcon,
+  PencilEdit02Icon,
+  Delete02Icon,
+  Add01Icon,
+  CheckmarkCircle02Icon,
+  Cancel01Icon,
+  Loading03Icon,
+} from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
+import type {
+  SessionSchedule,
+  AuthStatus,
+  ExecutionResult,
+  AppSettings,
+} from "@shared/rpc-types";
+import { useState, useEffect, useCallback } from "react";
+
 import {
   AlertDialog,
   AlertDialogContent,
@@ -21,18 +26,31 @@ import {
   AlertDialogCancel,
   AlertDialogAction,
 } from "@/components/ui/alert-dialog";
-import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
-  PlayIcon,
-  PencilEdit02Icon,
-  Delete02Icon,
-  Add01Icon,
-  CheckmarkCircle02Icon,
-  Cancel01Icon,
-  Loading03Icon,
-} from "@hugeicons/core-free-icons";
-import type { SessionSchedule, AuthStatus, ExecutionResult, AppSettings } from "@shared/rpc-types";
+  Card,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardContent,
+  CardAction,
+} from "@/components/ui/card";
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableHead,
+  TableRow,
+  TableCell,
+} from "@/components/ui/table";
+import {
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+} from "@/components/ui/tooltip";
+import { rpcRequest } from "@/hooks/useRPC";
+
 import { ScheduleForm } from "./ScheduleForm";
 
 const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -45,9 +63,15 @@ const formatTime = (hour: number, minute: number): string => {
 };
 
 const formatDays = (days: number[]): string => {
-  if (days.length === 7) return "Every day";
-  if (days.length === 5 && !days.includes(0) && !days.includes(6)) return "Weekdays";
-  if (days.length === 2 && days.includes(0) && days.includes(6)) return "Weekends";
+  if (days.length === 7) {
+    return "Every day";
+  }
+  if (days.length === 5 && !days.includes(0) && !days.includes(6)) {
+    return "Weekdays";
+  }
+  if (days.length === 2 && days.includes(0) && days.includes(6)) {
+    return "Weekends";
+  }
   return days.map((d) => DAY_NAMES[d]).join(", ");
 };
 
@@ -56,9 +80,12 @@ export const ScheduleSettings = () => {
   const [authStatus, setAuthStatus] = useState<AuthStatus | null>(null);
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [runningScheduleId, setRunningScheduleId] = useState<string | null>(null);
+  const [runningScheduleId, setRunningScheduleId] = useState<string | null>(
+    null
+  );
   const [showForm, setShowForm] = useState(false);
-  const [editingSchedule, setEditingSchedule] = useState<SessionSchedule | null>(null);
+  const [editingSchedule, setEditingSchedule] =
+    useState<SessionSchedule | null>(null);
   const [deleteScheduleId, setDeleteScheduleId] = useState<string | null>(null);
 
   // Load data
@@ -73,8 +100,8 @@ export const ScheduleSettings = () => {
       setSchedules(schedulesData);
       setAuthStatus(authData);
       setSettings(settingsData);
-    } catch (err) {
-      console.error("Failed to load schedule settings:", err);
+    } catch (error) {
+      console.error("Failed to load schedule settings:", error);
     } finally {
       setIsLoading(false);
     }
@@ -86,13 +113,15 @@ export const ScheduleSettings = () => {
 
   // Toggle scheduler enabled
   const handleToggleScheduler = async () => {
-    if (!settings) return;
+    if (!settings) {
+      return;
+    }
     const newEnabled = !settings.schedulerEnabled;
     try {
       await rpcRequest("updateSettings", { schedulerEnabled: newEnabled });
       setSettings({ ...settings, schedulerEnabled: newEnabled });
-    } catch (err) {
-      console.error("Failed to toggle scheduler:", err);
+    } catch (error) {
+      console.error("Failed to toggle scheduler:", error);
     }
   };
 
@@ -104,10 +133,12 @@ export const ScheduleSettings = () => {
         patch: { enabled: !schedule.enabled },
       });
       setSchedules((prev) =>
-        prev.map((s) => (s.id === schedule.id ? { ...s, enabled: !s.enabled } : s))
+        prev.map((s) =>
+          s.id === schedule.id ? { ...s, enabled: !s.enabled } : s
+        )
       );
-    } catch (err) {
-      console.error("Failed to toggle schedule:", err);
+    } catch (error) {
+      console.error("Failed to toggle schedule:", error);
     }
   };
 
@@ -115,7 +146,9 @@ export const ScheduleSettings = () => {
   const handleRunNow = async (scheduleId: string) => {
     try {
       setRunningScheduleId(scheduleId);
-      const result: ExecutionResult = await rpcRequest("runScheduleNow", { id: scheduleId });
+      const result: ExecutionResult = await rpcRequest("runScheduleNow", {
+        id: scheduleId,
+      });
       if (result.status === "success") {
         // Refresh schedules to update lastRunAt
         const updated = await rpcRequest("getSchedules", {});
@@ -123,8 +156,8 @@ export const ScheduleSettings = () => {
       } else if (result.status === "error" || result.status === "skipped") {
         console.warn("Schedule run failed:", result.error);
       }
-    } catch (err) {
-      console.error("Failed to run schedule:", err);
+    } catch (error) {
+      console.error("Failed to run schedule:", error);
     } finally {
       setRunningScheduleId(null);
     }
@@ -132,12 +165,14 @@ export const ScheduleSettings = () => {
 
   // Delete schedule
   const handleDelete = async () => {
-    if (!deleteScheduleId) return;
+    if (!deleteScheduleId) {
+      return;
+    }
     try {
       await rpcRequest("deleteSchedule", { id: deleteScheduleId });
       setSchedules((prev) => prev.filter((s) => s.id !== deleteScheduleId));
-    } catch (err) {
-      console.error("Failed to delete schedule:", err);
+    } catch (error) {
+      console.error("Failed to delete schedule:", error);
     } finally {
       setDeleteScheduleId(null);
     }
@@ -164,8 +199,8 @@ export const ScheduleSettings = () => {
       setSchedules(updated);
       setShowForm(false);
       setEditingSchedule(null);
-    } catch (err) {
-      console.error("Failed to save schedule:", err);
+    } catch (error) {
+      console.error("Failed to save schedule:", error);
     }
   };
 
@@ -176,7 +211,7 @@ export const ScheduleSettings = () => {
           <div className="flex items-center justify-center py-8">
             <HugeiconsIcon
               icon={Loading03Icon}
-              className="size-6 animate-spin text-muted-foreground"
+              className="text-muted-foreground size-6 animate-spin"
             />
           </div>
         </CardContent>
@@ -190,16 +225,22 @@ export const ScheduleSettings = () => {
       <Card>
         <CardHeader>
           <CardTitle>Session Warm-Up</CardTitle>
-          <CardDescription>Pre-start your usage window on a schedule.</CardDescription>
+          <CardDescription>
+            Pre-start your usage window on a schedule.
+          </CardDescription>
           <CardAction>
             <Tooltip>
               <TooltipTrigger
                 render={
                   <Button
-                    variant={settings?.schedulerEnabled ? "success" : "destructive"}
+                    variant={
+                      settings?.schedulerEnabled ? "success" : "destructive"
+                    }
                     size="sm"
                     onClick={handleToggleScheduler}
-                    disabled={schedules.length === 0 && !settings?.schedulerEnabled}
+                    disabled={
+                      schedules.length === 0 && !settings?.schedulerEnabled
+                    }
                   >
                     {settings?.schedulerEnabled ? "Enabled" : "Disabled"}
                   </Button>
@@ -219,7 +260,10 @@ export const ScheduleSettings = () => {
               <span className="text-muted-foreground">Auth Status</span>
               {authStatus?.loggedIn ? (
                 <Badge variant="success" className="gap-1.5">
-                  <HugeiconsIcon icon={CheckmarkCircle02Icon} className="size-3" />
+                  <HugeiconsIcon
+                    icon={CheckmarkCircle02Icon}
+                    className="size-3"
+                  />
                   Logged in
                 </Badge>
               ) : (
@@ -230,15 +274,19 @@ export const ScheduleSettings = () => {
               )}
             </div>
             {authStatus?.loggedIn && authStatus.email && (
-              <p className="text-xs text-muted-foreground truncate">{authStatus.email}</p>
+              <p className="text-muted-foreground truncate text-xs">
+                {authStatus.email}
+              </p>
             )}
           </div>
 
           {!authStatus?.loggedIn && (
-            <p className="text-sm text-muted-foreground bg-muted/50 rounded-lg p-3">
-              You need to be logged into Claude CLI for warm-ups to work.
-              Run <code className="bg-muted px-1.5 py-0.5 rounded">claude auth login</code> in your
-              terminal.
+            <p className="text-muted-foreground bg-muted/50 rounded-lg p-3 text-sm">
+              You need to be logged into Claude CLI for warm-ups to work. Run{" "}
+              <code className="bg-muted rounded px-1.5 py-0.5">
+                claude auth login
+              </code>{" "}
+              in your terminal.
             </p>
           )}
         </CardContent>
@@ -265,9 +313,9 @@ export const ScheduleSettings = () => {
 
         <CardContent>
           {schedules.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
+            <div className="text-muted-foreground py-8 text-center">
               <p>No schedules configured yet.</p>
-              <p className="text-sm mt-1">
+              <p className="mt-1 text-sm">
                 Add a schedule to automatically warm up your usage window.
               </p>
             </div>
@@ -285,8 +333,12 @@ export const ScheduleSettings = () => {
               <TableBody>
                 {schedules.map((schedule) => (
                   <TableRow key={schedule.id}>
-                    <TableCell className="font-medium">{schedule.name}</TableCell>
-                    <TableCell>{formatTime(schedule.hour, schedule.minute)}</TableCell>
+                    <TableCell className="font-medium">
+                      {schedule.name}
+                    </TableCell>
+                    <TableCell>
+                      {formatTime(schedule.hour, schedule.minute)}
+                    </TableCell>
                     <TableCell className="text-muted-foreground">
                       {formatDays(schedule.daysOfWeek)}
                     </TableCell>
@@ -305,7 +357,10 @@ export const ScheduleSettings = () => {
                           variant="ghost"
                           size="icon-sm"
                           onClick={() => handleRunNow(schedule.id)}
-                          disabled={runningScheduleId === schedule.id || !authStatus?.loggedIn}
+                          disabled={
+                            runningScheduleId === schedule.id ||
+                            !authStatus?.loggedIn
+                          }
                           title="Run now"
                         >
                           {runningScheduleId === schedule.id ? (
@@ -326,7 +381,10 @@ export const ScheduleSettings = () => {
                           }}
                           title="Edit"
                         >
-                          <HugeiconsIcon icon={PencilEdit02Icon} className="size-4" />
+                          <HugeiconsIcon
+                            icon={PencilEdit02Icon}
+                            className="size-4"
+                          />
                         </Button>
                         <Button
                           variant="ghost"
@@ -334,7 +392,10 @@ export const ScheduleSettings = () => {
                           onClick={() => setDeleteScheduleId(schedule.id)}
                           title="Delete"
                         >
-                          <HugeiconsIcon icon={Delete02Icon} className="size-4" />
+                          <HugeiconsIcon
+                            icon={Delete02Icon}
+                            className="size-4"
+                          />
                         </Button>
                       </div>
                     </TableCell>
@@ -367,7 +428,8 @@ export const ScheduleSettings = () => {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Schedule</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete this schedule? This action cannot be undone.
+              Are you sure you want to delete this schedule? This action cannot
+              be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

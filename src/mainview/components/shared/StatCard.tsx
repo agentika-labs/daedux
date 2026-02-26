@@ -1,7 +1,9 @@
 import { Card, CardContent } from "@/components/ui/card";
-import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
-import { TrendBadge, type TrendDirection } from "./TrendBadge";
+import { cn } from "@/lib/utils";
+
+import { TrendBadge } from "./TrendBadge";
+import type { TrendDirection } from "./TrendBadge";
 
 export interface StatCardProps {
   label: string;
@@ -28,8 +30,8 @@ export function StatCard({
     return (
       <Card size="sm" className={cn("min-h-[100px]", className)}>
         <CardContent className="pt-4">
-          <Skeleton className="h-4 w-20 mb-2" />
-          <Skeleton className="h-8 w-24 mb-2" />
+          <Skeleton className="mb-2 h-4 w-20" />
+          <Skeleton className="mb-2 h-8 w-24" />
           <Skeleton className="h-3 w-16" />
         </CardContent>
       </Card>
@@ -38,24 +40,26 @@ export function StatCard({
 
   const valueColorClass = {
     default: "",
+    destructive: "text-destructive",
     success: "text-success",
     warning: "text-chart-4",
-    destructive: "text-destructive",
   }[variant];
 
   return (
     <Card size="sm" className={cn("min-h-[100px]", className)}>
       <CardContent className="pt-4">
-        <div className="flex items-center justify-between mb-1">
-          <p className="text-sm text-muted-foreground">{label}</p>
-          {trend && <TrendBadge value={trend.value} direction={trend.direction} />}
+        <div className="mb-1 flex items-center justify-between">
+          <p className="text-muted-foreground text-sm">{label}</p>
+          {trend && (
+            <TrendBadge value={trend.value} direction={trend.direction} />
+          )}
         </div>
         <p className={cn("text-2xl font-semibold", valueColorClass)}>{value}</p>
         {subtext && (
-          <p className="text-xs text-muted-foreground mt-1">{subtext}</p>
+          <p className="text-muted-foreground mt-1 text-xs">{subtext}</p>
         )}
         {comparison && (
-          <p className="text-xs text-muted-foreground mt-1">
+          <p className="text-muted-foreground mt-1 text-xs">
             {comparison.label}: {comparison.value}
           </p>
         )}

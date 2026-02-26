@@ -90,7 +90,11 @@ export interface SessionSummary {
   fileWriteCount: number;
   toolCounts: Record<string, number>;
   queries: unknown[];
-  fileActivityDetails: Array<{ filePath: string; tool: string; extension: string }>;
+  fileActivityDetails: {
+    filePath: string;
+    tool: string;
+    extension: string;
+  }[];
 }
 
 export interface ProjectSummary {
@@ -140,7 +144,13 @@ export interface WeeklyComparison {
 }
 
 /** Target section for insight action navigation */
-export type InsightActionTarget = "overview" | "cost" | "efficiency" | "tools" | "sessions" | "projects";
+export type InsightActionTarget =
+  | "overview"
+  | "cost"
+  | "efficiency"
+  | "tools"
+  | "sessions"
+  | "projects";
 
 export interface Insight {
   type: "success" | "warning" | "info";
@@ -222,10 +232,10 @@ export interface SkillImpactComparison {
   withSkills: SkillImpactMetrics;
   withoutSkills: SkillImpactMetrics;
   impact: {
-    errorRateReduction: number;     // Positive = fewer errors with skills
-    completionImprovement: number;  // Positive = higher completion with skills
-    turnsReduction: number;         // Positive = fewer turns with skills
-    cacheImprovement: number;       // Positive = better cache with skills
+    errorRateReduction: number; // Positive = fewer errors with skills
+    completionImprovement: number; // Positive = higher completion with skills
+    turnsReduction: number; // Positive = fewer turns with skills
+    cacheImprovement: number; // Positive = better cache with skills
   };
 }
 
@@ -234,20 +244,29 @@ export interface ToolHealthEntry {
   totalCalls: number;
   errors: number;
   errorRate: number;
-  topErrors: Array<{ message: string; count: number }>;
+  topErrors: { message: string; count: number }[];
 }
 
 export interface ToolHealthReportCard {
-  reliableTools: Array<{ name: string; successRate: number; totalCalls: number }>;
-  frictionPoints: Array<{ name: string; errorRate: number; topError: string; totalCalls: number }>;
-  bashDeepDive: Array<{
+  reliableTools: {
+    name: string;
+    successRate: number;
+    totalCalls: number;
+  }[];
+  frictionPoints: {
+    name: string;
+    errorRate: number;
+    topError: string;
+    totalCalls: number;
+  }[];
+  bashDeepDive: {
     category: string;
     totalCommands: number;
     errorCount: number;
     errorRate: number;
-    topErrors: Array<{ message: string; count: number }>;
+    topErrors: { message: string; count: number }[];
     fixSuggestions: string[];
-  }>;
+  }[];
   headline: string;
   recommendation: string;
 }
@@ -263,8 +282,8 @@ export interface DashboardData {
   efficiencyScore: EfficiencyScore;
   weeklyComparison: WeeklyComparison;
   modelBreakdown: ModelBreakdown[];
-  toolUsage: Array<{ name: string; count: number; sessions: number }>;
-  topPrompts: Array<{
+  toolUsage: { name: string; count: number; sessions: number }[];
+  topPrompts: {
     prompt: string;
     date: string;
     model: string;
@@ -272,7 +291,7 @@ export interface DashboardData {
     cost: number;
     sessionId: string;
     queryCount: number; // Number of API calls aggregated for this prompt
-  }>;
+  }[];
   toolHealth: ToolHealthEntry[];
   agentROI: AgentROI;
   toolHealthReportCard: ToolHealthReportCard;
@@ -393,11 +412,14 @@ export interface SyncResult {
  * The `bun` key defines what the main process can handle.
  * The `webview` key defines what the renderer can handle.
  */
-export type UsageMonitorRPC = {
+export interface UsageMonitorRPC {
   bun: RPCSchema<{
     requests: {
       getDashboardData: {
-        params: { filter?: "today" | "7d" | "30d" | "all"; projectPath?: string };
+        params: {
+          filter?: "today" | "7d" | "30d" | "all";
+          projectPath?: string;
+        };
         response: DashboardData;
       };
       getAnalytics: {
@@ -414,7 +436,11 @@ export type UsageMonitorRPC = {
       };
       getSyncStatus: {
         params: Record<string, never>;
-        response: { isScanning: boolean; lastScanAt: string | null; sessionCount: number };
+        response: {
+          isScanning: boolean;
+          lastScanAt: string | null;
+          sessionCount: number;
+        };
       };
       getTrayStats: {
         params: Record<string, never>;
@@ -462,7 +488,9 @@ export type UsageMonitorRPC = {
         response: AnthropicUsage;
       };
       updateDragExclusionZones: {
-        params: { zones: Array<{ x: number; y: number; width: number; height: number }> };
+        params: {
+          zones: { x: number; y: number; width: number; height: number }[];
+        };
         response: { success: boolean };
       };
     };
@@ -484,4 +512,4 @@ export type UsageMonitorRPC = {
       scheduleExecuted: { scheduleId: string; result: ExecutionResult };
     };
   }>;
-};
+}

@@ -1,13 +1,20 @@
+import type { DashboardData } from "@shared/rpc-types";
+
 import { Section } from "@/components/layout/Section";
-import { SectionHeader } from "@/components/shared/SectionHeader";
-import { StatCard } from "@/components/shared/StatCard";
+import { ComparisonCard } from "@/components/shared/ComparisonCard";
 import { InsightsPanel } from "@/components/shared/InsightsPanel";
 import { ScoreBar } from "@/components/shared/ScoreBar";
-import { ComparisonCard } from "@/components/shared/ComparisonCard";
+import { SectionHeader } from "@/components/shared/SectionHeader";
+import { StatCard } from "@/components/shared/StatCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { formatCurrency, formatTokens, formatNumber, formatPercent, cn } from "@/lib/utils";
-import type { DashboardData } from "@shared/rpc-types";
+import {
+  formatCurrency,
+  formatTokens,
+  formatNumber,
+  formatPercent,
+  cn,
+} from "@/lib/utils";
 
 interface OverviewSectionProps {
   data: DashboardData | null;
@@ -15,29 +22,37 @@ interface OverviewSectionProps {
   onNavigateToSection?: (section: string) => void;
 }
 
-export function OverviewSection({ data, loading, onNavigateToSection }: OverviewSectionProps) {
+export function OverviewSection({
+  data,
+  loading,
+  onNavigateToSection,
+}: OverviewSectionProps) {
   const totals = data?.totals;
   const efficiencyScore = data?.efficiencyScore;
   const weeklyComparison = data?.weeklyComparison;
 
   // Calculate trend from weekly comparison
   const getTrendDirection = (change: number): "up" | "down" | "stable" => {
-    if (change > 0) return "up";
-    if (change < 0) return "down";
+    if (change > 0) {
+      return "up";
+    }
+    if (change < 0) {
+      return "down";
+    }
     return "stable";
   };
 
   const costTrend = weeklyComparison?.changes?.cost
     ? {
-        value: Math.abs(weeklyComparison.changes.cost),
         direction: getTrendDirection(weeklyComparison.changes.cost),
+        value: Math.abs(weeklyComparison.changes.cost),
       }
     : undefined;
 
   const sessionTrend = weeklyComparison?.changes?.sessions
     ? {
-        value: Math.abs(weeklyComparison.changes.sessions),
         direction: getTrendDirection(weeklyComparison.changes.sessions),
+        value: Math.abs(weeklyComparison.changes.sessions),
       }
     : undefined;
 
@@ -50,7 +65,7 @@ export function OverviewSection({ data, loading, onNavigateToSection }: Overview
       />
 
       {/* Hero Stats Row */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-6">
+      <div className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-5">
         <StatCard
           label="Total Cost"
           value={formatCurrency(totals?.totalCost ?? 0)}
@@ -87,7 +102,7 @@ export function OverviewSection({ data, loading, onNavigateToSection }: Overview
       </div>
 
       {/* Efficiency Score + Insights Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+      <div className="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
         {/* Efficiency Gauge */}
         <Card className="lg:col-span-1">
           <CardHeader className="pb-2">
@@ -116,7 +131,7 @@ export function OverviewSection({ data, loading, onNavigateToSection }: Overview
           <CardContent>
             {loading ? (
               <div className="space-y-4">
-                <Skeleton className="h-24 w-24 rounded-full mx-auto" />
+                <Skeleton className="mx-auto h-24 w-24 rounded-full" />
                 <div className="space-y-2">
                   <Skeleton className="h-4 w-full" />
                   <Skeleton className="h-4 w-full" />
@@ -128,7 +143,10 @@ export function OverviewSection({ data, loading, onNavigateToSection }: Overview
                 {/* Circular gauge */}
                 <div className="flex items-center justify-center py-4">
                   <div className="relative h-28 w-28">
-                    <svg className="h-full w-full -rotate-90" viewBox="0 0 100 100">
+                    <svg
+                      className="h-full w-full -rotate-90"
+                      viewBox="0 0 100 100"
+                    >
                       <circle
                         cx="50"
                         cy="50"
@@ -166,19 +184,28 @@ export function OverviewSection({ data, loading, onNavigateToSection }: Overview
 
                 {/* Sub-scores */}
                 <div className="space-y-3">
-                  <ScoreBar label="Cache" value={efficiencyScore.cacheEfficiency} />
-                  <ScoreBar label="Tool Success" value={efficiencyScore.toolSuccess} />
-                  <ScoreBar label="Session" value={efficiencyScore.sessionEfficiency} />
+                  <ScoreBar
+                    label="Cache"
+                    value={efficiencyScore.cacheEfficiency}
+                  />
+                  <ScoreBar
+                    label="Tool Success"
+                    value={efficiencyScore.toolSuccess}
+                  />
+                  <ScoreBar
+                    label="Session"
+                    value={efficiencyScore.sessionEfficiency}
+                  />
                 </div>
 
                 {efficiencyScore.topOpportunity && (
-                  <p className="text-xs text-muted-foreground pt-2 border-t border-border">
+                  <p className="text-muted-foreground border-border border-t pt-2 text-xs">
                     Tip: {efficiencyScore.topOpportunity}
                   </p>
                 )}
               </div>
             ) : (
-              <p className="text-center text-muted-foreground py-8">No data</p>
+              <p className="text-muted-foreground py-8 text-center">No data</p>
             )}
           </CardContent>
         </Card>
@@ -207,7 +234,7 @@ export function OverviewSection({ data, loading, onNavigateToSection }: Overview
               </div>
             ) : (
               <>
-                <div className="grid grid-cols-3 gap-4 mb-4">
+                <div className="mb-4 grid grid-cols-3 gap-4">
                   <ComparisonCard
                     label="Cost"
                     thisWeek={formatCurrency(weeklyComparison.thisWeek.cost)}
@@ -223,19 +250,25 @@ export function OverviewSection({ data, loading, onNavigateToSection }: Overview
                   />
                   <ComparisonCard
                     label="Cache Hit Rate"
-                    thisWeek={formatPercent(weeklyComparison.thisWeek.cacheHitRate)}
-                    lastWeek={formatPercent(weeklyComparison.lastWeek.cacheHitRate)}
+                    thisWeek={formatPercent(
+                      weeklyComparison.thisWeek.cacheHitRate
+                    )}
+                    lastWeek={formatPercent(
+                      weeklyComparison.lastWeek.cacheHitRate
+                    )}
                     change={weeklyComparison.changes.cacheHitRate * 100}
                   />
                 </div>
 
                 {(weeklyComparison.improvements.length > 0 ||
                   weeklyComparison.concerns.length > 0) && (
-                  <div className="flex gap-4 pt-4 border-t border-border">
+                  <div className="border-border flex gap-4 border-t pt-4">
                     {weeklyComparison.improvements.length > 0 && (
                       <div className="flex-1">
-                        <p className="text-sm font-medium text-success mb-1">Improvements</p>
-                        <ul className="text-sm text-muted-foreground space-y-1">
+                        <p className="text-success mb-1 text-sm font-medium">
+                          Improvements
+                        </p>
+                        <ul className="text-muted-foreground space-y-1 text-sm">
                           {weeklyComparison.improvements.map((item, i) => (
                             <li key={i}>+ {item}</li>
                           ))}
@@ -244,8 +277,10 @@ export function OverviewSection({ data, loading, onNavigateToSection }: Overview
                     )}
                     {weeklyComparison.concerns.length > 0 && (
                       <div className="flex-1">
-                        <p className="text-sm font-medium text-destructive mb-1">Concerns</p>
-                        <ul className="text-sm text-muted-foreground space-y-1">
+                        <p className="text-destructive mb-1 text-sm font-medium">
+                          Concerns
+                        </p>
+                        <ul className="text-muted-foreground space-y-1 text-sm">
                           {weeklyComparison.concerns.map((item, i) => (
                             <li key={i}>- {item}</li>
                           ))}
@@ -262,4 +297,3 @@ export function OverviewSection({ data, loading, onNavigateToSection }: Overview
     </Section>
   );
 }
-

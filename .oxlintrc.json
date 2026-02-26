@@ -5,7 +5,97 @@
     "no-unused-vars": "warn",
     "no-console": "off",
     "typescript/no-explicit-any": "warn",
-    "react/no-array-index-key": "warn"
+    "react/no-array-index-key": "warn",
+
+    "unicorn/filename-case": "off",
+    "func-style": "off",
+
+    "no-non-null-assertion": "off",
+    "no-inline-comments": "off",
+    "no-use-before-define": "off",
+    "max-statements": "off",
+    "no-nested-ternary": "off",
+    "sort-keys": "off",
+    "no-shadow": "off",
+    "require-await": "off",
+    "no-control-regex": "off",
+    "no-void": "off",
+    "no-plusplus": "off",
+    "complexity": "off",
+    "prefer-destructuring": "off",
+    "prefer-template": "off",
+    "no-negated-condition": "off",
+    "no-loop-func": "off",
+    "no-inferrable-types": "off",
+    "sort-vars": "off",
+    "default-case": "off",
+
+    "import/no-relative-parent-imports": "off",
+    "import/no-nodejs-modules": "off",
+
+    "react-perf/jsx-no-new-function-as-prop": "off",
+
+    "unicorn/prefer-ternary": "off",
+    "unicorn/consistent-function-scoping": "off",
+    "unicorn/no-array-for-each": "off",
+    "unicorn/no-nested-ternary": "off",
+    "unicorn/no-lonely-if": "off",
+    "unicorn/no-array-reduce": "off",
+
+    "jest/no-conditional-in-test": "off",
+    "jest/require-hook": "off",
+
+    "jsdoc/require-param-type": "off",
+    "jsdoc/require-returns-type": "off",
+
+    "promise/prefer-await-to-then": "off",
+    "promise/prefer-await-to-callbacks": "off",
+    "promise/avoid-new": "off",
+
+    "parameter-properties": "off",
+    "func-names": "off",
+    "max-classes-per-file": "off",
+    "require-yield": "off",
+    "no-new": "off",
+    "no-empty-function": "off",
+    "no-eq-null": "off",
+    "consistent-type-imports": "off",
+
+    "react/jsx-handler-names": "off",
+
+    "unicorn/prefer-module": "off",
+    "unicorn/prefer-array-find": "off",
+    "unicorn/no-useless-switch-case": "off",
+
+    "node/global-require": "off",
+
+    "import/first": "off",
+
+    "eqeqeq": "off",
+    "no-promise-executor-return": "off",
+
+    "react/no-danger": "off",
+
+    "jsx-a11y/click-events-have-key-events": "off",
+    "jsx-a11y/label-has-associated-control": "off",
+
+    "array-callback-return": "off",
+    "react/jsx-no-useless-fragment": "off",
+    "react/no-unescaped-entities": "off",
+    "react/jsx-no-constructed-context-values": "off",
+    "react-hooks/exhaustive-deps": "warn",
+
+    "oxc/no-accumulating-spread": "off"
   },
-  "ignorePatterns": ["dist", "build", ".electrobun", "node_modules", "coverage"]
+  "ignorePatterns": [
+    "dist",
+    "build",
+    ".electrobun",
+    "node_modules",
+    "coverage"
+  ],
+  "extends": [
+    "./node_modules/ultracite/config/oxlint/core/.oxlintrc.json",
+    "./node_modules/ultracite/config/oxlint/react/.oxlintrc.json"
+  ]
 }

@@ -19,9 +19,7 @@
     "verbatimModuleSyntax": true,
 
     /* Effect TS plugin */
-    "plugins": [
-      { "name": "@effect/language-service" }
-    ],
+    "plugins": [{ "name": "@effect/language-service" }],
 
     /* Paths */
     "baseUrl": ".",
@@ -30,5 +28,10 @@
       "@shared/*": ["./src/shared/*"]
     }
   },
-  "include": ["src/bun/**/*", "src/shared/**/*", "electrobun.config.ts", "vite.config.ts"]
+  "include": [
+    "src/bun/**/*",
+    "src/shared/**/*",
+    "electrobun.config.ts",
+    "vite.config.ts"
+  ]
 }

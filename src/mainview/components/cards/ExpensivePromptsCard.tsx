@@ -1,12 +1,17 @@
-import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { formatCurrency, formatTokens, cn } from "@/lib/utils";
 import { modelFamily, modelBadgeId } from "@shared/model-utils";
-import { getModelBadgeStyle } from "@/lib/model-styles";
 import type { DashboardData } from "@shared/rpc-types";
+import { useState } from "react";
+
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import { Skeleton } from "@/components/ui/skeleton";
+import { getModelBadgeStyle } from "@/lib/model-styles";
+import { formatCurrency, formatTokens, cn } from "@/lib/utils";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -35,7 +40,7 @@ function RankBadge({ rank }: { rank: number }) {
 
   return (
     <div
-      className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-foreground text-background text-xs font-bold"
+      className="bg-foreground text-background flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold"
       style={{ opacity }}
     >
       {rank}
@@ -49,9 +54,9 @@ function CostBar({ cost, maxCost }: { cost: number; maxCost: number }) {
   const widthPercent = maxCost > 0 ? (cost / maxCost) * 100 : 0;
 
   return (
-    <div className="relative h-2 w-full overflow-hidden rounded-full bg-muted">
+    <div className="bg-muted relative h-2 w-full overflow-hidden rounded-full">
       <div
-        className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-chart-1 to-chart-1/60 transition-all duration-700 ease-out"
+        className="from-chart-1 to-chart-1/60 absolute inset-y-0 left-0 rounded-full bg-gradient-to-r transition-all duration-700 ease-out"
         style={{ width: `${widthPercent}%` }}
       />
     </div>
@@ -73,9 +78,10 @@ function PromptRow({
   const badgeLabel = modelBadgeId(prompt.model);
 
   // Truncate prompt for collapsed view
-  const truncatedPrompt = prompt.prompt.length > 60
-    ? prompt.prompt.slice(0, 60) + "..."
-    : prompt.prompt;
+  const truncatedPrompt =
+    prompt.prompt.length > 60
+      ? prompt.prompt.slice(0, 60) + "..."
+      : prompt.prompt;
 
   return (
     <Collapsible open={expanded} onOpenChange={onToggle}>
@@ -94,29 +100,29 @@ function PromptRow({
         <CollapsibleTrigger className="flex w-full cursor-pointer items-start gap-3 text-left">
           <RankBadge rank={rank} />
 
-          <div className="flex-1 min-w-0 space-y-2">
+          <div className="min-w-0 flex-1 space-y-2">
             {/* Cost bar row */}
             <div className="flex items-center gap-3">
               <div className="flex-1">
                 <CostBar cost={prompt.cost} maxCost={maxCost} />
               </div>
-              <div className="flex items-baseline gap-1.5 shrink-0">
+              <div className="flex shrink-0 items-baseline gap-1.5">
                 <span className="text-sm font-semibold tabular-nums">
                   {formatCurrency(prompt.cost)}
                 </span>
-                <span className="text-xs text-muted-foreground tabular-nums">
+                <span className="text-muted-foreground text-xs tabular-nums">
                   ({percentOfTotal.toFixed(0)}%)
                 </span>
               </div>
             </div>
 
             {/* Prompt preview */}
-            <p className="text-sm text-muted-foreground leading-snug">
+            <p className="text-muted-foreground text-sm leading-snug">
               "{truncatedPrompt}"
             </p>
 
             {/* Metadata row */}
-            <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+            <div className="text-muted-foreground flex flex-wrap items-center gap-2 text-xs">
               <Badge
                 variant="outline"
                 className={cn("h-5 text-[10px] font-medium", badgeStyle)}
@@ -132,7 +138,7 @@ function PromptRow({
           </div>
 
           {/* Expand indicator */}
-          <div className="shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100">
+          <div className="text-muted-foreground shrink-0 opacity-0 transition-opacity group-hover:opacity-100">
             <svg
               className={cn(
                 "h-4 w-4 transition-transform",
@@ -143,15 +149,19 @@ function PromptRow({
               stroke="currentColor"
               strokeWidth={2}
             >
-              <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M19 9l-7 7-7-7"
+              />
             </svg>
           </div>
         </CollapsibleTrigger>
 
         {/* Expanded content */}
         <CollapsibleContent>
-          <div className="mt-3 ml-9 rounded-md bg-muted/50 p-3">
-            <p className="text-sm font-mono whitespace-pre-wrap break-all leading-relaxed">
+          <div className="bg-muted/50 mt-3 ml-9 rounded-md p-3">
+            <p className="font-mono text-sm leading-relaxed break-all whitespace-pre-wrap">
               {prompt.prompt}
             </p>
           </div>
@@ -163,7 +173,10 @@ function PromptRow({
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-export function ExpensivePromptsCard({ data, loading }: ExpensivePromptsCardProps) {
+export function ExpensivePromptsCard({
+  data,
+  loading,
+}: ExpensivePromptsCardProps) {
   const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
 
   const topPrompts = data?.topPrompts?.slice(0, 5) ?? [];
@@ -174,7 +187,9 @@ export function ExpensivePromptsCard({ data, loading }: ExpensivePromptsCardProp
     <Card className="overflow-hidden">
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-base font-semibold">Top Expensive Prompts</CardTitle>
+          <CardTitle className="text-base font-semibold">
+            Top Expensive Prompts
+          </CardTitle>
           {totalOfTop5 > 0 && (
             <Badge variant="secondary" className="font-mono tabular-nums">
               Total: {formatCurrency(totalOfTop5)}
@@ -188,7 +203,7 @@ export function ExpensivePromptsCard({ data, loading }: ExpensivePromptsCardProp
           <div className="space-y-4">
             {[1, 2, 3].map((i) => (
               <div key={i} className="flex gap-3">
-                <Skeleton className="h-6 w-6 rounded-full shrink-0" />
+                <Skeleton className="h-6 w-6 shrink-0 rounded-full" />
                 <div className="flex-1 space-y-2">
                   <Skeleton className="h-2 w-full" />
                   <Skeleton className="h-4 w-3/4" />
@@ -206,17 +221,23 @@ export function ExpensivePromptsCard({ data, loading }: ExpensivePromptsCardProp
                 rank={i + 1}
                 maxCost={maxCost}
                 totalOfTop5={totalOfTop5}
-                percentOfTotal={totalOfTop5 > 0 ? (prompt.cost / totalOfTop5) * 100 : 0}
+                percentOfTotal={
+                  totalOfTop5 > 0 ? (prompt.cost / totalOfTop5) * 100 : 0
+                }
                 expanded={expandedIndex === i}
-                onToggle={() => setExpandedIndex(expandedIndex === i ? null : i)}
+                onToggle={() =>
+                  setExpandedIndex(expandedIndex === i ? null : i)
+                }
               />
             ))}
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center py-8 text-center">
-            <span className="text-3xl mb-2">📊</span>
-            <p className="text-sm text-muted-foreground">No expensive prompts found</p>
-            <p className="text-xs text-muted-foreground mt-1">
+            <span className="mb-2 text-3xl">📊</span>
+            <p className="text-muted-foreground text-sm">
+              No expensive prompts found
+            </p>
+            <p className="text-muted-foreground mt-1 text-xs">
               Run some sessions to see your top spenders
             </p>
           </div>

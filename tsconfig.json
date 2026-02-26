@@ -10,6 +10,7 @@
       "@/*": ["./src/mainview/*"],
       "@shared/*": ["./src/shared/*"],
       "~/*": ["./src/*"]
-    }
+    },
+    "strictNullChecks": true
   }
 }

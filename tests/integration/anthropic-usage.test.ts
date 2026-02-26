@@ -13,7 +13,9 @@ import {
   afterEach,
   setDefaultTimeout,
 } from "bun:test";
+
 import { Effect, Layer } from "effect";
+
 import {
   AnthropicUsageService,
   AnthropicUsageServiceLive,
@@ -30,8 +32,8 @@ setDefaultTimeout(30_000);
  */
 const binaryExists = async (name: string): Promise<boolean> => {
   const proc = Bun.spawn(["which", name], {
-    stdout: "pipe",
     stderr: "pipe",
+    stdout: "pipe",
   });
   const exitCode = await proc.exited;
   return exitCode === 0;
@@ -44,9 +46,9 @@ const isClaudeAuthenticated = async (): Promise<boolean> => {
   const proc = Bun.spawn(
     ["security", "find-generic-password", "-s", "Claude Code-credentials"],
     {
-      stdout: "pipe",
       stderr: "pipe",
-    },
+      stdout: "pipe",
+    }
   );
   const exitCode = await proc.exited;
   return exitCode === 0;
@@ -55,14 +57,13 @@ const isClaudeAuthenticated = async (): Promise<boolean> => {
 /**
  * Check if we're running in CI environment.
  */
-const isCI = (): boolean => {
-  return Boolean(
+const isCI = (): boolean =>
+  Boolean(
     process.env.CI ||
-      process.env.GITHUB_ACTIONS ||
-      process.env.GITLAB_CI ||
-      process.env.CIRCLECI,
+    process.env.GITHUB_ACTIONS ||
+    process.env.GITLAB_CI ||
+    process.env.CIRCLECI
   );
-};
 
 // ─── Test Fixtures ───────────────────────────────────────────────────────────
 
@@ -77,8 +78,8 @@ Opus: 78% (resets in 4d 12h)
 Sonnet: 35% (resets in 4d 12h)
 `;
 
-const SAMPLE_CLI_OUTPUT_WITH_ANSI = `\x1b[32mSession usage: 45%\x1b[0m (resets in 2h)
-\x1b[33mWeekly usage: 62%\x1b[0m (resets in 4d)`;
+const SAMPLE_CLI_OUTPUT_WITH_ANSI = `\u001B[32mSession usage: 45%\u001B[0m (resets in 2h)
+\u001B[33mWeekly usage: 62%\u001B[0m (resets in 4d)`;
 
 // ─── Helper Functions ────────────────────────────────────────────────────────
 
@@ -88,10 +89,10 @@ const SAMPLE_CLI_OUTPUT_WITH_ANSI = `\x1b[32mSession usage: 45%\x1b[0m (resets i
  */
 const clearServiceCache = () =>
   Effect.runPromise(
-    Effect.gen(function* () {
+    Effect.gen(function* clearServiceCache() {
       const service = yield* AnthropicUsageService;
       yield* service.clearCache();
-    }).pipe(Effect.provide(AnthropicUsageServiceLive)),
+    }).pipe(Effect.provide(AnthropicUsageServiceLive))
   );
 
 // ─── Tests ───────────────────────────────────────────────────────────────────
@@ -131,10 +132,10 @@ describe("AnthropicUsageService", () => {
 
     it("getUsage returns AnthropicUsage structure", async () => {
       const usage = await Effect.runPromise(
-        Effect.gen(function* () {
+        Effect.gen(function* usage() {
           const service = yield* AnthropicUsageService;
           return yield* service.getUsage();
-        }).pipe(Effect.provide(AnthropicUsageServiceLive)),
+        }).pipe(Effect.provide(AnthropicUsageServiceLive))
       );
 
       console.log("Claude Code usage limits", { usage });
@@ -157,7 +158,7 @@ describe("AnthropicUsageService", () => {
 
       // Source should be one of the valid values
       expect(["oauth", "cli", "credentials", "unavailable"]).toContain(
-        usage.source,
+        usage.source
       );
     });
 
@@ -173,7 +174,7 @@ describe("AnthropicUsageService", () => {
           const usage2 = yield* service.refreshUsage();
 
           return [usage1, usage2] as const;
-        }).pipe(Effect.provide(AnthropicUsageServiceLive)),
+        }).pipe(Effect.provide(AnthropicUsageServiceLive))
       );
 
       // Both should be valid structures
@@ -198,13 +199,13 @@ describe("AnthropicUsageService", () => {
           // Next call should fetch fresh (no way to verify without timing, but shouldn't throw)
           const usage = yield* service.getUsage();
           expect(usage).toHaveProperty("source");
-        }).pipe(Effect.provide(AnthropicUsageServiceLive)),
+        }).pipe(Effect.provide(AnthropicUsageServiceLive))
       );
     });
 
     it("caches results for 30 seconds", async () => {
       const timestamps = await Effect.runPromise(
-        Effect.gen(function* () {
+        Effect.gen(function* timestamps() {
           const service = yield* AnthropicUsageService;
 
           // First call
@@ -216,7 +217,7 @@ describe("AnthropicUsageService", () => {
           const time2 = usage2.fetchedAt;
 
           return { time1, time2 };
-        }).pipe(Effect.provide(AnthropicUsageServiceLive)),
+        }).pipe(Effect.provide(AnthropicUsageServiceLive))
       );
 
       // Cached result should have same fetchedAt
@@ -226,10 +227,10 @@ describe("AnthropicUsageService", () => {
     it("handles unavailable source gracefully", async () => {
       // Even if OAuth/CLI both fail, should return unavailable source
       const usage = await Effect.runPromise(
-        Effect.gen(function* () {
+        Effect.gen(function* usage() {
           const service = yield* AnthropicUsageService;
           return yield* service.getUsage();
-        }).pipe(Effect.provide(AnthropicUsageServiceLive)),
+        }).pipe(Effect.provide(AnthropicUsageServiceLive))
       );
 
       // Should never throw, always returns valid structure
@@ -273,7 +274,7 @@ describe("AnthropicUsageService", () => {
     it("skips if not authenticated", async () => {
       if (!isAuthenticated) {
         console.log(
-          "  ⏭️  Skipping: Claude not authenticated (no Keychain credentials)",
+          "  ⏭️  Skipping: Claude not authenticated (no Keychain credentials)"
         );
         return;
       }
@@ -293,10 +294,10 @@ describe("AnthropicUsageService", () => {
       }
 
       const usage = await Effect.runPromise(
-        Effect.gen(function* () {
+        Effect.gen(function* usage() {
           const service = yield* AnthropicUsageService;
           return yield* service.refreshUsage(); // Force fresh fetch
-        }).pipe(Effect.provide(AnthropicUsageServiceLive)),
+        }).pipe(Effect.provide(AnthropicUsageServiceLive))
       );
 
       // Should have real data from OAuth or CLI
@@ -328,10 +329,10 @@ describe("AnthropicUsageService", () => {
 
     it("source indicates which method succeeded", async () => {
       const usage = await Effect.runPromise(
-        Effect.gen(function* () {
+        Effect.gen(function* usage() {
           const service = yield* AnthropicUsageService;
           return yield* service.getUsage();
-        }).pipe(Effect.provide(AnthropicUsageServiceLive)),
+        }).pipe(Effect.provide(AnthropicUsageServiceLive))
       );
 
       // Log which source was used (helpful for debugging)
@@ -367,10 +368,10 @@ describe("AnthropicUsageService", () => {
       }
 
       const usage = await Effect.runPromise(
-        Effect.gen(function* () {
+        Effect.gen(function* usage() {
           const service = yield* AnthropicUsageService;
           return yield* service.getUsage();
-        }).pipe(Effect.provide(AnthropicUsageServiceLive)),
+        }).pipe(Effect.provide(AnthropicUsageServiceLive))
       );
 
       // If we got data from oauth/cli/credentials, should have subscription
@@ -384,10 +385,10 @@ describe("AnthropicUsageService", () => {
   describe("Usage Window Validation", () => {
     it("validates session window structure", async () => {
       const usage = await Effect.runPromise(
-        Effect.gen(function* () {
+        Effect.gen(function* usage() {
           const service = yield* AnthropicUsageService;
           return yield* service.getUsage();
-        }).pipe(Effect.provide(AnthropicUsageServiceLive)),
+        }).pipe(Effect.provide(AnthropicUsageServiceLive))
       );
 
       const { session } = usage;
@@ -410,10 +411,10 @@ describe("AnthropicUsageService", () => {
 
     it("validates weekly window structure", async () => {
       const usage = await Effect.runPromise(
-        Effect.gen(function* () {
+        Effect.gen(function* usage() {
           const service = yield* AnthropicUsageService;
           return yield* service.getUsage();
-        }).pipe(Effect.provide(AnthropicUsageServiceLive)),
+        }).pipe(Effect.provide(AnthropicUsageServiceLive))
       );
 
       const { weekly } = usage;
@@ -434,10 +435,10 @@ describe("AnthropicUsageService", () => {
 
     it("opus and sonnet windows are optional", async () => {
       const usage = await Effect.runPromise(
-        Effect.gen(function* () {
+        Effect.gen(function* usage() {
           const service = yield* AnthropicUsageService;
           return yield* service.getUsage();
-        }).pipe(Effect.provide(AnthropicUsageServiceLive)),
+        }).pipe(Effect.provide(AnthropicUsageServiceLive))
       );
 
       // opus and sonnet can be null
@@ -458,10 +459,10 @@ describe("AnthropicUsageService", () => {
   describe("Extra Usage (Overage)", () => {
     it("extraUsage field is optional and validated when present", async () => {
       const usage = await Effect.runPromise(
-        Effect.gen(function* () {
+        Effect.gen(function* usage() {
           const service = yield* AnthropicUsageService;
           return yield* service.getUsage();
-        }).pipe(Effect.provide(AnthropicUsageServiceLive)),
+        }).pipe(Effect.provide(AnthropicUsageServiceLive))
       );
 
       if (usage.extraUsage !== undefined) {
@@ -480,10 +481,10 @@ describe("AnthropicUsageService", () => {
     it("never throws - always returns valid usage", async () => {
       // Even with broken environment, should return unavailable
       const usage = await Effect.runPromise(
-        Effect.gen(function* () {
+        Effect.gen(function* usage() {
           const service = yield* AnthropicUsageService;
           return yield* service.getUsage();
-        }).pipe(Effect.provide(AnthropicUsageServiceLive)),
+        }).pipe(Effect.provide(AnthropicUsageServiceLive))
       );
 
       expect(usage).toBeDefined();
@@ -492,10 +493,10 @@ describe("AnthropicUsageService", () => {
 
     it("refreshUsage never throws", async () => {
       const usage = await Effect.runPromise(
-        Effect.gen(function* () {
+        Effect.gen(function* usage() {
           const service = yield* AnthropicUsageService;
           return yield* service.refreshUsage();
-        }).pipe(Effect.provide(AnthropicUsageServiceLive)),
+        }).pipe(Effect.provide(AnthropicUsageServiceLive))
       );
 
       expect(usage).toBeDefined();
@@ -520,16 +521,22 @@ describe("Parsing Functions (reimplemented for testing)", () => {
     const hours = timeStr.match(/(\d+)h/);
     const mins = timeStr.match(/(\d+)m/);
 
-    if (days?.[1]) ms += parseInt(days[1], 10) * 24 * 60 * 60 * 1000;
-    if (hours?.[1]) ms += parseInt(hours[1], 10) * 60 * 60 * 1000;
-    if (mins?.[1]) ms += parseInt(mins[1], 10) * 60 * 1000;
+    if (days?.[1]) {
+      ms += Number.parseInt(days[1], 10) * 24 * 60 * 60 * 1000;
+    }
+    if (hours?.[1]) {
+      ms += Number.parseInt(hours[1], 10) * 60 * 60 * 1000;
+    }
+    if (mins?.[1]) {
+      ms += Number.parseInt(mins[1], 10) * 60 * 1000;
+    }
 
     return ms > 0 ? Math.floor((now + ms) / 1000) : null;
   };
 
   /** Parse TUI output to extract usage percentages */
   const parseUsageOutput = (output: string) => {
-    const clean = output.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, "");
+    const clean = output.replaceAll(/\u001B\[[0-9;]*[a-zA-Z]/g, "");
 
     const sessionMatch = clean.match(/Session.*?(\d+)%/i);
     const weeklyMatch = clean.match(/Weekly.*?(\d+)%/i);
@@ -540,34 +547,36 @@ describe("Parsing Functions (reimplemented for testing)", () => {
     const weeklyResetMatch = clean.match(/Weekly.*?resets in ([^)]+)/i);
 
     return {
+      opus: opusMatch?.[1]
+        ? {
+            limit: "Opus 7-day",
+            percentUsed: Number.parseInt(opusMatch[1], 10),
+            resetAt: null,
+          }
+        : null,
       session: {
-        percentUsed: sessionMatch?.[1] ? parseInt(sessionMatch[1], 10) : 0,
+        limit: "5-hour window",
+        percentUsed: sessionMatch?.[1]
+          ? Number.parseInt(sessionMatch[1], 10)
+          : 0,
         resetAt: sessionResetMatch?.[1]
           ? parseResetTime(sessionResetMatch[1])
           : null,
-        limit: "5-hour window",
       },
+      sonnet: sonnetMatch?.[1]
+        ? {
+            limit: "Sonnet 7-day",
+            percentUsed: Number.parseInt(sonnetMatch[1], 10),
+            resetAt: null,
+          }
+        : null,
       weekly: {
-        percentUsed: weeklyMatch?.[1] ? parseInt(weeklyMatch[1], 10) : 0,
+        limit: "7-day limit",
+        percentUsed: weeklyMatch?.[1] ? Number.parseInt(weeklyMatch[1], 10) : 0,
         resetAt: weeklyResetMatch?.[1]
           ? parseResetTime(weeklyResetMatch[1])
           : null,
-        limit: "7-day limit",
       },
-      opus: opusMatch?.[1]
-        ? {
-            percentUsed: parseInt(opusMatch[1], 10),
-            resetAt: null,
-            limit: "Opus 7-day",
-          }
-        : null,
-      sonnet: sonnetMatch?.[1]
-        ? {
-            percentUsed: parseInt(sonnetMatch[1], 10),
-            resetAt: null,
-            limit: "Sonnet 7-day",
-          }
-        : null,
     };
   };
 

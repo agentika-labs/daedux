@@ -3,7 +3,13 @@
  * Use these instead of inline color mappings for visual consistency.
  */
 
-export type SemanticVariant = "success" | "warning" | "destructive" | "info" | "muted" | "tip";
+export type SemanticVariant =
+  | "success"
+  | "warning"
+  | "destructive"
+  | "info"
+  | "muted"
+  | "tip";
 
 export interface SemanticStyle {
   /** Background color class (e.g., for card backgrounds) */
@@ -23,47 +29,47 @@ export interface SemanticStyle {
  * These use CSS variables for theme compatibility.
  */
 export const SEMANTIC_STYLES: Record<SemanticVariant, SemanticStyle> = {
-  success: {
-    bg: "bg-success/5",
-    border: "border-success/30",
-    text: "text-success",
-    badgeBg: "bg-success/10",
-    button: "text-success hover:text-success/80",
-  },
-  warning: {
-    bg: "bg-chart-4/5",
-    border: "border-chart-4/30",
-    text: "text-chart-4",
-    badgeBg: "bg-chart-4/10",
-    button: "text-chart-4 hover:text-chart-4/80",
-  },
   destructive: {
+    badgeBg: "bg-destructive/10",
     bg: "bg-destructive/5",
     border: "border-destructive/30",
-    text: "text-destructive",
-    badgeBg: "bg-destructive/10",
     button: "text-destructive hover:text-destructive/80",
+    text: "text-destructive",
   },
   info: {
+    badgeBg: "bg-chart-2/10",
     bg: "bg-chart-2/5",
     border: "border-chart-2/30",
-    text: "text-chart-2",
-    badgeBg: "bg-chart-2/10",
     button: "text-chart-2 hover:text-chart-2/80",
-  },
-  tip: {
-    bg: "bg-chart-1/5",
-    border: "border-chart-1/30",
-    text: "text-chart-1",
-    badgeBg: "bg-chart-1/10",
-    button: "text-chart-1 hover:text-chart-1/80",
+    text: "text-chart-2",
   },
   muted: {
+    badgeBg: "bg-muted",
     bg: "bg-muted/50",
     border: "border-border/50",
-    text: "text-muted-foreground",
-    badgeBg: "bg-muted",
     button: "text-muted-foreground hover:text-foreground",
+    text: "text-muted-foreground",
+  },
+  success: {
+    badgeBg: "bg-success/10",
+    bg: "bg-success/5",
+    border: "border-success/30",
+    button: "text-success hover:text-success/80",
+    text: "text-success",
+  },
+  tip: {
+    badgeBg: "bg-chart-1/10",
+    bg: "bg-chart-1/5",
+    border: "border-chart-1/30",
+    button: "text-chart-1 hover:text-chart-1/80",
+    text: "text-chart-1",
+  },
+  warning: {
+    badgeBg: "bg-chart-4/10",
+    bg: "bg-chart-4/5",
+    border: "border-chart-4/30",
+    button: "text-chart-4 hover:text-chart-4/80",
+    text: "text-chart-4",
   },
 };
 

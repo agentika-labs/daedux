@@ -1,11 +1,12 @@
+import { InformationCircleIcon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
+
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { InformationCircleIcon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
 import { cn } from "@/lib/utils";
 
 interface ScaleTier {
@@ -58,16 +59,16 @@ export function InfoTooltip({
           )}
         >
           {/* Title - larger, bolder */}
-          <p className="font-semibold text-sm tracking-tight">{title}</p>
+          <p className="text-sm font-semibold tracking-tight">{title}</p>
 
           {/* Description - muted */}
-          <p className="text-xs text-background/70 mt-1.5 leading-relaxed">
+          <p className="text-background/70 mt-1.5 text-xs leading-relaxed">
             {description}
           </p>
 
           {/* Scale tiers - visual treatment */}
           {scale && scale.length > 0 && (
-            <div className="mt-3 pt-3 border-t border-background/15 space-y-1.5">
+            <div className="border-background/15 mt-3 space-y-1.5 border-t pt-3">
               {scale.map((tier) => (
                 <div
                   key={tier.range}
@@ -87,7 +88,7 @@ export function InfoTooltip({
                       tier.quality.includes("Optimal") &&
                         "bg-emerald-500/20 text-emerald-300",
                       // Fallback
-                      !tier.quality.match(/Low|Good|Optimal/) &&
+                      !/Low|Good|Optimal/.test(tier.quality) &&
                         "bg-background/10 text-background/80"
                     )}
                   >

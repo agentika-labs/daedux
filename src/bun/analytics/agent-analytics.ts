@@ -1,9 +1,11 @@
-import { Context, Effect, Layer } from "effect";
 import { sql, desc, eq, and, count, avg } from "drizzle-orm";
+import { Context, Effect, Layer } from "effect";
+
 import { DatabaseService } from "../db";
-import { DatabaseError } from "../errors";
 import * as schema from "../db/schema";
-import { DateFilter, buildDateConditions } from "./shared";
+import { DatabaseError } from "../errors";
+import type { DateFilter } from "./shared";
+import { buildDateConditions } from "./shared";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -105,7 +107,10 @@ export class AgentAnalyticsService extends Context.Tag("AgentAnalyticsService")<
     ) => Effect.Effect<AgentStat[], DatabaseError>;
     readonly getAgentROI: (
       dateFilter?: DateFilter
-    ) => Effect.Effect<{ agents: AgentROI[]; summary: AgentUsageSummary }, DatabaseError>;
+    ) => Effect.Effect<
+      { agents: AgentROI[]; summary: AgentUsageSummary },
+      DatabaseError
+    >;
     readonly getSessionAgentCounts: (
       dateFilter?: DateFilter
     ) => Effect.Effect<Map<string, number>, DatabaseError>;
@@ -125,20 +130,22 @@ export class AgentAnalyticsService extends Context.Tag("AgentAnalyticsService")<
 
 export const AgentAnalyticsServiceLive = Layer.effect(
   AgentAnalyticsService,
-  Effect.gen(function* () {
+  Effect.gen(function* AgentAnalyticsServiceLive() {
     const { db } = yield* DatabaseService;
 
     return {
       getSkillROI: (dateFilter: DateFilter = {}) =>
         Effect.tryPromise({
+          catch: (error) =>
+            new DatabaseError({ cause: error, operation: "getSkillROI" }),
           try: async () => {
             const dateConditions = buildDateConditions(dateFilter);
 
             // Get skill invocation counts
             const result = await db
               .select({
-                skillName: schema.skillInvocations.skillName,
                 invocations: count(),
+                skillName: schema.skillInvocations.skillName,
                 uniqueSessions:
                   sql<number>`COUNT(DISTINCT ${schema.skillInvocations.sessionId})`.as(
                     "unique_sessions"
@@ -149,7 +156,9 @@ export const AgentAnalyticsServiceLive = Layer.effect(
                 schema.sessions,
                 eq(schema.skillInvocations.sessionId, schema.sessions.sessionId)
               )
-              .where(dateConditions.length > 0 ? and(...dateConditions) : undefined)
+              .where(
+                dateConditions.length > 0 ? and(...dateConditions) : undefined
+              )
               .groupBy(schema.skillInvocations.skillName)
               .orderBy(desc(count()));
 
@@ -159,42 +168,51 @@ export const AgentAnalyticsServiceLive = Layer.effect(
               dateConditions.length === 0
                 ? await db
                     .select({
-                      skillName: schema.skillInvocations.skillName,
-                      totalSkillCalls: count(),
                       errorCalls:
                         sql<number>`SUM(CASE WHEN ${schema.toolUses.hasError} = 1 THEN 1 ELSE 0 END)`.as(
                           "error_calls"
                         ),
+                      skillName: schema.skillInvocations.skillName,
+                      totalSkillCalls: count(),
                     })
                     .from(schema.skillInvocations)
                     .innerJoin(
                       schema.toolUses,
                       and(
-                        eq(schema.skillInvocations.sessionId, schema.toolUses.sessionId),
+                        eq(
+                          schema.skillInvocations.sessionId,
+                          schema.toolUses.sessionId
+                        ),
                         eq(schema.toolUses.toolName, "Skill")
                       )
                     )
                     .groupBy(schema.skillInvocations.skillName)
                 : await db
                     .select({
-                      skillName: schema.skillInvocations.skillName,
-                      totalSkillCalls: count(),
                       errorCalls:
                         sql<number>`SUM(CASE WHEN ${schema.toolUses.hasError} = 1 THEN 1 ELSE 0 END)`.as(
                           "error_calls"
                         ),
+                      skillName: schema.skillInvocations.skillName,
+                      totalSkillCalls: count(),
                     })
                     .from(schema.skillInvocations)
                     .innerJoin(
                       schema.toolUses,
                       and(
-                        eq(schema.skillInvocations.sessionId, schema.toolUses.sessionId),
+                        eq(
+                          schema.skillInvocations.sessionId,
+                          schema.toolUses.sessionId
+                        ),
                         eq(schema.toolUses.toolName, "Skill")
                       )
                     )
                     .innerJoin(
                       schema.sessions,
-                      eq(schema.skillInvocations.sessionId, schema.sessions.sessionId)
+                      eq(
+                        schema.skillInvocations.sessionId,
+                        schema.sessions.sessionId
+                      )
                     )
                     .where(and(...dateConditions))
                     .groupBy(schema.skillInvocations.skillName);
@@ -204,7 +222,8 @@ export const AgentAnalyticsServiceLive = Layer.effect(
             for (const row of skillToolErrorsResult) {
               const successRate =
                 row.totalSkillCalls > 0
-                  ? (row.totalSkillCalls - (row.errorCalls ?? 0)) / row.totalSkillCalls
+                  ? (row.totalSkillCalls - (row.errorCalls ?? 0)) /
+                    row.totalSkillCalls
                   : 1; // Default to 100% if no data
               skillErrorMap.set(row.skillName, successRate);
             }
@@ -213,18 +232,20 @@ export const AgentAnalyticsServiceLive = Layer.effect(
             // This sums tokens only once per unique (skillName, sessionId) pair
             const tokenResult = await db
               .select({
-                skillName: schema.skillInvocations.skillName,
                 sessionId: schema.skillInvocations.sessionId,
+                skillName: schema.skillInvocations.skillName,
+                totalCost: schema.sessions.totalCost,
                 totalInputTokens: schema.sessions.totalInputTokens,
                 totalOutputTokens: schema.sessions.totalOutputTokens,
-                totalCost: schema.sessions.totalCost,
               })
               .from(schema.skillInvocations)
               .leftJoin(
                 schema.sessions,
                 eq(schema.skillInvocations.sessionId, schema.sessions.sessionId)
               )
-              .where(dateConditions.length > 0 ? and(...dateConditions) : undefined)
+              .where(
+                dateConditions.length > 0 ? and(...dateConditions) : undefined
+              )
               .groupBy(
                 schema.skillInvocations.skillName,
                 schema.skillInvocations.sessionId
@@ -233,13 +254,17 @@ export const AgentAnalyticsServiceLive = Layer.effect(
             // Aggregate tokens per skill from distinct sessions
             const tokenMap = new Map<
               string,
-              { totalInputTokens: number; totalOutputTokens: number; totalCost: number }
+              {
+                totalInputTokens: number;
+                totalOutputTokens: number;
+                totalCost: number;
+              }
             >();
             for (const row of tokenResult) {
               const existing = tokenMap.get(row.skillName) ?? {
+                totalCost: 0,
                 totalInputTokens: 0,
                 totalOutputTokens: 0,
-                totalCost: 0,
               };
               existing.totalInputTokens += row.totalInputTokens ?? 0;
               existing.totalOutputTokens += row.totalOutputTokens ?? 0;
@@ -253,32 +278,43 @@ export const AgentAnalyticsServiceLive = Layer.effect(
               toolCountsResult = await db
                 .select({
                   skillName: schema.skillInvocations.skillName,
-                  toolCount: sql<number>`COUNT(DISTINCT ${schema.toolUses.id})`.as(
-                    "tool_count"
-                  ),
+                  toolCount:
+                    sql<number>`COUNT(DISTINCT ${schema.toolUses.id})`.as(
+                      "tool_count"
+                    ),
                 })
                 .from(schema.skillInvocations)
                 .leftJoin(
                   schema.toolUses,
-                  eq(schema.skillInvocations.sessionId, schema.toolUses.sessionId)
+                  eq(
+                    schema.skillInvocations.sessionId,
+                    schema.toolUses.sessionId
+                  )
                 )
                 .groupBy(schema.skillInvocations.skillName);
             } else {
               toolCountsResult = await db
                 .select({
                   skillName: schema.skillInvocations.skillName,
-                  toolCount: sql<number>`COUNT(DISTINCT ${schema.toolUses.id})`.as(
-                    "tool_count"
-                  ),
+                  toolCount:
+                    sql<number>`COUNT(DISTINCT ${schema.toolUses.id})`.as(
+                      "tool_count"
+                    ),
                 })
                 .from(schema.skillInvocations)
                 .leftJoin(
                   schema.toolUses,
-                  eq(schema.skillInvocations.sessionId, schema.toolUses.sessionId)
+                  eq(
+                    schema.skillInvocations.sessionId,
+                    schema.toolUses.sessionId
+                  )
                 )
                 .innerJoin(
                   schema.sessions,
-                  eq(schema.skillInvocations.sessionId, schema.sessions.sessionId)
+                  eq(
+                    schema.skillInvocations.sessionId,
+                    schema.sessions.sessionId
+                  )
                 )
                 .where(and(...dateConditions))
                 .groupBy(schema.skillInvocations.skillName);
@@ -294,18 +330,23 @@ export const AgentAnalyticsServiceLive = Layer.effect(
             const skillMetrics = result.map((row) => {
               const invocationCount = row.invocations;
               const tokens = tokenMap.get(row.skillName) ?? {
+                totalCost: 0,
                 totalInputTokens: 0,
                 totalOutputTokens: 0,
-                totalCost: 0,
               };
-              const totalTokens = tokens.totalInputTokens + tokens.totalOutputTokens;
+              const totalTokens =
+                tokens.totalInputTokens + tokens.totalOutputTokens;
               const toolCount = toolCountMap.get(row.skillName) ?? 0;
 
               // Compute averages (avoid division by zero)
               const avgCostTokens =
-                invocationCount > 0 ? Math.round(totalTokens / invocationCount) : 0;
+                invocationCount > 0
+                  ? Math.round(totalTokens / invocationCount)
+                  : 0;
               const avgToolsTriggered =
-                invocationCount > 0 ? Number((toolCount / invocationCount).toFixed(1)) : 0;
+                invocationCount > 0
+                  ? Number((toolCount / invocationCount).toFixed(1))
+                  : 0;
               // FIX: Use actual Skill tool success rate from tool_uses table
               // This measures whether the Skill tool execution succeeded (hasError = false)
               // Falls back to 1.0 if no Skill tool data found (conservative assumption)
@@ -314,22 +355,23 @@ export const AgentAnalyticsServiceLive = Layer.effect(
               // Raw efficiency: actions * completion rate / token cost (higher is better)
               // Add 1 to denominator to avoid division by zero and reduce extreme values
               const rawEfficiency =
-                (avgToolsTriggered * completionRate) / (avgCostTokens / 1000 + 1);
+                (avgToolsTriggered * completionRate) /
+                (avgCostTokens / 1000 + 1);
 
               return {
-                skillName: row.skillName,
-                invocationCount,
                 avgCostTokens,
                 avgToolsTriggered,
-                totalCost: Number(tokens.totalCost.toFixed(2)),
                 completionRate,
+                invocationCount,
                 rawEfficiency,
+                skillName: row.skillName,
+                totalCost: Number(tokens.totalCost.toFixed(2)),
               };
             });
 
             // Second pass: convert raw efficiency to percentile-based score (0-100)
             // Sort by raw efficiency descending to assign ranks
-            const sortedByEfficiency = [...skillMetrics].sort(
+            const sortedByEfficiency = [...skillMetrics].toSorted(
               (a, b) => b.rawEfficiency - a.rawEfficiency
             );
             const totalSkills = sortedByEfficiency.length;
@@ -339,7 +381,9 @@ export const AgentAnalyticsServiceLive = Layer.effect(
               // Rank 0 (best) gets 100, rank (n-1) gets close to 0
               const percentile =
                 totalSkills > 1
-                  ? Math.round(((totalSkills - 1 - index) / (totalSkills - 1)) * 100)
+                  ? Math.round(
+                      ((totalSkills - 1 - index) / (totalSkills - 1)) * 100
+                    )
                   : 50; // Single skill gets 50
               efficiencyRankMap.set(skill.skillName, percentile);
             });
@@ -356,11 +400,12 @@ export const AgentAnalyticsServiceLive = Layer.effect(
               roiScore: efficiencyRankMap.get(skill.skillName) ?? 0,
             }));
           },
-          catch: (error) => new DatabaseError({ operation: "getSkillROI", cause: error }),
         }),
 
       getAgentStats: (dateFilter: DateFilter = {}) =>
         Effect.tryPromise({
+          catch: (error) =>
+            new DatabaseError({ cause: error, operation: "getAgentStats" }),
           try: async () => {
             const dateConditions = buildDateConditions(dateFilter);
 
@@ -369,10 +414,11 @@ export const AgentAnalyticsServiceLive = Layer.effect(
               result = await db
                 .select({
                   agentType: schema.agentSpawns.agentType,
+                  sessions:
+                    sql<number>`COUNT(DISTINCT ${schema.agentSpawns.sessionId})`.as(
+                      "sessions"
+                    ),
                   spawns: count(),
-                  sessions: sql<number>`COUNT(DISTINCT ${schema.agentSpawns.sessionId})`.as(
-                    "sessions"
-                  ),
                 })
                 .from(schema.agentSpawns)
                 .groupBy(schema.agentSpawns.agentType)
@@ -381,10 +427,11 @@ export const AgentAnalyticsServiceLive = Layer.effect(
               result = await db
                 .select({
                   agentType: schema.agentSpawns.agentType,
+                  sessions:
+                    sql<number>`COUNT(DISTINCT ${schema.agentSpawns.sessionId})`.as(
+                      "sessions"
+                    ),
                   spawns: count(),
-                  sessions: sql<number>`COUNT(DISTINCT ${schema.agentSpawns.sessionId})`.as(
-                    "sessions"
-                  ),
                 })
                 .from(schema.agentSpawns)
                 .innerJoin(
@@ -403,11 +450,12 @@ export const AgentAnalyticsServiceLive = Layer.effect(
               errorCount: 0, // Not tracked in current schema
             }));
           },
-          catch: (error) => new DatabaseError({ operation: "getAgentStats", cause: error }),
         }),
 
       getAgentROI: (dateFilter: DateFilter = {}) =>
         Effect.tryPromise({
+          catch: (error) =>
+            new DatabaseError({ cause: error, operation: "getAgentROI" }),
           try: async () => {
             const dateConditions = buildDateConditions(dateFilter);
 
@@ -428,7 +476,10 @@ export const AgentAnalyticsServiceLive = Layer.effect(
                     .from(schema.agentSpawns)
                     .innerJoin(
                       schema.sessions,
-                      eq(schema.agentSpawns.sessionId, schema.sessions.sessionId)
+                      eq(
+                        schema.agentSpawns.sessionId,
+                        schema.sessions.sessionId
+                      )
                     )
                     .where(and(...dateConditions));
 
@@ -436,7 +487,10 @@ export const AgentAnalyticsServiceLive = Layer.effect(
             const agentSessions = new Map<string, Set<string>>();
 
             for (const row of spawnRows) {
-              spawnsByAgent.set(row.agentType, (spawnsByAgent.get(row.agentType) ?? 0) + 1);
+              spawnsByAgent.set(
+                row.agentType,
+                (spawnsByAgent.get(row.agentType) ?? 0) + 1
+              );
               if (!agentSessions.has(row.agentType)) {
                 agentSessions.set(row.agentType, new Set());
               }
@@ -448,23 +502,23 @@ export const AgentAnalyticsServiceLive = Layer.effect(
               dateConditions.length === 0
                 ? await db
                     .select({
-                      sessionId: schema.toolUses.sessionId,
-                      total: count(),
                       errors:
                         sql<number>`SUM(CASE WHEN ${schema.toolUses.hasError} = 1 THEN 1 ELSE 0 END)`.as(
                           "errors"
                         ),
+                      sessionId: schema.toolUses.sessionId,
+                      total: count(),
                     })
                     .from(schema.toolUses)
                     .groupBy(schema.toolUses.sessionId)
                 : await db
                     .select({
-                      sessionId: schema.toolUses.sessionId,
-                      total: count(),
                       errors:
                         sql<number>`SUM(CASE WHEN ${schema.toolUses.hasError} = 1 THEN 1 ELSE 0 END)`.as(
                           "errors"
                         ),
+                      sessionId: schema.toolUses.sessionId,
+                      total: count(),
                     })
                     .from(schema.toolUses)
                     .innerJoin(
@@ -474,9 +528,15 @@ export const AgentAnalyticsServiceLive = Layer.effect(
                     .where(and(...dateConditions))
                     .groupBy(schema.toolUses.sessionId);
 
-            const toolStatsBySession = new Map<string, { total: number; errors: number }>();
+            const toolStatsBySession = new Map<
+              string,
+              { total: number; errors: number }
+            >();
             for (const row of toolStatsBySessionRows) {
-              toolStatsBySession.set(row.sessionId, { total: row.total, errors: row.errors ?? 0 });
+              toolStatsBySession.set(row.sessionId, {
+                errors: row.errors ?? 0,
+                total: row.total,
+              });
             }
 
             // Get total subagent cost for cost allocation (respect date filter)
@@ -484,34 +544,43 @@ export const AgentAnalyticsServiceLive = Layer.effect(
               dateConditions.length === 0
                 ? await db
                     .select({
-                      totalCost: sql<number>`COALESCE(SUM(${schema.sessions.totalCost}), 0)`.as(
-                        "total_cost"
-                      ),
+                      totalCost:
+                        sql<number>`COALESCE(SUM(${schema.sessions.totalCost}), 0)`.as(
+                          "total_cost"
+                        ),
                     })
                     .from(schema.sessions)
                     .where(eq(schema.sessions.isSubagent, true))
                 : await db
                     .select({
-                      totalCost: sql<number>`COALESCE(SUM(${schema.sessions.totalCost}), 0)`.as(
-                        "total_cost"
-                      ),
+                      totalCost:
+                        sql<number>`COALESCE(SUM(${schema.sessions.totalCost}), 0)`.as(
+                          "total_cost"
+                        ),
                     })
                     .from(schema.sessions)
-                    .where(and(eq(schema.sessions.isSubagent, true), ...dateConditions));
+                    .where(
+                      and(
+                        eq(schema.sessions.isSubagent, true),
+                        ...dateConditions
+                      )
+                    );
 
             const totalSubagentCost = subagentCostResult[0]?.totalCost ?? 0;
 
             // Get total spawns for cost allocation
-            const totalSpawns = Array.from(spawnsByAgent.values()).reduce(
+            const totalSpawns = [...spawnsByAgent.values()].reduce(
               (sum, c) => sum + c,
               0
             );
-            const avgCostPerSpawn = totalSpawns > 0 ? totalSubagentCost / totalSpawns : 0;
+            const avgCostPerSpawn =
+              totalSpawns > 0 ? totalSubagentCost / totalSpawns : 0;
 
             // Calculate ROI metrics for each agent type
-            const agents: AgentROI[] = Array.from(spawnsByAgent.entries())
+            const agents: AgentROI[] = [...spawnsByAgent.entries()]
               .map(([agentType, spawns]) => {
-                const sessionIds = agentSessions.get(agentType) ?? new Set<string>();
+                const sessionIds =
+                  agentSessions.get(agentType) ?? new Set<string>();
                 let toolsTriggered = 0;
                 let errorCount = 0;
 
@@ -525,10 +594,13 @@ export const AgentAnalyticsServiceLive = Layer.effect(
 
                 // Estimate cost proportionally based on spawn count
                 const totalCost = spawns * avgCostPerSpawn;
-                const avgToolsPerSpawn = spawns > 0 ? toolsTriggered / spawns : 0;
+                const avgToolsPerSpawn =
+                  spawns > 0 ? toolsTriggered / spawns : 0;
                 const successRate =
                   toolsTriggered > 0
-                    ? Math.round(((toolsTriggered - errorCount) / toolsTriggered) * 100)
+                    ? Math.round(
+                        ((toolsTriggered - errorCount) / toolsTriggered) * 100
+                      )
                     : 100;
 
                 // ROI = tools triggered per dollar spent (higher = better value)
@@ -547,32 +619,38 @@ export const AgentAnalyticsServiceLive = Layer.effect(
 
                 return {
                   agentType,
-                  spawns,
-                  totalCost: Math.round(totalCost * 100) / 100,
                   avgCostPerSpawn: Math.round(avgCostPerSpawn * 100) / 100,
-                  toolsTriggered,
                   avgToolsPerSpawn: Math.round(avgToolsPerSpawn * 10) / 10,
-                  successRate,
-                  roi: Math.round(roi * 100) / 100,
                   category,
+                  roi: Math.round(roi * 100) / 100,
+                  spawns,
+                  successRate,
+                  toolsTriggered,
+                  totalCost: Math.round(totalCost * 100) / 100,
                 };
               })
-              .sort((a, b) => b.spawns - a.spawns);
+              .toSorted((a, b) => b.spawns - a.spawns);
 
             // Generate summary and recommendations
-            const highROIAgents = agents.filter((a) => a.roi > 1 && a.spawns >= 3);
+            const highROIAgents = agents.filter(
+              (a) => a.roi > 1 && a.spawns >= 3
+            );
             const underusedAgents = agents
               .filter((a) => a.roi > 2 && a.spawns < 10 && a.spawns >= 3)
               .map((a) => a.agentType);
 
             const mostUsed = agents[0]?.agentType ?? "none";
-            const highestROI = [...agents].sort((a, b) => b.roi - a.roi)[0]?.agentType ?? "none";
+            const highestROI =
+              [...agents].toSorted((a, b) => b.roi - a.roi)[0]?.agentType ??
+              "none";
 
             // Generate actionable recommendations
             const recommendations: string[] = [];
 
             if (underusedAgents.length > 0) {
-              const underusedAgent = agents.find((a) => a.agentType === underusedAgents[0]);
+              const underusedAgent = agents.find(
+                (a) => a.agentType === underusedAgents[0]
+              );
               if (underusedAgent) {
                 recommendations.push(
                   `Consider using ${underusedAgent.agentType} more often - it has ${underusedAgent.roi.toFixed(1)}x ROI but only ${underusedAgent.spawns} spawns.`
@@ -580,7 +658,9 @@ export const AgentAnalyticsServiceLive = Layer.effect(
               }
             }
 
-            const lowSuccessAgents = agents.filter((a) => a.successRate < 80 && a.spawns >= 5);
+            const lowSuccessAgents = agents.filter(
+              (a) => a.successRate < 80 && a.spawns >= 5
+            );
             const firstLowSuccess = lowSuccessAgents[0];
             if (firstLowSuccess) {
               recommendations.push(
@@ -595,23 +675,27 @@ export const AgentAnalyticsServiceLive = Layer.effect(
             }
 
             const summary: AgentUsageSummary = {
-              totalSpawns,
-              totalAgentCost: Math.round(totalSubagentCost * 100) / 100,
               avgCostPerSpawn: Math.round(avgCostPerSpawn * 100) / 100,
-              mostUsedAgent: mostUsed,
               highestROIAgent: highestROI,
-              underusedAgents,
+              mostUsedAgent: mostUsed,
               recommendations,
+              totalAgentCost: Math.round(totalSubagentCost * 100) / 100,
+              totalSpawns,
+              underusedAgents,
             };
 
             return { agents, summary };
           },
-          catch: (error) => new DatabaseError({ operation: "getAgentROI", cause: error }),
         }),
 
       // Agent spawn counts per session for client-side reaggregation
       getSessionAgentCounts: (dateFilter: DateFilter = {}) =>
         Effect.tryPromise({
+          catch: (error) =>
+            new DatabaseError({
+              cause: error,
+              operation: "getSessionAgentCounts",
+            }),
           try: async () => {
             const dateConditions = buildDateConditions(dateFilter);
 
@@ -619,16 +703,16 @@ export const AgentAnalyticsServiceLive = Layer.effect(
             if (dateConditions.length === 0) {
               result = await db
                 .select({
-                  sessionId: schema.agentSpawns.sessionId,
                   count: count(),
+                  sessionId: schema.agentSpawns.sessionId,
                 })
                 .from(schema.agentSpawns)
                 .groupBy(schema.agentSpawns.sessionId);
             } else {
               result = await db
                 .select({
-                  sessionId: schema.agentSpawns.sessionId,
                   count: count(),
+                  sessionId: schema.agentSpawns.sessionId,
                 })
                 .from(schema.agentSpawns)
                 .innerJoin(
@@ -645,32 +729,35 @@ export const AgentAnalyticsServiceLive = Layer.effect(
             }
             return sessionAgentCounts;
           },
-          catch: (error) =>
-            new DatabaseError({ operation: "getSessionAgentCounts", cause: error }),
         }),
 
       getHookStats: (dateFilter: DateFilter = {}) =>
         Effect.tryPromise({
+          catch: (error) =>
+            new DatabaseError({ cause: error, operation: "getHookStats" }),
           try: async () => {
             const dateConditions = buildDateConditions(dateFilter);
 
             const baseQuery = db
               .select({
-                hookName: schema.hookEvents.hookName,
-                hookType: schema.hookEvents.hookType,
-                totalExecutions: count(),
+                avgDurationMs: avg(schema.hookEvents.durationMs),
                 failures:
                   sql<number>`SUM(CASE WHEN ${schema.hookEvents.exitCode} != 0 THEN 1 ELSE 0 END)`.as(
                     "failures"
                   ),
-                avgDurationMs: avg(schema.hookEvents.durationMs),
+                hookName: schema.hookEvents.hookName,
+                hookType: schema.hookEvents.hookType,
+                totalExecutions: count(),
               })
               .from(schema.hookEvents);
 
             const result =
               dateConditions.length === 0
                 ? await baseQuery
-                    .groupBy(schema.hookEvents.hookName, schema.hookEvents.hookType)
+                    .groupBy(
+                      schema.hookEvents.hookName,
+                      schema.hookEvents.hookType
+                    )
                     .orderBy(desc(count()))
                 : await baseQuery
                     .innerJoin(
@@ -678,22 +765,26 @@ export const AgentAnalyticsServiceLive = Layer.effect(
                       eq(schema.hookEvents.sessionId, schema.sessions.sessionId)
                     )
                     .where(and(...dateConditions))
-                    .groupBy(schema.hookEvents.hookName, schema.hookEvents.hookType)
+                    .groupBy(
+                      schema.hookEvents.hookName,
+                      schema.hookEvents.hookType
+                    )
                     .orderBy(desc(count()));
 
             return result.map((row) => ({
+              avgDurationMs: Number(row.avgDurationMs) || 0,
+              failures: row.failures ?? 0,
               hookName: row.hookName ?? "unknown",
               hookType: row.hookType,
               totalExecutions: row.totalExecutions,
-              failures: row.failures ?? 0,
-              avgDurationMs: Number(row.avgDurationMs) || 0,
             }));
           },
-          catch: (error) => new DatabaseError({ operation: "getHookStats", cause: error }),
         }),
 
       getCommandStats: (dateFilter: DateFilter = {}) =>
         Effect.tryPromise({
+          catch: (error) =>
+            new DatabaseError({ cause: error, operation: "getCommandStats" }),
           try: async () => {
             const dateConditions = buildDateConditions(dateFilter);
 
@@ -729,11 +820,15 @@ export const AgentAnalyticsServiceLive = Layer.effect(
               avgSessionCost: 0, // Not tracked yet
             }));
           },
-          catch: (error) => new DatabaseError({ operation: "getCommandStats", cause: error }),
         }),
 
       getSkillImpactComparison: (dateFilter: DateFilter = {}) =>
         Effect.tryPromise({
+          catch: (error) =>
+            new DatabaseError({
+              cause: error,
+              operation: "getSkillImpactComparison",
+            }),
           try: async () => {
             const dateConditions = buildDateConditions(dateFilter);
 
@@ -741,18 +836,27 @@ export const AgentAnalyticsServiceLive = Layer.effect(
             const skillSessionsResult =
               dateConditions.length === 0
                 ? await db
-                    .selectDistinct({ sessionId: schema.skillInvocations.sessionId })
+                    .selectDistinct({
+                      sessionId: schema.skillInvocations.sessionId,
+                    })
                     .from(schema.skillInvocations)
                 : await db
-                    .selectDistinct({ sessionId: schema.skillInvocations.sessionId })
+                    .selectDistinct({
+                      sessionId: schema.skillInvocations.sessionId,
+                    })
                     .from(schema.skillInvocations)
                     .innerJoin(
                       schema.sessions,
-                      eq(schema.skillInvocations.sessionId, schema.sessions.sessionId)
+                      eq(
+                        schema.skillInvocations.sessionId,
+                        schema.sessions.sessionId
+                      )
                     )
                     .where(and(...dateConditions));
 
-            const skillSessionSet = new Set(skillSessionsResult.map((r) => r.sessionId));
+            const skillSessionSet = new Set(
+              skillSessionsResult.map((r) => r.sessionId)
+            );
 
             if (skillSessionSet.size === 0) {
               return null; // No skill data to compare
@@ -763,50 +867,55 @@ export const AgentAnalyticsServiceLive = Layer.effect(
               dateConditions.length === 0
                 ? await db
                     .select({
-                      sessionId: schema.sessions.sessionId,
                       endTime: schema.sessions.endTime,
+                      sessionId: schema.sessions.sessionId,
                       toolUseCount: schema.sessions.toolUseCount,
-                      turnCount: schema.sessions.turnCount,
                       totalCacheRead: schema.sessions.totalCacheRead,
-                      totalInputTokens: schema.sessions.totalInputTokens,
                       totalCacheWrite: schema.sessions.totalCacheWrite,
+                      totalInputTokens: schema.sessions.totalInputTokens,
+                      turnCount: schema.sessions.turnCount,
                     })
                     .from(schema.sessions)
                     .where(eq(schema.sessions.isSubagent, false))
                 : await db
                     .select({
-                      sessionId: schema.sessions.sessionId,
                       endTime: schema.sessions.endTime,
+                      sessionId: schema.sessions.sessionId,
                       toolUseCount: schema.sessions.toolUseCount,
-                      turnCount: schema.sessions.turnCount,
                       totalCacheRead: schema.sessions.totalCacheRead,
-                      totalInputTokens: schema.sessions.totalInputTokens,
                       totalCacheWrite: schema.sessions.totalCacheWrite,
+                      totalInputTokens: schema.sessions.totalInputTokens,
+                      turnCount: schema.sessions.turnCount,
                     })
                     .from(schema.sessions)
-                    .where(and(eq(schema.sessions.isSubagent, false), ...dateConditions));
+                    .where(
+                      and(
+                        eq(schema.sessions.isSubagent, false),
+                        ...dateConditions
+                      )
+                    );
 
             // Get tool errors per session
             const toolErrorsResult =
               dateConditions.length === 0
                 ? await db
                     .select({
-                      sessionId: schema.toolUses.sessionId,
                       errors:
                         sql<number>`SUM(CASE WHEN ${schema.toolUses.hasError} = 1 THEN 1 ELSE 0 END)`.as(
                           "errors"
                         ),
+                      sessionId: schema.toolUses.sessionId,
                       total: count(),
                     })
                     .from(schema.toolUses)
                     .groupBy(schema.toolUses.sessionId)
                 : await db
                     .select({
-                      sessionId: schema.toolUses.sessionId,
                       errors:
                         sql<number>`SUM(CASE WHEN ${schema.toolUses.hasError} = 1 THEN 1 ELSE 0 END)`.as(
                           "errors"
                         ),
+                      sessionId: schema.toolUses.sessionId,
                       total: count(),
                     })
                     .from(schema.toolUses)
@@ -825,8 +934,12 @@ export const AgentAnalyticsServiceLive = Layer.effect(
             );
 
             // Partition sessions
-            const withSkills = allSessions.filter((s) => skillSessionSet.has(s.sessionId));
-            const withoutSkills = allSessions.filter((s) => !skillSessionSet.has(s.sessionId));
+            const withSkills = allSessions.filter((s) =>
+              skillSessionSet.has(s.sessionId)
+            );
+            const withoutSkills = allSessions.filter(
+              (s) => !skillSessionSet.has(s.sessionId)
+            );
 
             // Calculate metrics for each group
             const calcMetrics = (
@@ -834,11 +947,11 @@ export const AgentAnalyticsServiceLive = Layer.effect(
             ): SkillImpactMetrics => {
               if (sessions.length === 0) {
                 return {
-                  sessionCount: 0,
-                  avgToolErrorRate: 0,
-                  avgCompletionRate: 0,
-                  avgTurnCount: 0,
                   avgCacheHitRatio: 0,
+                  avgCompletionRate: 0,
+                  avgToolErrorRate: 0,
+                  avgTurnCount: 0,
+                  sessionCount: 0,
                 };
               }
 
@@ -871,11 +984,11 @@ export const AgentAnalyticsServiceLive = Layer.effect(
               }
 
               return {
-                sessionCount: sessions.length,
-                avgToolErrorRate: totalErrorRate / sessions.length,
-                avgCompletionRate: totalCompletionRate / sessions.length,
-                avgTurnCount: totalTurns / sessions.length,
                 avgCacheHitRatio: totalCacheRatio / sessions.length,
+                avgCompletionRate: totalCompletionRate / sessions.length,
+                avgToolErrorRate: totalErrorRate / sessions.length,
+                avgTurnCount: totalTurns / sessions.length,
+                sessionCount: sessions.length,
               };
             };
 
@@ -884,24 +997,26 @@ export const AgentAnalyticsServiceLive = Layer.effect(
 
             // Calculate impact (positive = skills are better)
             const impact = {
-              errorRateReduction:
-                withoutSkillsMetrics.avgToolErrorRate - withSkillsMetrics.avgToolErrorRate,
-              completionImprovement:
-                withSkillsMetrics.avgCompletionRate - withoutSkillsMetrics.avgCompletionRate,
-              turnsReduction:
-                withoutSkillsMetrics.avgTurnCount - withSkillsMetrics.avgTurnCount,
               cacheImprovement:
-                withSkillsMetrics.avgCacheHitRatio - withoutSkillsMetrics.avgCacheHitRatio,
+                withSkillsMetrics.avgCacheHitRatio -
+                withoutSkillsMetrics.avgCacheHitRatio,
+              completionImprovement:
+                withSkillsMetrics.avgCompletionRate -
+                withoutSkillsMetrics.avgCompletionRate,
+              errorRateReduction:
+                withoutSkillsMetrics.avgToolErrorRate -
+                withSkillsMetrics.avgToolErrorRate,
+              turnsReduction:
+                withoutSkillsMetrics.avgTurnCount -
+                withSkillsMetrics.avgTurnCount,
             };
 
             return {
+              impact,
               withSkills: withSkillsMetrics,
               withoutSkills: withoutSkillsMetrics,
-              impact,
             };
           },
-          catch: (error) =>
-            new DatabaseError({ operation: "getSkillImpactComparison", cause: error }),
         }),
     };
   })

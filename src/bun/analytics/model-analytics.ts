@@ -1,13 +1,15 @@
-import { Context, Effect, Layer } from "effect";
 import { sql, desc, eq, and, count } from "drizzle-orm";
-import { DatabaseService } from "../db";
-import { DatabaseError } from "../errors";
-import * as schema from "../db/schema";
+import { Context, Effect, Layer } from "effect";
+
 import {
   modelDisplayNameWithVersion,
   modelFamily,
 } from "../../shared/model-utils";
-import { DateFilter, buildDateConditions } from "./shared";
+import { DatabaseService } from "../db";
+import * as schema from "../db/schema";
+import { DatabaseError } from "../errors";
+import type { DateFilter } from "./shared";
+import { buildDateConditions } from "./shared";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -34,7 +36,7 @@ export class ModelAnalyticsService extends Context.Tag("ModelAnalyticsService")<
   ModelAnalyticsService,
   {
     readonly getModelBreakdown: (
-      dateFilter?: DateFilter,
+      dateFilter?: DateFilter
     ) => Effect.Effect<ModelBreakdown[], DatabaseError>;
   }
 >() {}
@@ -43,12 +45,17 @@ export class ModelAnalyticsService extends Context.Tag("ModelAnalyticsService")<
 
 export const ModelAnalyticsServiceLive = Layer.effect(
   ModelAnalyticsService,
-  Effect.gen(function* () {
+  Effect.gen(function* ModelAnalyticsServiceLive() {
     const { db } = yield* DatabaseService;
 
     return {
       getModelBreakdown: (dateFilter: DateFilter = {}) =>
         Effect.tryPromise({
+          catch: (error) =>
+            new DatabaseError({
+              cause: error,
+              operation: "getModelBreakdown",
+            }),
           try: async () => {
             const dateConditions = buildDateConditions(dateFilter);
 
@@ -59,8 +66,12 @@ export const ModelAnalyticsServiceLive = Layer.effect(
                 .select({
                   model: schema.queries.model,
                   queryCount: count(),
+                  sessionCount:
+                    sql<number>`COUNT(DISTINCT ${schema.queries.sessionId})`.as(
+                      "session_count"
+                    ),
                   totalCost: sql<number>`SUM(${schema.queries.cost})`.as(
-                    "total_cost",
+                    "total_cost"
                   ),
                   totalTokens: sql<number>`SUM(
                     COALESCE(${schema.queries.inputTokens}, 0) +
@@ -68,14 +79,10 @@ export const ModelAnalyticsServiceLive = Layer.effect(
                     COALESCE(${schema.queries.cacheRead}, 0) +
                     COALESCE(${schema.queries.cacheWrite}, 0)
                   )`.as("total_tokens"),
-                  sessionCount:
-                    sql<number>`COUNT(DISTINCT ${schema.queries.sessionId})`.as(
-                      "session_count",
-                    ),
                 })
                 .from(schema.queries)
                 .where(
-                  sql`${schema.queries.model} IS NOT NULL AND ${schema.queries.model} != '<synthetic>'`,
+                  sql`${schema.queries.model} IS NOT NULL AND ${schema.queries.model} != '<synthetic>'`
                 )
                 .groupBy(schema.queries.model)
                 .orderBy(desc(sql`SUM(${schema.queries.cost})`));
@@ -90,8 +97,12 @@ export const ModelAnalyticsServiceLive = Layer.effect(
                 .select({
                   model: schema.queries.model,
                   queryCount: count(),
+                  sessionCount:
+                    sql<number>`COUNT(DISTINCT ${schema.queries.sessionId})`.as(
+                      "session_count"
+                    ),
                   totalCost: sql<number>`SUM(${schema.queries.cost})`.as(
-                    "total_cost",
+                    "total_cost"
                   ),
                   totalTokens: sql<number>`SUM(
                     COALESCE(${schema.queries.inputTokens}, 0) +
@@ -99,15 +110,11 @@ export const ModelAnalyticsServiceLive = Layer.effect(
                     COALESCE(${schema.queries.cacheRead}, 0) +
                     COALESCE(${schema.queries.cacheWrite}, 0)
                   )`.as("total_tokens"),
-                  sessionCount:
-                    sql<number>`COUNT(DISTINCT ${schema.queries.sessionId})`.as(
-                      "session_count",
-                    ),
                 })
                 .from(schema.queries)
                 .innerJoin(
                   schema.sessions,
-                  eq(schema.queries.sessionId, schema.sessions.sessionId),
+                  eq(schema.queries.sessionId, schema.sessions.sessionId)
                 )
                 .where(and(...conditions))
                 .groupBy(schema.queries.model)
@@ -139,11 +146,11 @@ export const ModelAnalyticsServiceLive = Layer.effect(
                 existing.sessions += row.sessionCount ?? 0;
               } else {
                 modelMap.set(shortName, {
-                  rawModelIds: [rawModel],
-                  totalTokens: row.totalTokens ?? 0,
-                  totalCost: row.totalCost ?? 0,
                   queries: row.queryCount,
+                  rawModelIds: [rawModel],
                   sessions: row.sessionCount ?? 0,
+                  totalCost: row.totalCost ?? 0,
+                  totalTokens: row.totalTokens ?? 0,
                 });
               }
             }
@@ -154,24 +161,19 @@ export const ModelAnalyticsServiceLive = Layer.effect(
               const primaryModelId = data.rawModelIds[0]!;
               breakdowns.push({
                 model: primaryModelId,
-                modelShort: shortName,
                 modelFamily: modelFamily(primaryModelId),
-                rawModelIds: data.rawModelIds,
-                totalTokens: data.totalTokens,
-                totalCost: data.totalCost,
+                modelShort: shortName,
                 queries: data.queries,
+                rawModelIds: data.rawModelIds,
                 sessions: data.sessions,
+                totalCost: data.totalCost,
+                totalTokens: data.totalTokens,
               });
             }
 
-            return breakdowns.sort((a, b) => b.totalCost - a.totalCost);
+            return breakdowns.toSorted((a, b) => b.totalCost - a.totalCost);
           },
-          catch: (error) =>
-            new DatabaseError({
-              operation: "getModelBreakdown",
-              cause: error,
-            }),
         }),
     };
-  }),
+  })
 );

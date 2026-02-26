@@ -7,18 +7,30 @@ export type ModelFamily = "opus" | "sonnet" | "haiku" | "unknown";
  */
 export const modelFamily = (modelId: string): ModelFamily => {
   const lower = modelId.toLowerCase();
-  if (lower.includes("opus")) return "opus";
-  if (lower.includes("sonnet")) return "sonnet";
-  if (lower.includes("haiku")) return "haiku";
+  if (lower.includes("opus")) {
+    return "opus";
+  }
+  if (lower.includes("sonnet")) {
+    return "sonnet";
+  }
+  if (lower.includes("haiku")) {
+    return "haiku";
+  }
   return "unknown";
 };
 
 /** Short display name for a model ID (family only, no version) */
 export const modelDisplayName = (modelId: string): string => {
   const lower = modelId.toLowerCase();
-  if (lower.includes("opus")) return "Opus";
-  if (lower.includes("sonnet")) return "Sonnet";
-  if (lower.includes("haiku")) return "Haiku";
+  if (lower.includes("opus")) {
+    return "Opus";
+  }
+  if (lower.includes("sonnet")) {
+    return "Sonnet";
+  }
+  if (lower.includes("haiku")) {
+    return "Haiku";
+  }
   return modelId;
 };
 

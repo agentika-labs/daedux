@@ -8,7 +8,13 @@ export interface SectionHeaderProps {
   children?: React.ReactNode;
 }
 
-export function SectionHeader({ id, title, subtitle, className, children }: SectionHeaderProps) {
+export function SectionHeader({
+  id,
+  title,
+  subtitle,
+  className,
+  children,
+}: SectionHeaderProps) {
   return (
     <div
       id={id}
@@ -20,7 +26,7 @@ export function SectionHeader({ id, title, subtitle, className, children }: Sect
       <div>
         <h2 className="text-lg font-semibold">{title}</h2>
         {subtitle && (
-          <p className="text-sm text-muted-foreground">{subtitle}</p>
+          <p className="text-muted-foreground text-sm">{subtitle}</p>
         )}
       </div>
       {children && <div className="flex items-center gap-2">{children}</div>}

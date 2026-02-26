@@ -1,9 +1,10 @@
 import { Layer } from "effect";
-import { DatabaseServiceLive } from "./db";
-import { SyncServiceLive } from "./sync";
+
 import { AllAnalyticsServicesLive } from "./analytics/index";
-import { SchedulerServiceLive } from "./services/scheduler";
+import { DatabaseServiceLive } from "./db";
 import { AnthropicUsageServiceLive } from "./services/anthropic-usage";
+import { SchedulerServiceLive } from "./services/scheduler";
+import { SyncServiceLive } from "./sync";
 
 // ─── Composed Application Layer ─────────────────────────────────────────────
 

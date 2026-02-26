@@ -1,7 +1,13 @@
-import { useState, useEffect } from "react";
-import { useRPC, rpcRequest } from "../../hooks/useRPC";
 import type { DashboardData } from "@shared/rpc-types";
-import { formatCurrency, formatTokens, formatNumber, shortenPath } from "../../lib/utils";
+import { useState, useEffect } from "react";
+
+import { useRPC, rpcRequest } from "../../hooks/useRPC";
+import {
+  formatCurrency,
+  formatTokens,
+  formatNumber,
+  shortenPath,
+} from "../../lib/utils";
 
 interface DashboardProps {
   isLoading: boolean;
@@ -24,9 +30,11 @@ const Dashboard = ({ isLoading: initialLoading }: DashboardProps) => {
         setError(null);
         const dashboardData = await rpcRequest("getDashboardData", { filter });
         setData(dashboardData);
-      } catch (err) {
-        console.error("Failed to load dashboard data:", err);
-        setError(err instanceof Error ? err.message : "Failed to load data");
+      } catch (error) {
+        console.error("Failed to load dashboard data:", error);
+        setError(
+          error instanceof Error ? error.message : "Failed to load data"
+        );
       } finally {
         setIsLoading(false);
       }
@@ -39,7 +47,9 @@ const Dashboard = ({ isLoading: initialLoading }: DashboardProps) => {
   useEffect(() => {
     const handleUpdate = () => {
       // Reload data when sessions are updated
-      rpcRequest("getDashboardData", { filter }).then(setData).catch(console.error);
+      rpcRequest("getDashboardData", { filter })
+        .then(setData)
+        .catch(console.error);
     };
 
     rpc.addMessageListener("sessionsUpdated", handleUpdate);
@@ -50,7 +60,7 @@ const Dashboard = ({ isLoading: initialLoading }: DashboardProps) => {
     return (
       <div className="flex h-full items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full mx-auto mb-4" />
+          <div className="border-primary mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-4 border-t-transparent" />
           <p className="text-muted-foreground">Loading dashboard...</p>
         </div>
       </div>
@@ -71,13 +81,13 @@ const Dashboard = ({ isLoading: initialLoading }: DashboardProps) => {
   const totals = data?.totals;
 
   return (
-    <div className="h-full flex flex-col overflow-hidden">
+    <div className="flex h-full flex-col overflow-hidden">
       {/* Header */}
-      <header className="flex-shrink-0 border-b border-border px-6 py-4">
+      <header className="border-border flex-shrink-0 border-b px-6 py-4">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-semibold">Daedux</h1>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-muted-foreground text-sm">
               Track your token usage and costs
             </p>
           </div>
@@ -86,9 +96,10 @@ const Dashboard = ({ isLoading: initialLoading }: DashboardProps) => {
           <div className="flex gap-2">
             {(["today", "7d", "30d", "all"] as const).map((option) => (
               <button
+                type="button"
                 key={option}
                 onClick={() => setFilter(option)}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
                   filter === option
                     ? "bg-primary text-primary-foreground"
                     : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
@@ -108,7 +119,7 @@ const Dashboard = ({ isLoading: initialLoading }: DashboardProps) => {
       {/* Main content */}
       <main className="flex-1 overflow-auto p-6">
         {/* Stats Grid */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        <div className="mb-8 grid grid-cols-2 gap-4 md:grid-cols-4">
           <StatCard
             label="Total Cost"
             value={formatCurrency(totals?.totalCost ?? 0)}
@@ -134,11 +145,11 @@ const Dashboard = ({ isLoading: initialLoading }: DashboardProps) => {
 
         {/* Efficiency Score */}
         {data?.efficiencyScore && (
-          <div className="bg-card border border-border rounded-xl p-6 mb-8">
-            <div className="flex items-center justify-between mb-4">
+          <div className="bg-card border-border mb-8 rounded-xl border p-6">
+            <div className="mb-4 flex items-center justify-between">
               <h2 className="text-lg font-semibold">Efficiency Score</h2>
               <span
-                className={`text-sm font-medium px-2 py-1 rounded ${
+                className={`rounded px-2 py-1 text-sm font-medium ${
                   data.efficiencyScore.trend === "improving"
                     ? "bg-success/10 text-success"
                     : data.efficiencyScore.trend === "declining"
@@ -178,7 +189,7 @@ const Dashboard = ({ isLoading: initialLoading }: DashboardProps) => {
             </div>
 
             {data.efficiencyScore.topOpportunity && (
-              <p className="mt-4 text-sm text-muted-foreground">
+              <p className="text-muted-foreground mt-4 text-sm">
                 Tip: {data.efficiencyScore.topOpportunity}
               </p>
             )}
@@ -187,8 +198,10 @@ const Dashboard = ({ isLoading: initialLoading }: DashboardProps) => {
 
         {/* Weekly Comparison */}
         {data?.weeklyComparison && (
-          <div className="bg-card border border-border rounded-xl p-6 mb-8">
-            <h2 className="text-lg font-semibold mb-4">This Week vs Last Week</h2>
+          <div className="bg-card border-border mb-8 rounded-xl border p-6">
+            <h2 className="mb-4 text-lg font-semibold">
+              This Week vs Last Week
+            </h2>
 
             <div className="grid grid-cols-3 gap-4">
               <ComparisonCard
@@ -217,8 +230,10 @@ const Dashboard = ({ isLoading: initialLoading }: DashboardProps) => {
               <div className="mt-4 flex gap-4">
                 {data.weeklyComparison.improvements.length > 0 && (
                   <div className="flex-1">
-                    <p className="text-sm font-medium text-success mb-1">Improvements</p>
-                    <ul className="text-sm text-muted-foreground space-y-1">
+                    <p className="text-success mb-1 text-sm font-medium">
+                      Improvements
+                    </p>
+                    <ul className="text-muted-foreground space-y-1 text-sm">
                       {data.weeklyComparison.improvements.map((item, i) => (
                         <li key={i}>+ {item}</li>
                       ))}
@@ -227,8 +242,10 @@ const Dashboard = ({ isLoading: initialLoading }: DashboardProps) => {
                 )}
                 {data.weeklyComparison.concerns.length > 0 && (
                   <div className="flex-1">
-                    <p className="text-sm font-medium text-destructive mb-1">Concerns</p>
-                    <ul className="text-sm text-muted-foreground space-y-1">
+                    <p className="text-destructive mb-1 text-sm font-medium">
+                      Concerns
+                    </p>
+                    <ul className="text-muted-foreground space-y-1 text-sm">
                       {data.weeklyComparison.concerns.map((item, i) => (
                         <li key={i}>- {item}</li>
                       ))}
@@ -241,41 +258,46 @@ const Dashboard = ({ isLoading: initialLoading }: DashboardProps) => {
         )}
 
         {/* Sessions Table (placeholder) */}
-        <div className="bg-card border border-border rounded-xl p-6">
-          <h2 className="text-lg font-semibold mb-4">Recent Sessions</h2>
+        <div className="bg-card border-border rounded-xl border p-6">
+          <h2 className="mb-4 text-lg font-semibold">Recent Sessions</h2>
 
           {data?.sessions && data.sessions.length > 0 ? (
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
-                  <tr className="border-b border-border text-left text-sm text-muted-foreground">
+                  <tr className="border-border text-muted-foreground border-b text-left text-sm">
                     <th className="pb-3 font-medium">Project</th>
                     <th className="pb-3 font-medium">Date</th>
-                    <th className="pb-3 font-medium text-right">Queries</th>
-                    <th className="pb-3 font-medium text-right">Tokens</th>
-                    <th className="pb-3 font-medium text-right">Cost</th>
+                    <th className="pb-3 text-right font-medium">Queries</th>
+                    <th className="pb-3 text-right font-medium">Tokens</th>
+                    <th className="pb-3 text-right font-medium">Cost</th>
                   </tr>
                 </thead>
                 <tbody>
                   {data.sessions.slice(0, 10).map((session) => (
                     <tr
                       key={session.sessionId}
-                      className="border-b border-border/50 last:border-0 hover:bg-muted/50 transition-colors"
+                      className="border-border/50 hover:bg-muted/50 border-b transition-colors last:border-0"
                     >
                       <td className="py-3">
-                        <div className="font-medium truncate max-w-[200px]">
-                          {session.displayName ?? shortenPath(session.project).split("/").pop()}
+                        <div className="max-w-[200px] truncate font-medium">
+                          {session.displayName ??
+                            shortenPath(session.project).split("/").pop()}
                         </div>
-                        <div className="text-xs text-muted-foreground truncate max-w-[200px]">
+                        <div className="text-muted-foreground max-w-[200px] truncate text-xs">
                           {shortenPath(session.project)}
                         </div>
                       </td>
-                      <td className="py-3 text-sm text-muted-foreground">{session.date}</td>
-                      <td className="py-3 text-sm text-right">{session.queryCount}</td>
-                      <td className="py-3 text-sm text-right">
+                      <td className="text-muted-foreground py-3 text-sm">
+                        {session.date}
+                      </td>
+                      <td className="py-3 text-right text-sm">
+                        {session.queryCount}
+                      </td>
+                      <td className="py-3 text-right text-sm">
                         {formatTokens(session.totalTokens)}
                       </td>
-                      <td className="py-3 text-sm text-right font-medium">
+                      <td className="py-3 text-right text-sm font-medium">
                         {formatCurrency(session.totalCost)}
                       </td>
                     </tr>
@@ -284,7 +306,9 @@ const Dashboard = ({ isLoading: initialLoading }: DashboardProps) => {
               </table>
             </div>
           ) : (
-            <p className="text-center text-muted-foreground py-8">No sessions found</p>
+            <p className="text-muted-foreground py-8 text-center">
+              No sessions found
+            </p>
           )}
         </div>
       </main>
@@ -301,9 +325,14 @@ interface StatCardProps {
   variant?: "default" | "success" | "warning";
 }
 
-const StatCard = ({ label, value, subtext, variant = "default" }: StatCardProps) => (
-  <div className="bg-card border border-border rounded-xl p-4">
-    <p className="text-sm text-muted-foreground mb-1">{label}</p>
+const StatCard = ({
+  label,
+  value,
+  subtext,
+  variant = "default",
+}: StatCardProps) => (
+  <div className="bg-card border-border rounded-xl border p-4">
+    <p className="text-muted-foreground mb-1 text-sm">{label}</p>
     <p
       className={`text-2xl font-semibold ${
         variant === "success"
@@ -315,7 +344,7 @@ const StatCard = ({ label, value, subtext, variant = "default" }: StatCardProps)
     >
       {value}
     </p>
-    {subtext && <p className="text-xs text-muted-foreground mt-1">{subtext}</p>}
+    {subtext && <p className="text-muted-foreground mt-1 text-xs">{subtext}</p>}
   </div>
 );
 
@@ -338,11 +367,11 @@ const ScoreBar = ({ label, value, maxValue }: ScoreBarProps) => {
 
   return (
     <div>
-      <div className="flex justify-between text-sm mb-1">
+      <div className="mb-1 flex justify-between text-sm">
         <span className="text-muted-foreground">{label}</span>
         <span className="font-medium">{Math.round(value)}%</span>
       </div>
-      <div className="h-2 bg-muted rounded-full overflow-hidden">
+      <div className="bg-muted h-2 overflow-hidden rounded-full">
         <div
           className={`h-full ${color} transition-all duration-500`}
           style={{ width: `${percentage}%` }}
@@ -372,15 +401,13 @@ const ComparisonCard = ({
 
   return (
     <div className="text-center">
-      <p className="text-sm text-muted-foreground mb-1">{label}</p>
+      <p className="text-muted-foreground mb-1 text-sm">{label}</p>
       <p className="text-xl font-semibold">{thisWeek}</p>
-      <div className="flex items-center justify-center gap-1 mt-1">
-        <span className="text-xs text-muted-foreground">vs {lastWeek}</span>
+      <div className="mt-1 flex items-center justify-center gap-1">
+        <span className="text-muted-foreground text-xs">vs {lastWeek}</span>
         {change !== 0 && (
           <span
-            className={`text-xs font-medium ${
-              isPositive ? "text-success" : "text-destructive"
-            }`}
+            className={`text-xs font-medium ${isPositive ? "text-success" : "text-destructive"}`}
           >
             {isPositive ? "+" : "-"}
             {displayChange.toFixed(1)}

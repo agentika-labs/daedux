@@ -16,11 +16,11 @@ export function ScoreBar({ label, value, className }: ScoreBarProps) {
 
   return (
     <div className={className}>
-      <div className="flex justify-between text-xs mb-1">
+      <div className="mb-1 flex justify-between text-xs">
         <span className="text-muted-foreground">{label}</span>
         <span className="font-medium">{Math.round(value)}%</span>
       </div>
-      <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+      <div className="bg-muted h-1.5 overflow-hidden rounded-full">
         <div
           className={cn("h-full transition-all duration-300", color)}
           style={{ width: `${Math.min(100, value)}%` }}

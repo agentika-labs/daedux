@@ -13,7 +13,9 @@
  * @returns Status emoji: "" (normal), "⚠" (warning >=70%)
  */
 export const statusIndicator = (percent: number): string => {
-  if (percent >= 70) return " ⚠";
+  if (percent >= 70) {
+    return " ⚠";
+  }
   return "";
 };
 
@@ -43,7 +45,10 @@ export const formatRateLimitItem = (
  * @param limit - Spending limit in USD (null = no limit)
  * @returns Formatted string like "$40.42 / $37.50 extra ⚠"
  */
-export const formatExtraUsage = (spent: number, limit: number | null): string => {
+export const formatExtraUsage = (
+  spent: number,
+  limit: number | null
+): string => {
   const spentStr = `$${spent.toFixed(2)}`;
 
   if (limit === null) {
@@ -62,13 +67,14 @@ export const formatExtraUsage = (spent: number, limit: number | null): string =>
  */
 export const formatSubscriptionHeader = (subscriptionType: string): string => {
   const tierMap: Record<string, string> = {
+    enterprise: "Claude Enterprise",
+    free: "Claude Free",
     max: "Claude Max",
     pro: "Claude Pro",
-    free: "Claude Free",
     team: "Claude Team",
-    enterprise: "Claude Enterprise",
   };
-  const tierName = tierMap[subscriptionType.toLowerCase()] ?? `Claude ${subscriptionType}`;
+  const tierName =
+    tierMap[subscriptionType.toLowerCase()] ?? `Claude ${subscriptionType}`;
   return `◉ ${tierName}`;
 };
 

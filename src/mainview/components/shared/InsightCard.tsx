@@ -1,5 +1,3 @@
-import { cn } from "@/lib/utils";
-import { SEMANTIC_STYLES, type SemanticVariant } from "@/lib/semantic-styles";
 import {
   CheckmarkCircle02Icon,
   AlertCircleIcon,
@@ -8,6 +6,10 @@ import {
   ArrowRight01Icon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+
+import { SEMANTIC_STYLES } from "@/lib/semantic-styles";
+import type { SemanticVariant } from "@/lib/semantic-styles";
+import { cn } from "@/lib/utils";
 
 export type InsightPriority = "high" | "medium" | "low";
 export type InsightType = "success" | "warning" | "info" | "tip";
@@ -23,10 +25,10 @@ export interface InsightCardProps {
 }
 
 const iconMap: Record<InsightType, typeof CheckmarkCircle02Icon> = {
-  success: CheckmarkCircle02Icon,
-  warning: AlertCircleIcon,
   info: InformationCircleIcon,
+  success: CheckmarkCircle02Icon,
   tip: BulbIcon,
+  warning: AlertCircleIcon,
 };
 
 // Map InsightType to SemanticVariant (they align 1:1)
@@ -63,9 +65,9 @@ export function InsightCard({
         className={cn("h-5 w-5 flex-shrink-0 mt-0.5", styles.text)}
         aria-hidden="true"
       />
-      <div className="flex-1 min-w-0">
+      <div className="min-w-0 flex-1">
         <div className="flex items-start justify-between gap-2">
-          <p className="text-sm font-medium leading-tight">{headline}</p>
+          <p className="text-sm leading-tight font-medium">{headline}</p>
           {dollarImpact !== undefined && dollarImpact > 0.5 && (
             <span
               className={cn(
@@ -79,10 +81,13 @@ export function InsightCard({
           )}
         </div>
         {context && (
-          <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{context}</p>
+          <p className="text-muted-foreground mt-1 text-xs leading-relaxed">
+            {context}
+          </p>
         )}
         {action && (
           <button
+            type="button"
             onClick={action.onClick}
             className={cn(
               "inline-flex items-center gap-1 text-xs font-medium mt-2 transition-colors",
@@ -92,7 +97,11 @@ export function InsightCard({
             aria-label={`${action.label} for ${headline}`}
           >
             {action.label}
-            <HugeiconsIcon icon={ArrowRight01Icon} className="h-3 w-3" aria-hidden="true" />
+            <HugeiconsIcon
+              icon={ArrowRight01Icon}
+              className="h-3 w-3"
+              aria-hidden="true"
+            />
           </button>
         )}
       </div>

@@ -1,7 +1,9 @@
+import { dlopen, FFIType } from "bun:ffi";
 import { existsSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { dlopen, FFIType } from "bun:ffi";
-import { Effect, type Layer, ManagedRuntime } from "effect";
+
+import { Effect, ManagedRuntime } from "effect";
+import type { Layer } from "effect";
 import Electrobun, {
   ApplicationMenu,
   BrowserView,
@@ -12,6 +14,7 @@ import Electrobun, {
   Utils,
 } from "electrobun/bun";
 
+import { modelDisplayNameWithVersion } from "../shared/model-utils";
 import type {
   UsageMonitorRPC,
   DashboardData,
@@ -21,11 +24,8 @@ import type {
   DateFilter,
   SessionSummary,
   SessionSchedule,
+  AnthropicUsage,
 } from "../shared/rpc-types";
-
-import { initializeDatabase } from "./db/migrate";
-import { AppLive } from "./main";
-import { SyncService } from "./sync";
 import {
   SessionAnalyticsService,
   ModelAnalyticsService,
@@ -35,9 +35,11 @@ import {
   ContextAnalyticsService,
   InsightsAnalyticsService,
 } from "./analytics/index";
-import { SchedulerService, parseDaysOfWeek } from "./services/scheduler";
+import { initializeDatabase } from "./db/migrate";
+import { AppLive } from "./main";
 import { AnthropicUsageService } from "./services/anthropic-usage";
-import { modelDisplayNameWithVersion } from "../shared/model-utils";
+import { SchedulerService, parseDaysOfWeek } from "./services/scheduler";
+import { SyncService } from "./sync";
 import { toDateString } from "./utils/formatting";
 import {
   formatRateLimitItem,
@@ -88,9 +90,11 @@ let nativeLib: ReturnType<
  * Called from renderer when button positions change.
  */
 function updateDragExclusionZones(
-  zones: Array<{ x: number; y: number; width: number; height: number }>,
+  zones: { x: number; y: number; width: number; height: number }[]
 ) {
-  if (!mainWindow || !nativeLib) return false;
+  if (!mainWindow || !nativeLib) {
+    return false;
+  }
 
   // Flatten zones to contiguous Float64Array: [x1, y1, w1, h1, x2, y2, w2, h2, ...]
   const flatArray = new Float64Array(zones.length * 4);
@@ -104,7 +108,7 @@ function updateDragExclusionZones(
   return nativeLib.symbols.setDragExclusionZones(
     mainWindow.ptr,
     flatArray,
-    zones.length,
+    zones.length
   );
 }
 
@@ -116,13 +120,15 @@ function updateDragExclusionZones(
  * exclusion zones to pass clicks through to buttons in the header.
  */
 function applyMacOSWindowEffects(window: BrowserWindow) {
-  if (!isMac) return;
+  if (!isMac) {
+    return;
+  }
 
   const dylibPath = join(import.meta.dir, "libMacWindowEffects.dylib");
 
   if (!existsSync(dylibPath)) {
     console.warn(
-      `[macos] Native effects lib not found at ${dylibPath}. Falling back to transparent-only mode.`,
+      `[macos] Native effects lib not found at ${dylibPath}. Falling back to transparent-only mode.`
     );
     return;
   }
@@ -141,16 +147,16 @@ function applyMacOSWindowEffects(window: BrowserWindow) {
         args: [FFIType.ptr],
         returns: FFIType.bool,
       },
-      setWindowTrafficLightsPosition: {
-        args: [FFIType.ptr, FFIType.f64, FFIType.f64],
+      setDragExclusionZones: {
+        args: [FFIType.ptr, FFIType.ptr, FFIType.i32],
         returns: FFIType.bool,
       },
       setNativeWindowDragRegion: {
         args: [FFIType.ptr, FFIType.f64, FFIType.f64],
         returns: FFIType.bool,
       },
-      setDragExclusionZones: {
-        args: [FFIType.ptr, FFIType.ptr, FFIType.i32],
+      setWindowTrafficLightsPosition: {
+        args: [FFIType.ptr, FFIType.f64, FFIType.f64],
         returns: FFIType.bool,
       },
     });
@@ -158,14 +164,14 @@ function applyMacOSWindowEffects(window: BrowserWindow) {
     const vibrancyEnabled = nativeLib.symbols.enableWindowVibrancy(window.ptr);
     const shadowEnabled = nativeLib.symbols.ensureWindowShadow(window.ptr);
     const toolbarExtended = nativeLib.symbols.extendTitlebarWithToolbar(
-      window.ptr,
+      window.ptr
     );
 
     const alignButtons = () =>
       nativeLib!.symbols.setWindowTrafficLightsPosition(
         window.ptr,
         MAC_TRAFFIC_LIGHTS_X,
-        MAC_TRAFFIC_LIGHTS_Y,
+        MAC_TRAFFIC_LIGHTS_Y
       );
 
     const buttonsAlignedNow = alignButtons();
@@ -175,7 +181,7 @@ function applyMacOSWindowEffects(window: BrowserWindow) {
     const dragRegionEnabled = nativeLib.symbols.setNativeWindowDragRegion(
       window.ptr,
       0, // Start from left edge - exclusion zones handle traffic lights
-      MAC_HEADER_HEIGHT,
+      MAC_HEADER_HEIGHT
     );
 
     // Re-align after brief delay (window may still be setting up)
@@ -189,7 +195,7 @@ function applyMacOSWindowEffects(window: BrowserWindow) {
     });
 
     console.log(
-      `[macos] Native effects applied (vibrancy=${vibrancyEnabled}, shadow=${shadowEnabled}, toolbar=${toolbarExtended}, trafficLights=${buttonsAlignedNow}, dragRegion=${dragRegionEnabled})`,
+      `[macos] Native effects applied (vibrancy=${vibrancyEnabled}, shadow=${shadowEnabled}, toolbar=${toolbarExtended}, trafficLights=${buttonsAlignedNow}, dragRegion=${dragRegionEnabled})`
     );
   } catch (error) {
     console.warn("[macos] Failed to apply native window effects:", error);
@@ -205,10 +211,9 @@ let usageIntervalId: ReturnType<typeof setInterval> | null = null;
 let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
 let isMainViewReady = false;
-const pendingWebviewMessages: Array<() => void> = [];
+const pendingWebviewMessages: (() => void)[] = [];
 
 // Cached Anthropic usage for tray updates (avoid refetch during sync)
-import type { AnthropicUsage } from "../shared/rpc-types";
 let cachedAnthropicUsage: AnthropicUsage | null = null;
 
 // Update state
@@ -217,11 +222,11 @@ let updateVersion: string | null = null;
 
 // App settings (persisted via settings file)
 let settings: AppSettings = {
-  theme: "system",
-  scanOnLaunch: true,
-  scanIntervalMinutes: 5,
   customPaths: {},
-  schedulerEnabled: false, // Off by default until user enables it
+  scanIntervalMinutes: 5,
+  scanOnLaunch: true,
+  schedulerEnabled: false,
+  theme: "system", // Off by default until user enables it
 };
 
 Electrobun.events.on("before-quit", () => {
@@ -237,14 +242,17 @@ const parseDateFilter = (filter?: string): DateFilter => {
     case "today": {
       const start = new Date();
       start.setHours(0, 0, 0, 0);
-      return { startTime: start.getTime(), endTime: now };
+      return { endTime: now, startTime: start.getTime() };
     }
-    case "7d":
-      return { startTime: now - 7 * 86400000, endTime: now };
-    case "30d":
-      return { startTime: now - 30 * 86400000, endTime: now };
-    default:
-      return {}; // 'all' or no filter
+    case "7d": {
+      return { endTime: now, startTime: now - 7 * 86_400_000 };
+    }
+    case "30d": {
+      return { endTime: now, startTime: now - 30 * 86_400_000 };
+    }
+    default: {
+      return {};
+    } // 'all' or no filter
   }
 };
 
@@ -274,16 +282,13 @@ const getRuntime = () => {
  * Run an Effect with the shared ManagedRuntime.
  * Using a single runtime ensures semaphores work correctly across all calls.
  */
-const runEffect = <A, E>(
-  effect: Effect.Effect<A, E, AppContext>,
-): Promise<A> => {
-  return getRuntime().runPromise(effect);
-};
+const runEffect = <A, E>(effect: Effect.Effect<A, E, AppContext>): Promise<A> =>
+  getRuntime().runPromise(effect);
 
 // ─── Dashboard Data Loading ─────────────────────────────────────────────────
 
 const loadDashboardData = (dateFilter: DateFilter = {}) =>
-  Effect.gen(function* () {
+  Effect.gen(function* loadDashboardData() {
     yield* Effect.logDebug("Loading dashboard data");
     const sessions = yield* SessionAnalyticsService;
     const models = yield* ModelAnalyticsService;
@@ -319,7 +324,7 @@ const loadDashboardData = (dateFilter: DateFilter = {}) =>
       sessions.getTotals(dateFilter),
       sessions.getExtendedTotals(dateFilter),
       sessions.getDailyStats(undefined, dateFilter),
-      sessions.getSessionSummaries({ includeSubagents: false, dateFilter }),
+      sessions.getSessionSummaries({ dateFilter, includeSubagents: false }),
       sessions.getProjectSummaries(dateFilter),
       models.getModelBreakdown(dateFilter),
       tools.getToolUsage(dateFilter),
@@ -345,40 +350,40 @@ const loadDashboardData = (dateFilter: DateFilter = {}) =>
 
     const dashboardTotals = {
       ...totals,
-      totalTokens,
-      output: totals.totalOutputTokens,
-      uncachedInput: totals.totalInputTokens,
-      cacheRead: totals.totalCacheRead,
-      cacheCreation: totals.totalCacheWrite,
-      savedByCaching: extendedTotals.savedByCaching,
-      cacheEfficiencyRatio: extendedTotals.cacheEfficiencyRatio,
-      cacheSavingsUsd: extendedTotals.savedByCaching,
-      avgCostPerSession: extendedTotals.avgCostPerSession,
+      agentLeverageRatio: extendedTotals.agentLeverageRatio,
+      avgContextUtilization: extendedTotals.cacheEfficiencyRatio,
       avgCostPerQuery: extendedTotals.avgCostPerQuery,
+      avgCostPerSession: extendedTotals.avgCostPerSession,
       avgSessionDurationMs: extendedTotals.avgSessionDurationMs,
-      dateRange: extendedTotals.dateRange,
+      avgTurnsPerSession:
+        sessionList.length > 0
+          ? sessionList.reduce((sum, s) => sum + (s.turnCount ?? 0), 0) /
+            sessionList.length
+          : 0,
+      cacheCreation: totals.totalCacheWrite,
+      cacheEfficiencyRatio: extendedTotals.cacheEfficiencyRatio,
+      cacheRead: totals.totalCacheRead,
+      cacheSavingsUsd: extendedTotals.savedByCaching,
+      contextEfficiencyScore: extendedTotals.cacheEfficiencyRatio * 100,
       costPerEdit:
         extendedTotals.totalFileOperations > 0
           ? totals.totalCost / extendedTotals.totalFileOperations
           : 0,
-      totalFileOperations: extendedTotals.totalFileOperations,
-      contextEfficiencyScore: extendedTotals.cacheEfficiencyRatio * 100,
-      avgContextUtilization: extendedTotals.cacheEfficiencyRatio,
-      agentLeverageRatio: extendedTotals.agentLeverageRatio,
-      totalAgentSpawns: extendedTotals.totalAgentSpawns,
+      dateRange: extendedTotals.dateRange,
+      output: totals.totalOutputTokens,
       promptEfficiencyRatio: (() => {
         // Exclude cacheRead - we want output relative to NEW tokens sent
         // (fresh input + newly cached content), not efficiently reused cached context
         const newTokensSent = totals.totalInputTokens + totals.totalCacheWrite;
         return newTokensSent > 0 ? totals.totalOutputTokens / newTokensSent : 0;
       })(),
+      savedByCaching: extendedTotals.savedByCaching,
+      totalAgentSpawns: extendedTotals.totalAgentSpawns,
+      totalFileOperations: extendedTotals.totalFileOperations,
       totalSkillInvocations: extendedTotals.totalSkillInvocations,
+      totalTokens,
       totalTurns: sessionList.reduce((sum, s) => sum + (s.turnCount ?? 0), 0),
-      avgTurnsPerSession:
-        sessionList.length > 0
-          ? sessionList.reduce((sum, s) => sum + (s.turnCount ?? 0), 0) /
-            sessionList.length
-          : 0,
+      uncachedInput: totals.totalInputTokens,
     };
 
     // Transform sessions
@@ -389,80 +394,80 @@ const loadDashboardData = (dateFilter: DateFilter = {}) =>
       const sessionFileOps = sessionFileOperations.get(s.sessionId) ?? [];
 
       return {
-        sessionId: s.sessionId,
-        project: s.projectPath,
+        bashCommandCount: sessionTools.Bash ?? 0,
+        cacheCreation: s.totalCacheWrite ?? 0,
+        cacheRead: s.totalCacheRead ?? 0,
+        compactions: s.compactions ?? 0,
         date: toDateString(s.startTime),
         displayName: s.displayName,
-        startTime: s.startTime,
         durationMs: s.durationMs ?? 0,
-        totalCost: s.totalCost ?? 0,
-        queryCount: s.queryCount ?? 0,
-        toolUseCount: s.toolUseCount ?? 0,
-        turnCount: s.turnCount ?? 0,
+        fileActivityDetails: sessionFileOps,
+        fileEditCount: sessionFileOps.filter((op) => op.tool === "Edit").length,
+        fileReadCount: sessionFileOps.filter((op) => op.tool === "Read").length,
+        fileWriteCount: sessionFileOps.filter((op) => op.tool === "Write")
+          .length,
+        firstPrompt: s.displayName ?? "Session",
         isSubagent: s.isSubagent ?? false,
         model: sessionModel,
         modelShort: modelDisplayNameWithVersion(sessionModel),
-        firstPrompt: s.displayName ?? "Session",
-        totalTokens: (s.totalInputTokens ?? 0) + (s.totalOutputTokens ?? 0),
-        savedByCaching: s.savedByCaching ?? 0,
-        uncachedInput: s.totalInputTokens ?? 0,
-        cacheRead: s.totalCacheRead ?? 0,
-        cacheCreation: s.totalCacheWrite ?? 0,
         output: s.totalOutputTokens ?? 0,
-        compactions: s.compactions ?? 0,
-        subagentCount: sessionAgentCounts.get(s.sessionId) ?? 0,
-        toolErrorCount: sessionToolErrorCounts.get(s.sessionId) ?? 0,
-        bashCommandCount: sessionTools.Bash ?? 0,
-        fileReadCount: sessionFileOps.filter((op) => op.tool === "Read").length,
-        fileEditCount: sessionFileOps.filter((op) => op.tool === "Edit").length,
-        fileWriteCount: sessionFileOps.filter((op) => op.tool === "Write")
-          .length,
-        toolCounts: sessionTools,
+        project: s.projectPath,
         queries: [],
-        fileActivityDetails: sessionFileOps,
+        queryCount: s.queryCount ?? 0,
+        savedByCaching: s.savedByCaching ?? 0,
+        sessionId: s.sessionId,
+        startTime: s.startTime,
+        subagentCount: sessionAgentCounts.get(s.sessionId) ?? 0,
+        toolCounts: sessionTools,
+        toolErrorCount: sessionToolErrorCounts.get(s.sessionId) ?? 0,
+        toolUseCount: s.toolUseCount ?? 0,
+        totalCost: s.totalCost ?? 0,
+        totalTokens: (s.totalInputTokens ?? 0) + (s.totalOutputTokens ?? 0),
+        turnCount: s.turnCount ?? 0,
+        uncachedInput: s.totalInputTokens ?? 0,
       } satisfies SessionSummary;
     });
 
     // Transform insights
     const transformedInsights = insights.map((i) => ({
+      action: i.action ?? "",
+      actionLabel: i.actionLabel,
+      actionTarget: i.actionTarget,
+      comparison: i.comparison,
+      description: i.message,
+      dollarImpact: i.dollarImpact,
+      priority: i.priority,
+      title: i.title,
       type: (i.type === "tip" ? "info" : i.type) as
         | "success"
         | "warning"
         | "info",
-      title: i.title,
-      description: i.message,
-      action: i.action ?? "",
-      actionLabel: i.actionLabel,
-      actionTarget: i.actionTarget,
-      dollarImpact: i.dollarImpact,
-      priority: i.priority,
-      comparison: i.comparison,
     }));
 
     return {
-      totals: dashboardTotals,
+      agentROI,
       dailyUsage: dailyStats,
-      sessions: dashboardSessions,
-      projects,
-      insights: transformedInsights,
       efficiencyScore,
-      weeklyComparison,
+      hookStats,
+      insights: transformedInsights,
       modelBreakdown,
+      projects,
+      sessions: dashboardSessions,
+      skillImpact,
+      skillROI,
+      toolHealth,
+      toolHealthReportCard,
       toolUsage,
       topPrompts,
-      toolHealth,
-      agentROI,
-      toolHealthReportCard,
-      skillROI,
-      hookStats,
-      skillImpact,
+      totals: dashboardTotals,
+      weeklyComparison,
     } as DashboardData;
   }).pipe(Effect.withSpan("rpc.loadDashboardData"));
 
 // ─── Sync Operations ────────────────────────────────────────────────────────
 
 const runSync = (fullResync = false) =>
-  Effect.gen(function* () {
+  Effect.gen(function* runSync() {
     const syncService = yield* SyncService;
     return fullResync
       ? yield* syncService.fullResync({ verbose: false })
@@ -470,10 +475,10 @@ const runSync = (fullResync = false) =>
   }).pipe(Effect.withSpan("rpc.runSync", { attributes: { fullResync } }));
 
 const runSyncWithNotifications = async (
-  fullScan = false,
+  fullScan = false
 ): Promise<SyncResult> => {
   if (isScanning) {
-    return { synced: 0, total: 0, unchanged: 0, errors: 0 };
+    return { errors: 0, synced: 0, total: 0, unchanged: 0 };
   }
 
   isScanning = true;
@@ -488,7 +493,7 @@ const runSyncWithNotifications = async (
     lastScanAt = new Date().toISOString();
 
     dispatchToWebview(() => {
-      rpc.send.syncCompleted({ synced: result.synced, errors: result.errors });
+      rpc.send.syncCompleted({ errors: result.errors, synced: result.synced });
     });
     dispatchToWebview(() => {
       rpc.send.sessionsUpdated({
@@ -499,7 +504,7 @@ const runSyncWithNotifications = async (
     return result;
   } catch (error) {
     console.error("[scan] Failed", error);
-    return { synced: 0, total: 0, unchanged: 0, errors: 1 };
+    return { errors: 1, synced: 0, total: 0, unchanged: 0 };
   } finally {
     isScanning = false;
     // Use quick update here too - we'll get fresh usage from periodic refresh
@@ -518,7 +523,7 @@ const getTrayStats = async (): Promise<TrayStats> => {
 
   try {
     const result = await runEffect(
-      Effect.gen(function* () {
+      Effect.gen(function* result() {
         const sessions = yield* SessionAnalyticsService;
         const anthropicService = yield* AnthropicUsageService;
 
@@ -527,8 +532,8 @@ const getTrayStats = async (): Promise<TrayStats> => {
           anthropicService.getUsage(),
         ]);
 
-        return { totals, anthropicUsage };
-      }),
+        return { anthropicUsage, totals };
+      })
     );
 
     const { totals, anthropicUsage } = result;
@@ -537,24 +542,24 @@ const getTrayStats = async (): Promise<TrayStats> => {
     cachedAnthropicUsage = anthropicUsage;
 
     return {
+      activeSessions: 0,
+      anthropicUsage,
+      todayCost: totals.totalCost,
+      todayEvents: totals.totalQueries + totals.totalToolUses,
+      todaySessions: totals.totalSessions,
       todayTokens:
         totals.totalInputTokens +
         totals.totalOutputTokens +
         totals.totalCacheRead +
         totals.totalCacheWrite,
-      todayCost: totals.totalCost,
-      todaySessions: totals.totalSessions,
-      todayEvents: totals.totalQueries + totals.totalToolUses,
-      activeSessions: 0,
-      anthropicUsage,
     };
   } catch {
     return {
-      todayTokens: 0,
-      todayCost: 0,
-      todaySessions: 0,
-      todayEvents: 0,
       activeSessions: 0,
+      todayCost: 0,
+      todayEvents: 0,
+      todaySessions: 0,
+      todayTokens: 0,
     };
   }
 };
@@ -569,32 +574,32 @@ const getTrayStatsQuick = async (): Promise<TrayStats> => {
 
   try {
     const totals = await runEffect(
-      Effect.gen(function* () {
+      Effect.gen(function* totals() {
         const sessions = yield* SessionAnalyticsService;
         return yield* sessions.getTotals(dateFilter);
-      }),
+      })
     );
 
     return {
+      activeSessions: 0,
+      anthropicUsage: cachedAnthropicUsage ?? undefined,
+      todayCost: totals.totalCost,
+      todayEvents: totals.totalQueries + totals.totalToolUses,
+      todaySessions: totals.totalSessions,
       todayTokens:
         totals.totalInputTokens +
         totals.totalOutputTokens +
         totals.totalCacheRead +
         totals.totalCacheWrite,
-      todayCost: totals.totalCost,
-      todaySessions: totals.totalSessions,
-      todayEvents: totals.totalQueries + totals.totalToolUses,
-      activeSessions: 0,
-      anthropicUsage: cachedAnthropicUsage ?? undefined,
     };
   } catch {
     return {
-      todayTokens: 0,
-      todayCost: 0,
-      todaySessions: 0,
-      todayEvents: 0,
       activeSessions: 0,
       anthropicUsage: cachedAnthropicUsage ?? undefined,
+      todayCost: 0,
+      todayEvents: 0,
+      todaySessions: 0,
+      todayTokens: 0,
     };
   }
 };
@@ -616,7 +621,9 @@ const resolveTrayIconPath = (): string => {
     }
 
     const parent = dirname(current);
-    if (parent === current) break;
+    if (parent === current) {
+      break;
+    }
     current = parent;
   }
 
@@ -639,7 +646,9 @@ const dispatchToWebview = (send: () => void) => {
 };
 
 const flushPendingWebviewMessages = () => {
-  if (!isMainViewReady || !mainWindow) return;
+  if (!isMainViewReady || !mainWindow) {
+    return;
+  }
 
   const queued = pendingWebviewMessages.splice(0);
   for (const send of queued) {
@@ -666,9 +675,9 @@ const buildTrayMenu = (stats: TrayStats) => {
   if (anthropicUsage && anthropicUsage.source !== "unavailable") {
     if (anthropicUsage.subscription) {
       items.push({
+        enabled: false,
         label: formatSubscriptionHeader(anthropicUsage.subscription.type),
         type: "normal" as const,
-        enabled: false,
       });
     }
 
@@ -676,43 +685,43 @@ const buildTrayMenu = (stats: TrayStats) => {
     if (anthropicUsage.source === "oauth" || anthropicUsage.source === "cli") {
       // Session usage (5-hour window)
       items.push({
+        enabled: false,
         label: formatRateLimitItem(
           "Session",
           anthropicUsage.session.percentUsed,
-          "5h",
+          "5h"
         ),
         type: "normal" as const,
-        enabled: false,
       });
 
       // Weekly usage (7-day window)
       items.push({
+        enabled: false,
         label: formatRateLimitItem(
           "Weekly",
           anthropicUsage.weekly.percentUsed,
-          "7d",
+          "7d"
         ),
         type: "normal" as const,
-        enabled: false,
       });
 
       // Model-specific limits if available
       if (anthropicUsage.opus) {
         items.push({
+          enabled: false,
           label: formatRateLimitItem("Opus", anthropicUsage.opus.percentUsed),
           type: "normal" as const,
-          enabled: false,
         });
       }
 
       if (anthropicUsage.sonnet) {
         items.push({
+          enabled: false,
           label: formatRateLimitItem(
             "Sonnet",
-            anthropicUsage.sonnet.percentUsed,
+            anthropicUsage.sonnet.percentUsed
           ),
           type: "normal" as const,
-          enabled: false,
         });
       }
 
@@ -720,12 +729,12 @@ const buildTrayMenu = (stats: TrayStats) => {
       if (anthropicUsage.extraUsage) {
         items.push({ type: "separator" as const });
         items.push({
+          enabled: false,
           label: formatExtraUsage(
             anthropicUsage.extraUsage.spentUsd,
-            anthropicUsage.extraUsage.limitUsd,
+            anthropicUsage.extraUsage.limitUsd
           ),
           type: "normal" as const,
-          enabled: false,
         });
       }
     }
@@ -735,56 +744,58 @@ const buildTrayMenu = (stats: TrayStats) => {
 
   // ── Daily Stats Section ──
   items.push({
+    enabled: false,
     label: formatDailyStats(stats.todaySessions, stats.todayCost),
     type: "normal" as const,
-    enabled: false,
   });
 
   // ── Actions ──
   items.push(
     { type: "separator" as const },
     {
+      action: "show-dashboard",
       label: "Show Dashboard",
       type: "normal" as const,
-      action: "show-dashboard",
     },
     {
-      label: isScanning ? "Scanning..." : "Rescan Sessions",
-      type: "normal" as const,
       action: "rescan-sessions",
       enabled: !isScanning,
-    },
+      label: isScanning ? "Scanning..." : "Rescan Sessions",
+      type: "normal" as const,
+    }
   );
 
   // ── Update Actions ──
   if (updateAvailable && updateVersion) {
     items.push({
+      action: "install-update",
       label: `Install Update (v${updateVersion})`,
       type: "normal" as const,
-      action: "install-update",
     });
   } else {
     items.push({
+      action: "check-for-updates",
       label: "Check for Updates",
       type: "normal" as const,
-      action: "check-for-updates",
     });
   }
 
   items.push(
     { type: "separator" as const },
     {
+      action: "quit-app",
       label: "Quit",
       type: "normal" as const,
-      action: "quit-app",
-    },
+    }
   );
 
   return items;
 };
 
 const updateTrayMenu = async () => {
-  if (!tray) return;
+  if (!tray) {
+    return;
+  }
 
   try {
     const stats = await getTrayStats();
@@ -799,7 +810,9 @@ const updateTrayMenu = async () => {
  * Use during sync to update "Scanning..." label without triggering CLI probes.
  */
 const updateTrayMenuQuick = async () => {
-  if (!tray) return;
+  if (!tray) {
+    return;
+  }
 
   try {
     const stats = await getTrayStatsQuick();
@@ -823,10 +836,10 @@ const createMainWindow = () => {
   const window = new BrowserWindow({
     title: "Daedux",
     frame: {
+      height: 860,
+      width: 1320,
       x: 64,
       y: 64,
-      width: 1320,
-      height: 860,
     },
     url,
     renderer: "native",
@@ -853,13 +866,17 @@ const createMainWindow = () => {
 
   if (typeof webviewWithEvents.on === "function") {
     webviewWithEvents.on("dom-ready", () => {
-      if (mainWindow !== window) return;
+      if (mainWindow !== window) {
+        return;
+      }
       isMainViewReady = true;
       flushPendingWebviewMessages();
     });
   } else {
     queueMicrotask(() => {
-      if (mainWindow !== window) return;
+      if (mainWindow !== window) {
+        return;
+      }
       isMainViewReady = true;
       flushPendingWebviewMessages();
     });
@@ -882,11 +899,11 @@ const createMainWindow = () => {
 
 const ensureMainWindow = () => {
   if (mainWindow) {
-    return { window: mainWindow, created: false };
+    return { created: false, window: mainWindow };
   }
 
   mainWindow = createMainWindow();
-  return { window: mainWindow, created: true };
+  return { created: true, window: mainWindow };
 };
 
 const showMainWindow = () => {
@@ -940,26 +957,26 @@ const configureScheduler = (enabled: boolean) => {
   // Check schedules every minute
   schedulerIntervalId = setInterval(() => {
     void runEffect(
-      Effect.gen(function* () {
+      Effect.gen(function* schedulerIntervalId() {
         const scheduler = yield* SchedulerService;
         yield* scheduler.checkSchedules();
-      }),
-    ).catch((err) => {
-      console.warn("[scheduler] Check failed:", err);
+      })
+    ).catch((error) => {
+      console.warn("[scheduler] Check failed:", error);
     });
   }, 60_000);
 
   // Also run an immediate check for any missed schedules
   void runEffect(
-    Effect.gen(function* () {
+    Effect.gen(function* configureScheduler() {
       const scheduler = yield* SchedulerService;
       const missed = yield* scheduler.checkMissedSchedules();
       if (missed.length > 0) {
         console.log(`[scheduler] Executed ${missed.length} missed schedule(s)`);
       }
-    }),
-  ).catch((err) => {
-    console.warn("[scheduler] Missed check failed:", err);
+    })
+  ).catch((error) => {
+    console.warn("[scheduler] Missed check failed:", error);
   });
 };
 
@@ -979,17 +996,17 @@ const configureUsageRefresh = (intervalMinutes = 5) => {
 
   usageIntervalId = setInterval(() => {
     void runEffect(
-      Effect.gen(function* () {
+      Effect.gen(function* usageIntervalId() {
         const anthropicService = yield* AnthropicUsageService;
         // refreshUsage bypasses cache, forcing a fresh CLI probe
         yield* anthropicService.refreshUsage();
-      }),
+      })
     )
       .then(() => {
         void updateTrayMenu();
       })
-      .catch((err) => {
-        console.warn("[usage] Refresh failed:", err);
+      .catch((error) => {
+        console.warn("[usage] Refresh failed:", error);
       });
   }, intervalMinutes * 60_000);
 };
@@ -998,6 +1015,43 @@ const configureUsageRefresh = (intervalMinutes = 5) => {
 
 const rpc = BrowserView.defineRPC<UsageMonitorRPC>({
   handlers: {
+    messages: {
+      log: ({ msg, level }) => {
+        if (level === "warn") {
+          console.warn(`[webview] ${msg}`);
+        } else if (level === "error") {
+          console.error(`[webview] ${msg}`);
+        } else {
+          console.info(`[webview] ${msg}`);
+        }
+      },
+
+      openExternal: ({ url }) => {
+        // Only allow specific URL patterns
+        if (!url.startsWith("https://")) {
+          console.warn(`[rpc] Rejected openExternal for non-HTTPS URL: ${url}`);
+          return;
+        }
+
+        try {
+          const command =
+            process.platform === "darwin"
+              ? ["open", url]
+              : process.platform === "win32"
+                ? ["cmd", "/c", "start", "", url]
+                : ["xdg-open", url];
+
+          Bun.spawn(command, {
+            stderr: "ignore",
+            stdin: "ignore",
+            stdout: "ignore",
+          });
+        } catch (error) {
+          console.warn(`[rpc] Failed to open URL: ${url}`, error);
+        }
+      },
+    },
+
     requests: {
       getDashboardData: async ({ filter }) => {
         const dateFilter = parseDateFilter(filter);
@@ -1008,7 +1062,7 @@ const rpc = BrowserView.defineRPC<UsageMonitorRPC>({
         const dateFilter = parseDateFilter(filter);
         // Return category-specific analytics
         return runEffect(
-          Effect.gen(function* () {
+          Effect.gen(function* getAnalytics() {
             switch (category) {
               case "models": {
                 const models = yield* ModelAnalyticsService;
@@ -1040,13 +1094,13 @@ const rpc = BrowserView.defineRPC<UsageMonitorRPC>({
                   agents.getSkillROI(dateFilter),
                 ]);
                 return {
-                  toolUsage,
-                  toolHealth,
+                  agentStats,
+                  apiErrors,
                   bashCommands,
                   hookStats,
-                  apiErrors,
-                  agentStats,
                   skillROI,
+                  toolHealth,
+                  toolUsage,
                 };
               }
               case "files": {
@@ -1071,81 +1125,81 @@ const rpc = BrowserView.defineRPC<UsageMonitorRPC>({
                   context.getContextWindowFill(dateFilter),
                 ]);
                 return {
-                  contextHeatmap,
                   cacheEfficiencyCurve,
                   compactionAnalysis,
+                  contextHeatmap,
                   contextWindowFill,
                 };
               }
-              default:
+              default: {
                 return {};
+              }
             }
-          }),
+          })
         );
       },
 
-      getSessionDetail: async ({ sessionId }) => {
-        // Return full session detail
-        return runEffect(
-          Effect.gen(function* () {
+      getSessionDetail: async ({ sessionId }) =>
+        runEffect(
+          Effect.gen(function* getSessionDetail() {
             const sessions = yield* SessionAnalyticsService;
             const list = yield* sessions.getSessionSummaries({
-              includeSubagents: true,
               dateFilter: {},
+              includeSubagents: true,
             });
             const session = list.find((s) => s.sessionId === sessionId);
-            if (!session) return null;
+            if (!session) {
+              return null;
+            }
 
             // Transform to SessionSummary format
             return {
-              sessionId: session.sessionId,
-              project: session.projectPath,
+              bashCommandCount: 0,
+              cacheCreation: session.totalCacheWrite ?? 0,
+              cacheRead: session.totalCacheRead ?? 0,
+              compactions: session.compactions ?? 0,
               date: toDateString(session.startTime),
               displayName: session.displayName,
-              startTime: session.startTime,
               durationMs: session.durationMs ?? 0,
-              totalCost: session.totalCost ?? 0,
-              queryCount: session.queryCount ?? 0,
-              toolUseCount: session.toolUseCount ?? 0,
-              turnCount: session.turnCount ?? 0,
+              fileActivityDetails: [],
+              fileEditCount: 0,
+              fileReadCount: 0,
+              fileWriteCount: 0,
+              firstPrompt: session.displayName ?? "Session",
               isSubagent: session.isSubagent ?? false,
               model: "claude-sonnet-4-5-20251022",
               modelShort: "Sonnet",
-              firstPrompt: session.displayName ?? "Session",
+              output: session.totalOutputTokens ?? 0,
+              project: session.projectPath,
+              queries: [],
+              queryCount: session.queryCount ?? 0,
+              savedByCaching: session.savedByCaching ?? 0,
+              sessionId: session.sessionId,
+              startTime: session.startTime,
+              subagentCount: 0,
+              toolCounts: {},
+              toolErrorCount: 0,
+              toolUseCount: session.toolUseCount ?? 0,
+              totalCost: session.totalCost ?? 0,
               totalTokens:
                 (session.totalInputTokens ?? 0) +
                 (session.totalOutputTokens ?? 0),
-              savedByCaching: session.savedByCaching ?? 0,
+              turnCount: session.turnCount ?? 0,
               uncachedInput: session.totalInputTokens ?? 0,
-              cacheRead: session.totalCacheRead ?? 0,
-              cacheCreation: session.totalCacheWrite ?? 0,
-              output: session.totalOutputTokens ?? 0,
-              compactions: session.compactions ?? 0,
-              subagentCount: 0,
-              toolErrorCount: 0,
-              bashCommandCount: 0,
-              fileReadCount: 0,
-              fileEditCount: 0,
-              fileWriteCount: 0,
-              toolCounts: {},
-              queries: [],
-              fileActivityDetails: [],
             } satisfies SessionSummary;
-          }),
-        );
-      },
+          })
+        ),
 
-      triggerSync: async ({ fullResync }) => {
-        return runSyncWithNotifications(fullResync ?? false);
-      },
+      triggerSync: async ({ fullResync }) =>
+        runSyncWithNotifications(fullResync ?? false),
 
       getSyncStatus: async () => {
         const sessionCount = await runEffect(
-          Effect.gen(function* () {
+          Effect.gen(function* sessionCount() {
             const sessions = yield* SessionAnalyticsService;
             const totals = yield* sessions.getTotals({});
             return totals.totalSessions;
-          }),
+          })
         );
 
         return {
@@ -1155,13 +1209,9 @@ const rpc = BrowserView.defineRPC<UsageMonitorRPC>({
         };
       },
 
-      getTrayStats: async () => {
-        return getTrayStats();
-      },
+      getTrayStats: async () => getTrayStats(),
 
-      getSettings: async () => {
-        return settings;
-      },
+      getSettings: async () => settings,
 
       updateSettings: async (patch) => {
         settings = { ...settings, ...patch };
@@ -1184,92 +1234,88 @@ const rpc = BrowserView.defineRPC<UsageMonitorRPC>({
       },
 
       // ─── Schedule Management ────────────────────────────────────────────
-      getSchedules: async () => {
-        return runEffect(
-          Effect.gen(function* () {
+      getSchedules: async () =>
+        runEffect(
+          Effect.gen(function* getSchedules() {
             const scheduler = yield* SchedulerService;
             const schedules = yield* scheduler.getSchedules();
 
             // Transform DB records to RPC format
             return schedules.map(
               (s): SessionSchedule => ({
-                id: s.id,
-                name: s.name,
+                createdAt: s.createdAt,
+                daysOfWeek: parseDaysOfWeek(s.daysOfWeek),
                 enabled: s.enabled ?? true,
                 hour: s.hour,
-                minute: s.minute,
-                daysOfWeek: parseDaysOfWeek(s.daysOfWeek),
+                id: s.id,
                 lastRunAt: s.lastRunAt,
+                minute: s.minute,
+                name: s.name,
                 nextRunAt: s.nextRunAt,
-                createdAt: s.createdAt,
-              }),
+              })
             );
-          }),
-        );
-      },
+          })
+        ),
 
-      createSchedule: async (input) => {
-        return runEffect(
-          Effect.gen(function* () {
+      createSchedule: async (input) =>
+        runEffect(
+          Effect.gen(function* createSchedule() {
             const scheduler = yield* SchedulerService;
             const schedule = yield* scheduler.createSchedule(input);
 
             return {
-              id: schedule.id,
-              name: schedule.name,
+              createdAt: schedule.createdAt,
+              daysOfWeek: parseDaysOfWeek(schedule.daysOfWeek),
               enabled: schedule.enabled ?? true,
               hour: schedule.hour,
-              minute: schedule.minute,
-              daysOfWeek: parseDaysOfWeek(schedule.daysOfWeek),
+              id: schedule.id,
               lastRunAt: schedule.lastRunAt,
+              minute: schedule.minute,
+              name: schedule.name,
               nextRunAt: schedule.nextRunAt,
-              createdAt: schedule.createdAt,
             } satisfies SessionSchedule;
-          }),
-        );
-      },
+          })
+        ),
 
-      updateSchedule: async ({ id, patch }) => {
-        return runEffect(
-          Effect.gen(function* () {
+      updateSchedule: async ({ id, patch }) =>
+        runEffect(
+          Effect.gen(function* updateSchedule() {
             const scheduler = yield* SchedulerService;
             return yield* scheduler.updateSchedule(id, patch);
-          }),
-        );
-      },
+          })
+        ),
 
-      deleteSchedule: async ({ id }) => {
-        return runEffect(
-          Effect.gen(function* () {
+      deleteSchedule: async ({ id }) =>
+        runEffect(
+          Effect.gen(function* deleteSchedule() {
             const scheduler = yield* SchedulerService;
             return yield* scheduler.deleteSchedule(id);
-          }),
-        );
-      },
+          })
+        ),
 
       runScheduleNow: async ({ id }) => {
         const result = await runEffect(
-          Effect.gen(function* () {
+          Effect.gen(function* result() {
             const scheduler = yield* SchedulerService;
             return yield* scheduler.runScheduleNow(id);
-          }),
+          })
         );
 
         // Notify webview of execution result
         dispatchToWebview(() => {
-          rpc.send.scheduleExecuted({ scheduleId: id, result });
+          rpc.send.scheduleExecuted({ result, scheduleId: id });
         });
 
         return result;
       },
 
-      getScheduleHistory: async ({ scheduleId, limit }) => {
-        return runEffect(
-          Effect.gen(function* () {
+      getScheduleHistory: async ({ scheduleId, limit }) =>
+        runEffect(
+          Effect.gen(function* getScheduleHistory() {
             const scheduler = yield* SchedulerService;
             const history = yield* scheduler.getScheduleHistory(
               scheduleId,
-              limit ?? 20,
+              limit ?? 20
             );
 
             // Cast status to union type (DB stores as string)
@@ -1277,68 +1323,28 @@ const rpc = BrowserView.defineRPC<UsageMonitorRPC>({
               ...h,
               status: h.status as "success" | "error" | "skipped",
             }));
-          }),
-        );
-      },
+          })
+        ),
 
-      getAuthStatus: async () => {
-        return runEffect(
-          Effect.gen(function* () {
+      getAuthStatus: async () =>
+        runEffect(
+          Effect.gen(function* getAuthStatus() {
             const scheduler = yield* SchedulerService;
             return yield* scheduler.checkAuthStatus();
-          }),
-        );
-      },
+          })
+        ),
 
-      getAnthropicUsage: async () => {
-        return runEffect(
-          Effect.gen(function* () {
+      getAnthropicUsage: async () =>
+        runEffect(
+          Effect.gen(function* getAnthropicUsage() {
             const anthropicService = yield* AnthropicUsageService;
             return yield* anthropicService.getUsage();
-          }),
-        );
-      },
+          })
+        ),
 
       updateDragExclusionZones: async ({ zones }) => {
         const success = updateDragExclusionZones(zones);
         return { success };
-      },
-    },
-
-    messages: {
-      log: ({ msg, level }) => {
-        if (level === "warn") {
-          console.warn(`[webview] ${msg}`);
-        } else if (level === "error") {
-          console.error(`[webview] ${msg}`);
-        } else {
-          console.info(`[webview] ${msg}`);
-        }
-      },
-
-      openExternal: ({ url }) => {
-        // Only allow specific URL patterns
-        if (!url.startsWith("https://")) {
-          console.warn(`[rpc] Rejected openExternal for non-HTTPS URL: ${url}`);
-          return;
-        }
-
-        try {
-          const command =
-            process.platform === "darwin"
-              ? ["open", url]
-              : process.platform === "win32"
-                ? ["cmd", "/c", "start", "", url]
-                : ["xdg-open", url];
-
-          Bun.spawn(command, {
-            stdin: "ignore",
-            stdout: "ignore",
-            stderr: "ignore",
-          });
-        } catch (error) {
-          console.warn(`[rpc] Failed to open URL: ${url}`, error);
-        }
       },
     },
   },
@@ -1354,13 +1360,13 @@ const refreshApplicationMenu = () => {
             label: "Daedux",
             submenu: [
               {
-                label: "Show Dashboard",
                 action: "show-dashboard",
+                label: "Show Dashboard",
               },
               {
-                label: "Rescan Sessions",
                 action: "rescan-sessions",
                 enabled: !isScanning,
+                label: "Rescan Sessions",
               },
               { type: "separator" as const },
               { role: "quit" as const },
@@ -1372,9 +1378,9 @@ const refreshApplicationMenu = () => {
       label: "File",
       submenu: [
         {
-          label: "Rescan Sessions",
           action: "rescan-sessions",
           enabled: !isScanning,
+          label: "Rescan Sessions",
         },
         { type: "separator" as const },
         { role: "quit" as const },
@@ -1384,12 +1390,12 @@ const refreshApplicationMenu = () => {
       label: "View",
       submenu: [
         {
+          action: "toggle-dark-mode",
           label:
             settings.theme === "dark"
               ? "Switch to Light Mode"
               : "Switch to Dark Mode",
           type: "normal" as const,
-          action: "toggle-dark-mode",
         },
       ],
     },
@@ -1417,59 +1423,69 @@ const createTray = () => {
 
   tray = new Tray({
     ...(trayIconPath ? { image: trayIconPath } : {}),
+    height: 18,
     template: false,
     width: 18,
-    height: 18,
   });
 
   // Set initial menu immediately so tray is responsive while stats load
   tray.setMenu([
-    { label: "Loading...", type: "normal" as const, enabled: false },
+    { enabled: false, label: "Loading...", type: "normal" as const },
     { type: "separator" as const },
     {
+      action: "show-dashboard",
       label: "Show Dashboard",
       type: "normal" as const,
-      action: "show-dashboard",
     },
     {
+      action: "rescan-sessions",
       label: "Rescan Sessions",
       type: "normal" as const,
-      action: "rescan-sessions",
     },
     { type: "separator" as const },
-    { label: "Quit", type: "normal" as const, action: "quit-app" },
+    { action: "quit-app", label: "Quit", type: "normal" as const },
   ]);
 
   tray.on("tray-clicked", (event: unknown) => {
     const getAction = (e: unknown): string => {
-      if (!e || typeof e !== "object") return "";
-      const data = (e as { data?: unknown }).data;
-      if (!data || typeof data !== "object") return "";
-      const action = (data as { action?: unknown }).action;
+      if (!e || typeof e !== "object") {
+        return "";
+      }
+      const { data } = e as { data?: unknown };
+      if (!data || typeof data !== "object") {
+        return "";
+      }
+      const { action } = data as { action?: unknown };
       return typeof action === "string" ? action : "";
     };
 
     const action = getAction(event);
 
     switch (action) {
-      case "show-dashboard":
+      case "show-dashboard": {
         showMainWindow();
         break;
-      case "rescan-sessions":
+      }
+      case "rescan-sessions": {
         void runSyncWithNotifications(false);
         break;
-      case "check-for-updates":
+      }
+      case "check-for-updates": {
         void checkForUpdates(false);
         break;
-      case "install-update":
+      }
+      case "install-update": {
         void downloadAndApplyUpdate();
         break;
-      case "quit-app":
+      }
+      case "quit-app": {
         quitApp();
         break;
-      default:
+      }
+      default: {
         showMainWindow();
         break;
+      }
     }
   });
 
@@ -1480,25 +1496,32 @@ const createTray = () => {
 
 ApplicationMenu.on("application-menu-clicked", (event: unknown) => {
   const getAction = (e: unknown): string => {
-    if (!e || typeof e !== "object") return "";
-    const data = (e as { data?: unknown }).data;
-    if (!data || typeof data !== "object") return "";
-    const action = (data as { action?: unknown }).action;
+    if (!e || typeof e !== "object") {
+      return "";
+    }
+    const { data } = e as { data?: unknown };
+    if (!data || typeof data !== "object") {
+      return "";
+    }
+    const { action } = data as { action?: unknown };
     return typeof action === "string" ? action : "";
   };
 
   const action = getAction(event);
 
   switch (action) {
-    case "show-dashboard":
+    case "show-dashboard": {
       showMainWindow();
       break;
-    case "rescan-sessions":
+    }
+    case "rescan-sessions": {
       void runSyncWithNotifications(false);
       break;
-    case "toggle-dark-mode":
+    }
+    case "toggle-dark-mode": {
       toggleDarkMode();
       break;
+    }
   }
 });
 
@@ -1523,14 +1546,14 @@ const checkForUpdates = async (silent = true) => {
       // Show notification unless silent
       if (!silent) {
         Utils.showNotification({
-          title: "Update Available",
           body: `Version ${result.version} is available. Click "Check for Updates" in the tray menu to install.`,
+          title: "Update Available",
         });
       }
     } else if (!silent) {
       Utils.showNotification({
-        title: "No Updates Available",
         body: "You're running the latest version.",
+        title: "No Updates Available",
       });
     }
   } catch (error) {
@@ -1545,8 +1568,8 @@ const checkForUpdates = async (silent = true) => {
 const downloadAndApplyUpdate = async () => {
   try {
     Utils.showNotification({
-      title: "Downloading Update",
       body: "Downloading update... The app will restart when ready.",
+      title: "Downloading Update",
     });
 
     await Updater.downloadUpdate();
@@ -1554,22 +1577,22 @@ const downloadAndApplyUpdate = async () => {
     const info = Updater.updateInfo();
     if (info?.updateReady) {
       Utils.showNotification({
-        title: "Installing Update",
         body: "Update downloaded. Restarting...",
+        title: "Installing Update",
       });
       await Updater.applyUpdate();
     } else {
       Utils.showNotification({
-        title: "Update Failed",
         body:
           info?.error || "Failed to download update. Please try again later.",
+        title: "Update Failed",
       });
     }
   } catch (error) {
     console.error("[update] Failed to apply update:", error);
     Utils.showNotification({
-      title: "Update Failed",
       body: "Failed to apply update. Please try again later.",
+      title: "Update Failed",
     });
   }
 };

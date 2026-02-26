@@ -1,4 +1,12 @@
-import { useState, useMemo } from "react";
+import {
+  ArrowRight01Icon,
+  Clock01Icon,
+  Coins01Icon,
+  Search01Icon,
+  ArrowLeft01Icon,
+} from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
+import type { DashboardData, SessionSummary } from "@shared/rpc-types";
 import {
   useReactTable,
   getCoreRowModel,
@@ -6,25 +14,21 @@ import {
   getFilteredRowModel,
   getPaginationRowModel,
   flexRender,
-  type ColumnDef,
-  type SortingState,
-  type PaginationState,
-  type FilterFn,
 } from "@tanstack/react-table";
+import type {
+  ColumnDef,
+  SortingState,
+  PaginationState,
+  FilterFn,
+} from "@tanstack/react-table";
+import { useState, useMemo } from "react";
+
 import { Section } from "@/components/layout/Section";
 import { SectionHeader } from "@/components/shared/SectionHeader";
-import { Card, CardContent } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetDescription,
-} from "@/components/ui/sheet";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Select,
@@ -34,23 +38,22 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+} from "@/components/ui/sheet";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
   formatCurrency,
   formatTokens,
   formatDuration,
   cn,
   getSmartProjectName,
   shortenPath,
-  type SmartProjectName,
 } from "@/lib/utils";
-import type { DashboardData, SessionSummary } from "@shared/rpc-types";
-import { HugeiconsIcon } from "@hugeicons/react";
-import {
-  ArrowRight01Icon,
-  Clock01Icon,
-  Coins01Icon,
-  Search01Icon,
-  ArrowLeft01Icon,
-} from "@hugeicons/core-free-icons";
+import type { SmartProjectName } from "@/lib/utils";
 
 interface SessionsSectionProps {
   data: DashboardData | null;
@@ -66,7 +69,7 @@ interface SessionRow extends SessionSummary {
 const globalFilterFn: FilterFn<SessionRow> = (
   row,
   _columnId,
-  filterValue: string,
+  filterValue: string
 ) => {
   const searchLower = filterValue.toLowerCase();
   const session = row.original;
@@ -86,12 +89,12 @@ const globalFilterFn: FilterFn<SessionRow> = (
 
 export function SessionsSection({ data, loading }: SessionsSectionProps) {
   const [selectedSession, setSelectedSession] = useState<SessionRow | null>(
-    null,
+    null
   );
   const [showSubagents, setShowSubagents] = useState(false);
 
   const [sorting, setSorting] = useState<SortingState>([
-    { id: "cost", desc: true },
+    { desc: true, id: "cost" },
   ]);
   const [pagination, setPagination] = useState<PaginationState>({
     pageIndex: 0,
@@ -109,13 +112,13 @@ export function SessionsSection({ data, loading }: SessionsSectionProps) {
 
     // Build projectPath → cwd lookup from projects data
     const projectCwdMap = new Map(
-      (data?.projects ?? []).map((p) => [p.projectPath, p.cwd]),
+      (data?.projects ?? []).map((p) => [p.projectPath, p.cwd])
     );
 
     // Build items for smart name calculation
     const allItems = filtered.map((s) => ({
-      projectPath: s.project,
       cwd: projectCwdMap.get(s.project),
+      projectPath: s.project,
     }));
 
     // Attach smart names to each session
@@ -123,10 +126,10 @@ export function SessionsSection({ data, loading }: SessionsSectionProps) {
       (s): SessionRow => ({
         ...s,
         smartName: getSmartProjectName(
-          { projectPath: s.project, cwd: projectCwdMap.get(s.project) },
-          allItems,
+          { cwd: projectCwdMap.get(s.project), projectPath: s.project },
+          allItems
         ),
-      }),
+      })
     );
   }, [sessions, showSubagents, data?.projects]);
 
@@ -134,10 +137,7 @@ export function SessionsSection({ data, loading }: SessionsSectionProps) {
   const columns = useMemo<ColumnDef<SessionRow>[]>(
     () => [
       {
-        id: "project",
-        header: "Project",
         accessorFn: (row) => row.smartName.primary,
-        enableSorting: false,
         cell: ({ row }) => {
           const session = row.original;
           return (
@@ -148,11 +148,11 @@ export function SessionsSection({ data, loading }: SessionsSectionProps) {
                 </Badge>
               )}
               <div>
-                <div className="font-medium truncate max-w-[200px]">
+                <div className="max-w-[200px] truncate font-medium">
                   {session.smartName.primary}
                 </div>
                 {session.smartName.secondary && (
-                  <div className="text-xs text-muted-foreground">
+                  <div className="text-muted-foreground text-xs">
                     in {session.smartName.secondary}
                   </div>
                 )}
@@ -160,9 +160,17 @@ export function SessionsSection({ data, loading }: SessionsSectionProps) {
             </div>
           );
         },
+        enableSorting: false,
+        header: "Project",
+        id: "project",
       },
       {
-        id: "date",
+        accessorKey: "startTime",
+        cell: ({ row }) => (
+          <span className="text-muted-foreground text-sm">
+            {row.original.date}
+          </span>
+        ),
         header: ({ column }) => (
           <SortableHeaderCell
             label="Date"
@@ -172,15 +180,13 @@ export function SessionsSection({ data, loading }: SessionsSectionProps) {
             }
           />
         ),
-        accessorKey: "startTime",
-        cell: ({ row }) => (
-          <span className="text-sm text-muted-foreground">
-            {row.original.date}
-          </span>
-        ),
+        id: "date",
       },
       {
-        id: "queries",
+        accessorKey: "queryCount",
+        cell: ({ row }) => (
+          <span className="text-sm">{row.original.queryCount}</span>
+        ),
         header: ({ column }) => (
           <SortableHeaderCell
             label="Queries"
@@ -191,14 +197,14 @@ export function SessionsSection({ data, loading }: SessionsSectionProps) {
             align="right"
           />
         ),
-        accessorKey: "queryCount",
-        cell: ({ row }) => (
-          <span className="text-sm">{row.original.queryCount}</span>
-        ),
+        id: "queries",
         meta: { align: "right" },
       },
       {
-        id: "turns",
+        accessorKey: "turnCount",
+        cell: ({ row }) => (
+          <span className="text-sm">{row.original.turnCount}</span>
+        ),
         header: ({ column }) => (
           <SortableHeaderCell
             label="Turns"
@@ -209,14 +215,16 @@ export function SessionsSection({ data, loading }: SessionsSectionProps) {
             align="right"
           />
         ),
-        accessorKey: "turnCount",
-        cell: ({ row }) => (
-          <span className="text-sm">{row.original.turnCount}</span>
-        ),
+        id: "turns",
         meta: { align: "right" },
       },
       {
-        id: "tokens",
+        accessorKey: "totalTokens",
+        cell: ({ row }) => (
+          <span className="text-sm">
+            {formatTokens(row.original.totalTokens)}
+          </span>
+        ),
         header: ({ column }) => (
           <SortableHeaderCell
             label="Tokens"
@@ -227,16 +235,16 @@ export function SessionsSection({ data, loading }: SessionsSectionProps) {
             align="right"
           />
         ),
-        accessorKey: "totalTokens",
-        cell: ({ row }) => (
-          <span className="text-sm">
-            {formatTokens(row.original.totalTokens)}
-          </span>
-        ),
+        id: "tokens",
         meta: { align: "right" },
       },
       {
-        id: "cost",
+        accessorKey: "totalCost",
+        cell: ({ row }) => (
+          <span className="text-sm font-medium">
+            {formatCurrency(row.original.totalCost)}
+          </span>
+        ),
         header: ({ column }) => (
           <SortableHeaderCell
             label="Cost"
@@ -247,48 +255,43 @@ export function SessionsSection({ data, loading }: SessionsSectionProps) {
             align="right"
           />
         ),
-        accessorKey: "totalCost",
-        cell: ({ row }) => (
-          <span className="text-sm font-medium">
-            {formatCurrency(row.original.totalCost)}
-          </span>
-        ),
+        id: "cost",
         meta: { align: "right" },
       },
       {
-        id: "details",
-        header: () => <span className="sr-only">Details</span>,
-        enableSorting: false,
         cell: () => (
           <Button variant="ghost" size="icon-sm">
             <HugeiconsIcon icon={ArrowRight01Icon} className="h-4 w-4" />
           </Button>
         ),
+        enableSorting: false,
+        header: () => <span className="sr-only">Details</span>,
+        id: "details",
         meta: { align: "right" },
       },
     ],
-    [],
+    []
   );
 
   const table = useReactTable({
-    data: tableData,
     columns,
-    state: { sorting, pagination, globalFilter },
-    onSortingChange: setSorting,
-    onPaginationChange: setPagination,
-    onGlobalFilterChange: setGlobalFilter,
-    globalFilterFn,
+    data: tableData,
     getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    globalFilterFn,
+    onGlobalFilterChange: setGlobalFilter,
+    onPaginationChange: setPagination,
+    onSortingChange: setSorting,
+    state: { globalFilter, pagination, sorting },
   });
 
   const totalFiltered = table.getFilteredRowModel().rows.length;
   const pageStart = pagination.pageIndex * pagination.pageSize + 1;
   const pageEnd = Math.min(
     (pagination.pageIndex + 1) * pagination.pageSize,
-    totalFiltered,
+    totalFiltered
   );
 
   return (
@@ -303,7 +306,7 @@ export function SessionsSection({ data, loading }: SessionsSectionProps) {
           <div className="relative">
             <HugeiconsIcon
               icon={Search01Icon}
-              className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground"
+              className="text-muted-foreground absolute top-1/2 left-2.5 h-4 w-4 -translate-y-1/2"
             />
             <Input
               placeholder="Search sessions..."
@@ -313,7 +316,7 @@ export function SessionsSection({ data, loading }: SessionsSectionProps) {
                 // Reset to first page when searching
                 setPagination((prev) => ({ ...prev, pageIndex: 0 }));
               }}
-              className="pl-8 w-[200px]"
+              className="w-[200px] pl-8"
             />
           </div>
           <Button
@@ -330,7 +333,7 @@ export function SessionsSection({ data, loading }: SessionsSectionProps) {
       <Card>
         <CardContent className="p-0">
           {loading ? (
-            <div className="p-6 space-y-3">
+            <div className="space-y-3 p-6">
               <Skeleton className="h-10 w-full" />
               <Skeleton className="h-10 w-full" />
               <Skeleton className="h-10 w-full" />
@@ -345,7 +348,7 @@ export function SessionsSection({ data, loading }: SessionsSectionProps) {
                     {table.getHeaderGroups().map((headerGroup) => (
                       <tr
                         key={headerGroup.id}
-                        className="border-b border-border text-left text-sm text-muted-foreground"
+                        className="border-border text-muted-foreground border-b text-left text-sm"
                       >
                         {headerGroup.headers.map((header) => {
                           const align = (
@@ -358,14 +361,14 @@ export function SessionsSection({ data, loading }: SessionsSectionProps) {
                               key={header.id}
                               className={cn(
                                 "p-4 font-medium",
-                                align === "right" && "text-right",
+                                align === "right" && "text-right"
                               )}
                             >
                               {header.isPlaceholder
                                 ? null
                                 : flexRender(
                                     header.column.columnDef.header,
-                                    header.getContext(),
+                                    header.getContext()
                                   )}
                             </th>
                           );
@@ -377,7 +380,7 @@ export function SessionsSection({ data, loading }: SessionsSectionProps) {
                     {table.getRowModel().rows.map((row) => (
                       <tr
                         key={row.id}
-                        className="border-b border-border/50 last:border-0 hover:bg-muted/50 transition-colors cursor-pointer"
+                        className="border-border/50 hover:bg-muted/50 cursor-pointer border-b transition-colors last:border-0"
                         onClick={() => setSelectedSession(row.original)}
                       >
                         {row.getVisibleCells().map((cell) => {
@@ -391,12 +394,12 @@ export function SessionsSection({ data, loading }: SessionsSectionProps) {
                               key={cell.id}
                               className={cn(
                                 "p-4",
-                                align === "right" && "text-right",
+                                align === "right" && "text-right"
                               )}
                             >
                               {flexRender(
                                 cell.column.columnDef.cell,
-                                cell.getContext(),
+                                cell.getContext()
                               )}
                             </td>
                           );
@@ -409,13 +412,13 @@ export function SessionsSection({ data, loading }: SessionsSectionProps) {
 
               {/* Pagination Controls */}
               {totalFiltered > 10 && (
-                <div className="flex items-center justify-between p-4 border-t border-border">
-                  <span className="text-sm text-muted-foreground">
+                <div className="border-border flex items-center justify-between border-t p-4">
+                  <span className="text-muted-foreground text-sm">
                     Showing {pageStart}–{pageEnd} of {totalFiltered} sessions
                   </span>
                   <div className="flex items-center gap-4">
                     <div className="flex items-center gap-2">
-                      <span className="text-sm text-muted-foreground">
+                      <span className="text-muted-foreground text-sm">
                         Per page:
                       </span>
                       <Select
@@ -427,7 +430,7 @@ export function SessionsSection({ data, loading }: SessionsSectionProps) {
                           })
                         }
                       >
-                        <SelectTrigger className="w-[70px] h-8">
+                        <SelectTrigger className="h-8 w-[70px]">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -449,7 +452,7 @@ export function SessionsSection({ data, loading }: SessionsSectionProps) {
                           className="h-4 w-4"
                         />
                       </Button>
-                      <span className="text-sm px-2">
+                      <span className="px-2 text-sm">
                         Page {pagination.pageIndex + 1} of{" "}
                         {table.getPageCount()}
                       </span>
@@ -470,7 +473,7 @@ export function SessionsSection({ data, loading }: SessionsSectionProps) {
               )}
             </>
           ) : (
-            <p className="text-center text-muted-foreground py-12">
+            <p className="text-muted-foreground py-12 text-center">
               No sessions found
             </p>
           )}
@@ -482,7 +485,7 @@ export function SessionsSection({ data, loading }: SessionsSectionProps) {
         open={!!selectedSession}
         onOpenChange={(open) => !open && setSelectedSession(null)}
       >
-        <SheetContent className="w-[500px] sm:max-w-[500px] flex flex-col overflow-hidden">
+        <SheetContent className="flex w-[500px] flex-col overflow-hidden sm:max-w-[500px]">
           {selectedSession && (
             <>
               <SheetHeader className="flex-shrink-0">
@@ -494,8 +497,8 @@ export function SessionsSection({ data, loading }: SessionsSectionProps) {
                   {shortenPath(selectedSession.smartName.full)}
                 </SheetDescription>
               </SheetHeader>
-              <ScrollArea className="flex-1 min-h-0">
-                <div className="px-6 pb-6 pt-4">
+              <ScrollArea className="min-h-0 flex-1">
+                <div className="px-6 pt-4 pb-6">
                   <SessionDetail session={selectedSession} />
                 </div>
               </ScrollArea>
@@ -527,7 +530,7 @@ function SortableHeaderCell({
       type="button"
       className={cn(
         "flex items-center gap-1 hover:text-foreground transition-colors",
-        align === "right" && "justify-end w-full",
+        align === "right" && "justify-end w-full"
       )}
       onClick={onToggle}
     >
@@ -610,13 +613,13 @@ function SessionDetail({ session }: { session: SessionRow }) {
         session.fileActivityDetails.length > 0 && (
           <div className="space-y-3">
             <h4 className="text-sm font-medium">File Activity</h4>
-            <div className="space-y-1 max-h-[200px] overflow-y-auto">
+            <div className="max-h-[200px] space-y-1 overflow-y-auto">
               {session.fileActivityDetails.slice(0, 20).map((file, i) => (
                 <div
                   key={i}
                   className="flex items-center justify-between py-1 text-xs"
                 >
-                  <span className="truncate max-w-[300px] text-muted-foreground">
+                  <span className="text-muted-foreground max-w-[300px] truncate">
                     {file.filePath}
                   </span>
                   <Badge variant="outline" className="text-xs">
@@ -625,7 +628,7 @@ function SessionDetail({ session }: { session: SessionRow }) {
                 </div>
               ))}
               {session.fileActivityDetails.length > 20 && (
-                <p className="text-xs text-muted-foreground pt-2">
+                <p className="text-muted-foreground pt-2 text-xs">
                   +{session.fileActivityDetails.length - 20} more files
                 </p>
               )}
@@ -639,7 +642,7 @@ function SessionDetail({ session }: { session: SessionRow }) {
           <h4 className="text-sm font-medium">Tool Usage</h4>
           <div className="flex flex-wrap gap-2">
             {Object.entries(session.toolCounts)
-              .sort(([, a], [, b]) => b - a)
+              .toSorted(([, a], [, b]) => b - a)
               .slice(0, 10)
               .map(([tool, count]) => (
                 <Badge key={tool} variant="outline" className="text-xs">
@@ -654,7 +657,7 @@ function SessionDetail({ session }: { session: SessionRow }) {
       {session.firstPrompt && (
         <div className="space-y-3">
           <h4 className="text-sm font-medium">First Prompt</h4>
-          <p className="text-sm text-muted-foreground bg-muted/50 p-3 rounded-lg">
+          <p className="text-muted-foreground bg-muted/50 rounded-lg p-3 text-sm">
             {session.firstPrompt.slice(0, 500)}
             {session.firstPrompt.length > 500 && "..."}
           </p>
@@ -674,10 +677,10 @@ function StatItem({
   value: string;
 }) {
   return (
-    <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
-      <HugeiconsIcon icon={icon} className="h-5 w-5 text-muted-foreground" />
+    <div className="bg-muted/50 flex items-center gap-3 rounded-lg p-3">
+      <HugeiconsIcon icon={icon} className="text-muted-foreground h-5 w-5" />
       <div>
-        <p className="text-xs text-muted-foreground">{label}</p>
+        <p className="text-muted-foreground text-xs">{label}</p>
         <p className="font-medium">{value}</p>
       </div>
     </div>

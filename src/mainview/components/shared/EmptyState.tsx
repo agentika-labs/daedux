@@ -1,6 +1,7 @@
-import { cn } from "@/lib/utils";
 import { Folder01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+
+import { cn } from "@/lib/utils";
 
 export interface EmptyStateProps {
   title: string;
@@ -21,18 +22,26 @@ export function EmptyState({
   className,
 }: EmptyStateProps) {
   return (
-    <div className={cn("flex flex-col items-center justify-center py-12 text-center", className)}>
-      <div className="rounded-full bg-muted p-4 mb-4">
-        <HugeiconsIcon icon={icon} className="h-8 w-8 text-muted-foreground" />
+    <div
+      className={cn(
+        "flex flex-col items-center justify-center py-12 text-center",
+        className
+      )}
+    >
+      <div className="bg-muted mb-4 rounded-full p-4">
+        <HugeiconsIcon icon={icon} className="text-muted-foreground h-8 w-8" />
       </div>
-      <h3 className="text-lg font-medium mb-1">{title}</h3>
+      <h3 className="mb-1 text-lg font-medium">{title}</h3>
       {description && (
-        <p className="text-sm text-muted-foreground max-w-sm mb-4">{description}</p>
+        <p className="text-muted-foreground mb-4 max-w-sm text-sm">
+          {description}
+        </p>
       )}
       {action && (
         <button
+          type="button"
           onClick={action.onClick}
-          className="text-sm text-primary hover:underline"
+          className="text-primary text-sm hover:underline"
         >
           {action.label}
         </button>

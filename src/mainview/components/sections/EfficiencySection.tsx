@@ -1,14 +1,28 @@
+import type { DashboardData } from "@shared/rpc-types";
+import {
+  Area,
+  AreaChart,
+  Bar,
+  BarChart,
+  CartesianGrid,
+  XAxis,
+  YAxis,
+} from "recharts";
+
 import { Section } from "@/components/layout/Section";
-import { SectionHeader } from "@/components/shared/SectionHeader";
 import { ChartCard } from "@/components/shared/ChartCard";
 import { EmptyChartState } from "@/components/shared/EmptyChartState";
 import { InfoTooltip } from "@/components/shared/InfoTooltip";
+import { SectionHeader } from "@/components/shared/SectionHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+} from "@/components/ui/chart";
+import type { ChartConfig } from "@/components/ui/chart";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
 import { formatPercent, cn } from "@/lib/utils";
-import type { DashboardData } from "@shared/rpc-types";
-import { Area, AreaChart, Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
 
 interface EfficiencySectionProps {
   data: DashboardData | null;
@@ -17,15 +31,15 @@ interface EfficiencySectionProps {
 
 const cacheConfig = {
   cacheHitRate: {
-    label: "Cache Hit Rate",
     color: "var(--chart-2)",
+    label: "Cache Hit Rate",
   },
 } satisfies ChartConfig;
 
 const sessionConfig = {
   count: {
-    label: "Sessions",
     color: "var(--chart-1)",
+    label: "Sessions",
   },
 } satisfies ChartConfig;
 
@@ -39,8 +53,8 @@ export function EfficiencySection({ data, loading }: EfficiencySectionProps) {
     const totalInput = day.uncachedInput + day.cacheRead + day.cacheCreation;
     const hitRate = totalInput > 0 ? day.cacheRead / totalInput : 0;
     return {
-      date: day.date,
       cacheHitRate: hitRate * 100,
+      date: day.date,
     };
   });
 
@@ -60,7 +74,7 @@ export function EfficiencySection({ data, loading }: EfficiencySectionProps) {
       />
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+      <div className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-4">
         <MetricCard
           label="Cache Hit Rate"
           value={formatPercent(data?.totals?.cacheEfficiencyRatio ?? 0)}
@@ -79,22 +93,38 @@ export function EfficiencySection({ data, loading }: EfficiencySectionProps) {
           value={`${Math.round(toolSuccessRate)}%`}
           description="Tools completing without errors"
           loading={loading}
-          variant={toolSuccessRate >= 95 ? "success" : toolSuccessRate >= 85 ? "warning" : "default"}
+          variant={
+            toolSuccessRate >= 95
+              ? "success"
+              : toolSuccessRate >= 85
+                ? "warning"
+                : "default"
+          }
         />
         <MetricCard
           label="Session Efficiency"
-          value={sessionEfficiency !== null ? Math.round(sessionEfficiency).toString() : "—"}
+          value={
+            sessionEfficiency !== null
+              ? Math.round(sessionEfficiency).toString()
+              : "—"
+          }
           description="Queries per session score"
           loading={loading}
-          variant={sessionEfficiency !== null && sessionEfficiency >= 70 ? "success" : sessionEfficiency !== null && sessionEfficiency >= 40 ? "warning" : "default"}
+          variant={
+            sessionEfficiency !== null && sessionEfficiency >= 70
+              ? "success"
+              : sessionEfficiency !== null && sessionEfficiency >= 40
+                ? "warning"
+                : "default"
+          }
           tooltip={
             <InfoTooltip
               title="What does this measure?"
               description="Average queries per session. Longer sessions benefit more from prompt caching, reducing costs."
               scale={[
-                { range: "1-4 queries", quality: "Low (< 50)" },
-                { range: "5-9 queries", quality: "Good (50-99)" },
-                { range: "10+ queries", quality: "Optimal (100)" },
+                { quality: "Low (< 50)", range: "1-4 queries" },
+                { quality: "Good (50-99)", range: "5-9 queries" },
+                { quality: "Optimal (100)", range: "10+ queries" },
               ]}
             />
           }
@@ -108,7 +138,7 @@ export function EfficiencySection({ data, loading }: EfficiencySectionProps) {
       </div>
 
       {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+      <div className="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
         {/* Cache Efficiency Over Time */}
         <ChartCard
           title="Cache Efficiency Curve"
@@ -119,9 +149,23 @@ export function EfficiencySection({ data, loading }: EfficiencySectionProps) {
             <ChartContainer config={cacheConfig} className="h-[250px] w-full">
               <AreaChart data={cacheEfficiencyData} accessibilityLayer>
                 <defs>
-                  <linearGradient id="cacheGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="var(--color-cacheHitRate)" stopOpacity={0.3} />
-                    <stop offset="100%" stopColor="var(--color-cacheHitRate)" stopOpacity={0} />
+                  <linearGradient
+                    id="cacheGradient"
+                    x1="0"
+                    y1="0"
+                    x2="0"
+                    y2="1"
+                  >
+                    <stop
+                      offset="0%"
+                      stopColor="var(--color-cacheHitRate)"
+                      stopOpacity={0.3}
+                    />
+                    <stop
+                      offset="100%"
+                      stopColor="var(--color-cacheHitRate)"
+                      stopOpacity={0}
+                    />
                   </linearGradient>
                 </defs>
                 <CartesianGrid vertical={false} strokeDasharray="3 3" />
@@ -132,7 +176,10 @@ export function EfficiencySection({ data, loading }: EfficiencySectionProps) {
                   tickMargin={8}
                   tickFormatter={(value) => {
                     const date = new Date(value);
-                    return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+                    return date.toLocaleDateString("en-US", {
+                      day: "numeric",
+                      month: "short",
+                    });
                   }}
                 />
                 <YAxis
@@ -178,10 +225,7 @@ export function EfficiencySection({ data, loading }: EfficiencySectionProps) {
                   axisLine={false}
                   tickMargin={8}
                 />
-                <YAxis
-                  tickLine={false}
-                  axisLine={false}
-                />
+                <YAxis tickLine={false} axisLine={false} />
                 <ChartTooltip
                   content={
                     <ChartTooltipContent
@@ -234,9 +278,10 @@ export function EfficiencySection({ data, loading }: EfficiencySectionProps) {
               />
             </div>
           )}
-          {!loading && sessions.filter((s) => s.compactions > 0).length > 0 && (
-            <p className="text-xs text-muted-foreground mt-4 pt-4 border-t border-border">
-              Tip: Sessions with compactions indicate the context window was exceeded. Consider breaking large tasks into smaller sessions.
+          {!loading && sessions.some((s) => s.compactions > 0) && (
+            <p className="text-muted-foreground border-border mt-4 border-t pt-4 text-xs">
+              Tip: Sessions with compactions indicate the context window was
+              exceeded. Consider breaking large tasks into smaller sessions.
             </p>
           )}
         </CardContent>
@@ -256,12 +301,19 @@ interface MetricCardProps {
   tooltip?: React.ReactNode;
 }
 
-function MetricCard({ label, value, description, loading, variant = "default", tooltip }: MetricCardProps) {
+function MetricCard({
+  label,
+  value,
+  description,
+  loading,
+  variant = "default",
+  tooltip,
+}: MetricCardProps) {
   if (loading) {
     return (
       <Card size="sm">
         <CardContent className="pt-4">
-          <Skeleton className="h-4 w-20 mb-2" />
+          <Skeleton className="mb-2 h-4 w-20" />
           <Skeleton className="h-6 w-16" />
         </CardContent>
       </Card>
@@ -271,8 +323,8 @@ function MetricCard({ label, value, description, loading, variant = "default", t
   return (
     <Card size="sm">
       <CardContent className="pt-4">
-        <div className="flex items-center gap-1.5 mb-1">
-          <p className="text-sm text-muted-foreground">{label}</p>
+        <div className="mb-1 flex items-center gap-1.5">
+          <p className="text-muted-foreground text-sm">{label}</p>
           {tooltip}
         </div>
         <p
@@ -285,7 +337,7 @@ function MetricCard({ label, value, description, loading, variant = "default", t
           {value}
         </p>
         {description && (
-          <p className="text-xs text-muted-foreground mt-1">{description}</p>
+          <p className="text-muted-foreground mt-1 text-xs">{description}</p>
         )}
       </CardContent>
     </Card>
@@ -305,17 +357,17 @@ function CompactionStat({
 }) {
   return (
     <div className="text-center">
-      <p className="text-sm text-muted-foreground mb-1">{label}</p>
+      <p className="text-muted-foreground mb-1 text-sm">{label}</p>
       <p className="text-2xl font-semibold">
         {value}
         {total !== undefined && (
-          <span className="text-sm text-muted-foreground font-normal">
+          <span className="text-muted-foreground text-sm font-normal">
             /{total}
           </span>
         )}
       </p>
       {description && (
-        <p className="text-xs text-muted-foreground mt-1">{description}</p>
+        <p className="text-muted-foreground mt-1 text-xs">{description}</p>
       )}
     </div>
   );
@@ -330,26 +382,32 @@ interface SessionForBuckets {
 
 function getSessionLengthDistribution(sessions: SessionForBuckets[]) {
   const buckets = [
-    { label: "1-5", min: 1, max: 5, count: 0 },
-    { label: "6-10", min: 6, max: 10, count: 0 },
-    { label: "11-20", min: 11, max: 20, count: 0 },
-    { label: "21-50", min: 21, max: 50, count: 0 },
-    { label: "50+", min: 51, max: Infinity, count: 0 },
+    { count: 0, label: "1-5", max: 5, min: 1 },
+    { count: 0, label: "6-10", max: 10, min: 6 },
+    { count: 0, label: "11-20", max: 20, min: 11 },
+    { count: 0, label: "21-50", max: 50, min: 21 },
+    { count: 0, label: "50+", max: Infinity, min: 51 },
   ];
 
   sessions.forEach((session) => {
     const bucket = buckets.find(
       (b) => session.queryCount >= b.min && session.queryCount <= b.max
     );
-    if (bucket) bucket.count++;
+    if (bucket) {
+      bucket.count++;
+    }
   });
 
   return buckets.filter((b) => b.count > 0);
 }
 
-function calculateAvgQueriesBeforeCompaction(sessions: SessionForBuckets[]): number {
+function calculateAvgQueriesBeforeCompaction(
+  sessions: SessionForBuckets[]
+): number {
   const sessionsWithCompactions = sessions.filter((s) => s.compactions > 0);
-  if (sessionsWithCompactions.length === 0) return 0;
+  if (sessionsWithCompactions.length === 0) {
+    return 0;
+  }
 
   const totalQueries = sessionsWithCompactions.reduce(
     (acc, s) => acc + s.queryCount / (s.compactions + 1),

@@ -1,10 +1,13 @@
-import { Context, Effect, Layer } from "effect";
-import { sql, desc, eq, and, count, type SQL } from "drizzle-orm";
+import { sql, desc, eq, and, count } from "drizzle-orm";
+import type { SQL } from "drizzle-orm";
 import type { SQLiteBunDatabase } from "drizzle-orm/bun-sqlite";
+import { Context, Effect, Layer } from "effect";
+
 import { DatabaseService } from "../db";
-import { DatabaseError } from "../errors";
 import * as schema from "../db/schema";
-import { DateFilter, buildDateConditions } from "./shared";
+import { DatabaseError } from "../errors";
+import type { DateFilter } from "./shared";
+import { buildDateConditions } from "./shared";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -20,7 +23,7 @@ export interface ToolHealthStat {
   readonly errors: number;
   readonly errorRate: number;
   readonly sessions: number;
-  readonly topErrors: Array<{ message: string; count: number }>;
+  readonly topErrors: { message: string; count: number }[];
 }
 
 export interface BashCommandStat {
@@ -34,18 +37,22 @@ export interface BashCategoryHealth {
   readonly totalCommands: number;
   readonly errorCount: number;
   readonly errorRate: number;
-  readonly topErrors: Array<{ message: string; count: number }>;
+  readonly topErrors: { message: string; count: number }[];
   readonly fixSuggestions: string[];
 }
 
 export interface ToolHealthReportCard {
-  readonly reliableTools: Array<{ name: string; successRate: number; totalCalls: number }>;
-  readonly frictionPoints: Array<{
+  readonly reliableTools: {
+    name: string;
+    successRate: number;
+    totalCalls: number;
+  }[];
+  readonly frictionPoints: {
     name: string;
     errorRate: number;
     topError: string;
     totalCalls: number;
-  }>;
+  }[];
   readonly bashDeepDive: BashCategoryHealth[];
   readonly headline: string;
   readonly recommendation: string;
@@ -59,54 +66,133 @@ export interface ApiErrorStat {
 
 // ─── Fix Suggestions Pattern Matching ────────────────────────────────────────
 
-const FIX_SUGGESTIONS: Record<string, Array<{ pattern: RegExp; suggestion: string }>> = {
+const FIX_SUGGESTIONS: Record<
+  string,
+  { pattern: RegExp; suggestion: string }[]
+> = {
   build_test: [
-    { pattern: /command not found/i, suggestion: "Install missing dependencies with `bun add -D <package>`" },
-    { pattern: /ENOENT.*package\.json/i, suggestion: "Run from project root or initialize with `bun init`" },
-    { pattern: /test.*failed|failing|failure/i, suggestion: "Check test output for specific assertion failures" },
-    { pattern: /typescript|tsc|type.*error/i, suggestion: "Run `bun run typecheck` to see all type errors" },
-    { pattern: /Cannot find module/i, suggestion: "Verify import paths and run `bun install`" },
-    { pattern: /EPERM|permission denied/i, suggestion: "Check file permissions or avoid writing to protected paths" },
-  ],
-  package_manager: [
-    { pattern: /EACCES|permission denied/i, suggestion: "Avoid sudo; use a node version manager (fnm, nvm)" },
-    { pattern: /ERESOLVE|peer dep/i, suggestion: "Try `--legacy-peer-deps` or update conflicting packages" },
-    { pattern: /ENOENT.*package\.json/i, suggestion: "Initialize project with `bun init` or navigate to project root" },
-    { pattern: /network|ETIMEDOUT|ENOTFOUND/i, suggestion: "Check network connection; try `--offline` if packages are cached" },
-    { pattern: /integrity|checksum/i, suggestion: "Clear cache with `bun pm cache rm` and reinstall" },
-  ],
-  git: [
-    { pattern: /not a git repository/i, suggestion: "Initialize with `git init` or navigate to repo root" },
-    { pattern: /merge conflict/i, suggestion: "Resolve conflicts in marked files, then `git add` and commit" },
-    { pattern: /nothing to commit/i, suggestion: "Stage changes with `git add` before committing" },
-    { pattern: /already exists/i, suggestion: "Delete or rename existing branch before creating new one" },
-    { pattern: /rejected.*non-fast-forward/i, suggestion: "Pull latest changes first: `git pull --rebase`" },
-    { pattern: /failed to push/i, suggestion: "Check remote permissions and branch protection rules" },
+    {
+      pattern: /command not found/i,
+      suggestion: "Install missing dependencies with `bun add -D <package>`",
+    },
+    {
+      pattern: /ENOENT.*package\.json/i,
+      suggestion: "Run from project root or initialize with `bun init`",
+    },
+    {
+      pattern: /test.*failed|failing|failure/i,
+      suggestion: "Check test output for specific assertion failures",
+    },
+    {
+      pattern: /typescript|tsc|type.*error/i,
+      suggestion: "Run `bun run typecheck` to see all type errors",
+    },
+    {
+      pattern: /Cannot find module/i,
+      suggestion: "Verify import paths and run `bun install`",
+    },
+    {
+      pattern: /EPERM|permission denied/i,
+      suggestion: "Check file permissions or avoid writing to protected paths",
+    },
   ],
   file_ops: [
-    { pattern: /ENOENT|no such file/i, suggestion: "Verify file path exists before operation" },
-    { pattern: /EACCES|permission denied/i, suggestion: "Check file/directory permissions" },
-    { pattern: /EEXIST|already exists/i, suggestion: "File already exists; use overwrite flag or choose different name" },
-    { pattern: /EISDIR|is a directory/i, suggestion: "Use recursive flag for directory operations" },
+    {
+      pattern: /ENOENT|no such file/i,
+      suggestion: "Verify file path exists before operation",
+    },
+    {
+      pattern: /EACCES|permission denied/i,
+      suggestion: "Check file/directory permissions",
+    },
+    {
+      pattern: /EEXIST|already exists/i,
+      suggestion:
+        "File already exists; use overwrite flag or choose different name",
+    },
+    {
+      pattern: /EISDIR|is a directory/i,
+      suggestion: "Use recursive flag for directory operations",
+    },
+  ],
+  git: [
+    {
+      pattern: /not a git repository/i,
+      suggestion: "Initialize with `git init` or navigate to repo root",
+    },
+    {
+      pattern: /merge conflict/i,
+      suggestion:
+        "Resolve conflicts in marked files, then `git add` and commit",
+    },
+    {
+      pattern: /nothing to commit/i,
+      suggestion: "Stage changes with `git add` before committing",
+    },
+    {
+      pattern: /already exists/i,
+      suggestion: "Delete or rename existing branch before creating new one",
+    },
+    {
+      pattern: /rejected.*non-fast-forward/i,
+      suggestion: "Pull latest changes first: `git pull --rebase`",
+    },
+    {
+      pattern: /failed to push/i,
+      suggestion: "Check remote permissions and branch protection rules",
+    },
   ],
   other: [
-    { pattern: /command not found/i, suggestion: "Install missing command or check PATH" },
-    { pattern: /timeout|timed out/i, suggestion: "Increase timeout or check for deadlocks" },
-    { pattern: /memory|heap|out of memory/i, suggestion: "Increase Node memory with `--max-old-space-size`" },
+    {
+      pattern: /command not found/i,
+      suggestion: "Install missing command or check PATH",
+    },
+    {
+      pattern: /timeout|timed out/i,
+      suggestion: "Increase timeout or check for deadlocks",
+    },
+    {
+      pattern: /memory|heap|out of memory/i,
+      suggestion: "Increase Node memory with `--max-old-space-size`",
+    },
+  ],
+  package_manager: [
+    {
+      pattern: /EACCES|permission denied/i,
+      suggestion: "Avoid sudo; use a node version manager (fnm, nvm)",
+    },
+    {
+      pattern: /ERESOLVE|peer dep/i,
+      suggestion: "Try `--legacy-peer-deps` or update conflicting packages",
+    },
+    {
+      pattern: /ENOENT.*package\.json/i,
+      suggestion:
+        "Initialize project with `bun init` or navigate to project root",
+    },
+    {
+      pattern: /network|ETIMEDOUT|ENOTFOUND/i,
+      suggestion:
+        "Check network connection; try `--offline` if packages are cached",
+    },
+    {
+      pattern: /integrity|checksum/i,
+      suggestion: "Clear cache with `bun pm cache rm` and reinstall",
+    },
   ],
 };
 
 // ─── Helper Functions ────────────────────────────────────────────────────────
 
 function categorizeErrorsByPattern(
-  errors: Array<{ errorMessage: string | null; count: number }>
-): Record<string, Array<{ message: string; count: number }>> {
-  const result: Record<string, Array<{ message: string; count: number }>> = {
+  errors: { errorMessage: string | null; count: number }[]
+): Record<string, { message: string; count: number }[]> {
+  const result: Record<string, { message: string; count: number }[]> = {
     build_test: [],
-    package_manager: [],
-    git: [],
     file_ops: [],
+    git: [],
     other: [],
+    package_manager: [],
   };
 
   for (const err of errors) {
@@ -114,21 +200,23 @@ function categorizeErrorsByPattern(
     let categorized = false;
 
     if (/npm|yarn|bun|pnpm|package|install|add|remove/i.test(msg)) {
-      result.package_manager!.push({ message: msg, count: err.count });
+      result.package_manager!.push({ count: err.count, message: msg });
       categorized = true;
     } else if (/git|commit|push|pull|merge|branch|checkout/i.test(msg)) {
-      result.git!.push({ message: msg, count: err.count });
+      result.git!.push({ count: err.count, message: msg });
       categorized = true;
-    } else if (/test|jest|vitest|mocha|build|compile|tsc|typescript/i.test(msg)) {
-      result.build_test!.push({ message: msg, count: err.count });
+    } else if (
+      /test|jest|vitest|mocha|build|compile|tsc|typescript/i.test(msg)
+    ) {
+      result.build_test!.push({ count: err.count, message: msg });
       categorized = true;
     } else if (/ENOENT|EACCES|EEXIST|file|directory|path/i.test(msg)) {
-      result.file_ops!.push({ message: msg, count: err.count });
+      result.file_ops!.push({ count: err.count, message: msg });
       categorized = true;
     }
 
     if (!categorized) {
-      result.other!.push({ message: msg, count: err.count });
+      result.other!.push({ count: err.count, message: msg });
     }
   }
 
@@ -137,7 +225,7 @@ function categorizeErrorsByPattern(
 
 function getFixSuggestions(
   category: string,
-  errors: Array<{ message: string; count: number }>
+  errors: { message: string; count: number }[]
 ): string[] {
   const patterns = FIX_SUGGESTIONS[category] ?? FIX_SUGGESTIONS.other ?? [];
   const suggestions: string[] = [];
@@ -176,7 +264,10 @@ async function getBashCategoryHealthInternal(
         totalCommands: count(),
       })
       .from(schema.bashCommands)
-      .innerJoin(schema.sessions, eq(schema.bashCommands.sessionId, schema.sessions.sessionId))
+      .innerJoin(
+        schema.sessions,
+        eq(schema.bashCommands.sessionId, schema.sessions.sessionId)
+      )
       .where(and(...dateConditions))
       .groupBy(schema.bashCommands.category)
       .orderBy(desc(count()));
@@ -187,24 +278,36 @@ async function getBashCategoryHealthInternal(
   if (dateConditions.length === 0) {
     bashErrors = await db
       .select({
-        errorMessage: schema.toolUses.errorMessage,
         count: count(),
+        errorMessage: schema.toolUses.errorMessage,
       })
       .from(schema.toolUses)
-      .where(and(eq(schema.toolUses.toolName, "Bash"), eq(schema.toolUses.hasError, true)))
+      .where(
+        and(
+          eq(schema.toolUses.toolName, "Bash"),
+          eq(schema.toolUses.hasError, true)
+        )
+      )
       .groupBy(schema.toolUses.errorMessage)
       .orderBy(desc(count()))
       .limit(20);
   } else {
     bashErrors = await db
       .select({
-        errorMessage: schema.toolUses.errorMessage,
         count: count(),
+        errorMessage: schema.toolUses.errorMessage,
       })
       .from(schema.toolUses)
-      .innerJoin(schema.sessions, eq(schema.toolUses.sessionId, schema.sessions.sessionId))
+      .innerJoin(
+        schema.sessions,
+        eq(schema.toolUses.sessionId, schema.sessions.sessionId)
+      )
       .where(
-        and(eq(schema.toolUses.toolName, "Bash"), eq(schema.toolUses.hasError, true), ...dateConditions)
+        and(
+          eq(schema.toolUses.toolName, "Bash"),
+          eq(schema.toolUses.hasError, true),
+          ...dateConditions
+        )
       )
       .groupBy(schema.toolUses.errorMessage)
       .orderBy(desc(count()))
@@ -216,29 +319,35 @@ async function getBashCategoryHealthInternal(
   if (dateConditions.length === 0) {
     bashTotalStats = await db
       .select({
+        errors:
+          sql<number>`SUM(CASE WHEN ${schema.toolUses.hasError} = 1 THEN 1 ELSE 0 END)`.as(
+            "errors"
+          ),
         total: count(),
-        errors: sql<number>`SUM(CASE WHEN ${schema.toolUses.hasError} = 1 THEN 1 ELSE 0 END)`.as(
-          "errors"
-        ),
       })
       .from(schema.toolUses)
       .where(eq(schema.toolUses.toolName, "Bash"));
   } else {
     bashTotalStats = await db
       .select({
+        errors:
+          sql<number>`SUM(CASE WHEN ${schema.toolUses.hasError} = 1 THEN 1 ELSE 0 END)`.as(
+            "errors"
+          ),
         total: count(),
-        errors: sql<number>`SUM(CASE WHEN ${schema.toolUses.hasError} = 1 THEN 1 ELSE 0 END)`.as(
-          "errors"
-        ),
       })
       .from(schema.toolUses)
-      .innerJoin(schema.sessions, eq(schema.toolUses.sessionId, schema.sessions.sessionId))
+      .innerJoin(
+        schema.sessions,
+        eq(schema.toolUses.sessionId, schema.sessions.sessionId)
+      )
       .where(and(eq(schema.toolUses.toolName, "Bash"), ...dateConditions));
   }
 
   const totalBashUses = bashTotalStats[0]?.total ?? 0;
   const totalBashErrors = bashTotalStats[0]?.errors ?? 0;
-  const overallBashErrorRate = totalBashUses > 0 ? totalBashErrors / totalBashUses : 0;
+  const overallBashErrorRate =
+    totalBashUses > 0 ? totalBashErrors / totalBashUses : 0;
 
   const errorsByCategory = categorizeErrorsByPattern(bashErrors);
 
@@ -250,16 +359,19 @@ async function getBashCategoryHealthInternal(
     );
     const categoryErrorRate =
       cat.totalCommands > 0
-        ? Math.min(categoryErrorCount / cat.totalCommands, overallBashErrorRate * 2)
+        ? Math.min(
+            categoryErrorCount / cat.totalCommands,
+            overallBashErrorRate * 2
+          )
         : 0;
 
     return {
       category: cat.category,
-      totalCommands: cat.totalCommands,
       errorCount: categoryErrorCount,
       errorRate: categoryErrorRate,
-      topErrors: categoryErrors.slice(0, 3),
       fixSuggestions: getFixSuggestions(cat.category, categoryErrors),
+      topErrors: categoryErrors.slice(0, 3),
+      totalCommands: cat.totalCommands,
     };
   });
 }
@@ -300,12 +412,14 @@ export class ToolAnalyticsService extends Context.Tag("ToolAnalyticsService")<
 
 export const ToolAnalyticsServiceLive = Layer.effect(
   ToolAnalyticsService,
-  Effect.gen(function* () {
+  Effect.gen(function* ToolAnalyticsServiceLive() {
     const { db } = yield* DatabaseService;
 
     return {
-      getToolUsage: (dateFilter: DateFilter = {}) =>
+      getApiErrors: (dateFilter: DateFilter = {}) =>
         Effect.tryPromise({
+          catch: (error) =>
+            new DatabaseError({ cause: error, operation: "getApiErrors" }),
           try: async () => {
             const dateConditions = buildDateConditions(dateFilter);
 
@@ -313,92 +427,64 @@ export const ToolAnalyticsServiceLive = Layer.effect(
             if (dateConditions.length === 0) {
               result = await db
                 .select({
-                  name: schema.toolUses.toolName,
                   count: count(),
-                  sessions: sql<number>`COUNT(DISTINCT ${schema.toolUses.sessionId})`.as("sessions"),
+                  errorType: schema.apiErrors.errorType,
+                  lastOccurred:
+                    sql<number>`MAX(${schema.apiErrors.timestamp})`.as(
+                      "last_occurred"
+                    ),
                 })
-                .from(schema.toolUses)
-                .groupBy(schema.toolUses.toolName)
+                .from(schema.apiErrors)
+                .groupBy(schema.apiErrors.errorType)
                 .orderBy(desc(count()));
             } else {
               result = await db
                 .select({
-                  name: schema.toolUses.toolName,
                   count: count(),
-                  sessions: sql<number>`COUNT(DISTINCT ${schema.toolUses.sessionId})`.as("sessions"),
+                  errorType: schema.apiErrors.errorType,
+                  lastOccurred:
+                    sql<number>`MAX(${schema.apiErrors.timestamp})`.as(
+                      "last_occurred"
+                    ),
                 })
-                .from(schema.toolUses)
+                .from(schema.apiErrors)
                 .innerJoin(
                   schema.sessions,
-                  eq(schema.toolUses.sessionId, schema.sessions.sessionId)
+                  eq(schema.apiErrors.sessionId, schema.sessions.sessionId)
                 )
                 .where(and(...dateConditions))
-                .groupBy(schema.toolUses.toolName)
+                .groupBy(schema.apiErrors.errorType)
                 .orderBy(desc(count()));
             }
 
             return result.map((row) => ({
-              name: row.name,
               count: row.count,
-              sessions: row.sessions ?? 0,
+              errorType: row.errorType,
+              lastOccurred: row.lastOccurred ?? 0,
             }));
           },
-          catch: (error) => new DatabaseError({ operation: "getToolUsage", cause: error }),
         }),
 
-      getToolHealth: (dateFilter: DateFilter = {}) =>
+      getBashCategoryHealth: (dateFilter: DateFilter = {}) =>
         Effect.tryPromise({
+          catch: (error) =>
+            new DatabaseError({
+              cause: error,
+              operation: "getBashCategoryHealth",
+            }),
           try: async () => {
             const dateConditions = buildDateConditions(dateFilter);
-
-            let result;
-            if (dateConditions.length === 0) {
-              result = await db
-                .select({
-                  toolName: schema.toolUses.toolName,
-                  totalUses: count(),
-                  errorCount: sql<number>`SUM(CASE WHEN ${schema.toolUses.hasError} = 1 THEN 1 ELSE 0 END)`.as(
-                    "error_count"
-                  ),
-                  sessions: sql<number>`COUNT(DISTINCT ${schema.toolUses.sessionId})`.as("sessions"),
-                })
-                .from(schema.toolUses)
-                .groupBy(schema.toolUses.toolName)
-                .orderBy(desc(count()));
-            } else {
-              result = await db
-                .select({
-                  toolName: schema.toolUses.toolName,
-                  totalUses: count(),
-                  errorCount: sql<number>`SUM(CASE WHEN ${schema.toolUses.hasError} = 1 THEN 1 ELSE 0 END)`.as(
-                    "error_count"
-                  ),
-                  sessions: sql<number>`COUNT(DISTINCT ${schema.toolUses.sessionId})`.as("sessions"),
-                })
-                .from(schema.toolUses)
-                .innerJoin(
-                  schema.sessions,
-                  eq(schema.toolUses.sessionId, schema.sessions.sessionId)
-                )
-                .where(and(...dateConditions))
-                .groupBy(schema.toolUses.toolName)
-                .orderBy(desc(count()));
-            }
-
-            return result.map((row) => ({
-              name: row.toolName,
-              totalCalls: row.totalUses,
-              errors: row.errorCount ?? 0,
-              errorRate: row.totalUses > 0 ? (row.errorCount ?? 0) / row.totalUses : 0,
-              sessions: row.sessions ?? 0,
-              topErrors: [] as Array<{ message: string; count: number }>,
-            }));
+            return getBashCategoryHealthInternal(db, dateConditions);
           },
-          catch: (error) => new DatabaseError({ operation: "getToolHealth", cause: error }),
         }),
 
       getBashCommandStats: (dateFilter: DateFilter = {}) =>
         Effect.tryPromise({
+          catch: (error) =>
+            new DatabaseError({
+              cause: error,
+              operation: "getBashCommandStats",
+            }),
           try: async () => {
             const dateConditions = buildDateConditions(dateFilter);
 
@@ -407,10 +493,11 @@ export const ToolAnalyticsServiceLive = Layer.effect(
               result = await db
                 .select({
                   category: schema.bashCommands.category,
+                  commands:
+                    sql<string>`GROUP_CONCAT(${schema.bashCommands.command}, '|||')`.as(
+                      "commands"
+                    ),
                   count: count(),
-                  commands: sql<string>`GROUP_CONCAT(${schema.bashCommands.command}, '|||')`.as(
-                    "commands"
-                  ),
                 })
                 .from(schema.bashCommands)
                 .groupBy(schema.bashCommands.category)
@@ -419,10 +506,11 @@ export const ToolAnalyticsServiceLive = Layer.effect(
               result = await db
                 .select({
                   category: schema.bashCommands.category,
+                  commands:
+                    sql<string>`GROUP_CONCAT(${schema.bashCommands.command}, '|||')`.as(
+                      "commands"
+                    ),
                   count: count(),
-                  commands: sql<string>`GROUP_CONCAT(${schema.bashCommands.command}, '|||')`.as(
-                    "commands"
-                  ),
                 })
                 .from(schema.bashCommands)
                 .innerJoin(
@@ -444,11 +532,15 @@ export const ToolAnalyticsServiceLive = Layer.effect(
               };
             });
           },
-          catch: (error) => new DatabaseError({ operation: "getBashCommandStats", cause: error }),
         }),
 
       getSessionToolCounts: (dateFilter: DateFilter = {}) =>
         Effect.tryPromise({
+          catch: (error) =>
+            new DatabaseError({
+              cause: error,
+              operation: "getSessionToolCounts",
+            }),
           try: async () => {
             const dateConditions = buildDateConditions(dateFilter);
 
@@ -456,18 +548,18 @@ export const ToolAnalyticsServiceLive = Layer.effect(
             if (dateConditions.length === 0) {
               result = await db
                 .select({
+                  count: count(),
                   sessionId: schema.toolUses.sessionId,
                   toolName: schema.toolUses.toolName,
-                  count: count(),
                 })
                 .from(schema.toolUses)
                 .groupBy(schema.toolUses.sessionId, schema.toolUses.toolName);
             } else {
               result = await db
                 .select({
+                  count: count(),
                   sessionId: schema.toolUses.sessionId,
                   toolName: schema.toolUses.toolName,
-                  count: count(),
                 })
                 .from(schema.toolUses)
                 .innerJoin(
@@ -487,11 +579,15 @@ export const ToolAnalyticsServiceLive = Layer.effect(
             }
             return sessionToolCounts;
           },
-          catch: (error) => new DatabaseError({ operation: "getSessionToolCounts", cause: error }),
         }),
 
       getSessionToolErrorCounts: (dateFilter: DateFilter = {}) =>
         Effect.tryPromise({
+          catch: (error) =>
+            new DatabaseError({
+              cause: error,
+              operation: "getSessionToolErrorCounts",
+            }),
           try: async () => {
             const dateConditions = buildDateConditions(dateFilter);
 
@@ -499,20 +595,22 @@ export const ToolAnalyticsServiceLive = Layer.effect(
             if (dateConditions.length === 0) {
               result = await db
                 .select({
+                  errorCount:
+                    sql<number>`SUM(CASE WHEN ${schema.toolUses.hasError} = 1 THEN 1 ELSE 0 END)`.as(
+                      "error_count"
+                    ),
                   sessionId: schema.toolUses.sessionId,
-                  errorCount: sql<number>`SUM(CASE WHEN ${schema.toolUses.hasError} = 1 THEN 1 ELSE 0 END)`.as(
-                    "error_count"
-                  ),
                 })
                 .from(schema.toolUses)
                 .groupBy(schema.toolUses.sessionId);
             } else {
               result = await db
                 .select({
+                  errorCount:
+                    sql<number>`SUM(CASE WHEN ${schema.toolUses.hasError} = 1 THEN 1 ELSE 0 END)`.as(
+                      "error_count"
+                    ),
                   sessionId: schema.toolUses.sessionId,
-                  errorCount: sql<number>`SUM(CASE WHEN ${schema.toolUses.hasError} = 1 THEN 1 ELSE 0 END)`.as(
-                    "error_count"
-                  ),
                 })
                 .from(schema.toolUses)
                 .innerJoin(
@@ -529,21 +627,76 @@ export const ToolAnalyticsServiceLive = Layer.effect(
             }
             return sessionToolErrors;
           },
-          catch: (error) =>
-            new DatabaseError({ operation: "getSessionToolErrorCounts", cause: error }),
         }),
 
-      getBashCategoryHealth: (dateFilter: DateFilter = {}) =>
+      getToolHealth: (dateFilter: DateFilter = {}) =>
         Effect.tryPromise({
+          catch: (error) =>
+            new DatabaseError({ cause: error, operation: "getToolHealth" }),
           try: async () => {
             const dateConditions = buildDateConditions(dateFilter);
-            return getBashCategoryHealthInternal(db, dateConditions);
+
+            let result;
+            if (dateConditions.length === 0) {
+              result = await db
+                .select({
+                  errorCount:
+                    sql<number>`SUM(CASE WHEN ${schema.toolUses.hasError} = 1 THEN 1 ELSE 0 END)`.as(
+                      "error_count"
+                    ),
+                  sessions:
+                    sql<number>`COUNT(DISTINCT ${schema.toolUses.sessionId})`.as(
+                      "sessions"
+                    ),
+                  toolName: schema.toolUses.toolName,
+                  totalUses: count(),
+                })
+                .from(schema.toolUses)
+                .groupBy(schema.toolUses.toolName)
+                .orderBy(desc(count()));
+            } else {
+              result = await db
+                .select({
+                  errorCount:
+                    sql<number>`SUM(CASE WHEN ${schema.toolUses.hasError} = 1 THEN 1 ELSE 0 END)`.as(
+                      "error_count"
+                    ),
+                  sessions:
+                    sql<number>`COUNT(DISTINCT ${schema.toolUses.sessionId})`.as(
+                      "sessions"
+                    ),
+                  toolName: schema.toolUses.toolName,
+                  totalUses: count(),
+                })
+                .from(schema.toolUses)
+                .innerJoin(
+                  schema.sessions,
+                  eq(schema.toolUses.sessionId, schema.sessions.sessionId)
+                )
+                .where(and(...dateConditions))
+                .groupBy(schema.toolUses.toolName)
+                .orderBy(desc(count()));
+            }
+
+            return result.map((row) => ({
+              errorRate:
+                row.totalUses > 0 ? (row.errorCount ?? 0) / row.totalUses : 0,
+              errors: row.errorCount ?? 0,
+              name: row.toolName,
+              sessions: row.sessions ?? 0,
+              topErrors: [] as { message: string; count: number }[],
+              totalCalls: row.totalUses,
+            }));
           },
-          catch: (error) => new DatabaseError({ operation: "getBashCategoryHealth", cause: error }),
         }),
 
       getToolHealthReportCard: (dateFilter: DateFilter = {}) =>
         Effect.tryPromise({
+          catch: (error) =>
+            new DatabaseError({
+              cause: error,
+              operation: "getToolHealthReportCard",
+            }),
           try: async () => {
             const dateConditions = buildDateConditions(dateFilter);
 
@@ -552,11 +705,12 @@ export const ToolAnalyticsServiceLive = Layer.effect(
             if (dateConditions.length === 0) {
               toolHealthData = await db
                 .select({
+                  errorCount:
+                    sql<number>`SUM(CASE WHEN ${schema.toolUses.hasError} = 1 THEN 1 ELSE 0 END)`.as(
+                      "error_count"
+                    ),
                   toolName: schema.toolUses.toolName,
                   totalUses: count(),
-                  errorCount: sql<number>`SUM(CASE WHEN ${schema.toolUses.hasError} = 1 THEN 1 ELSE 0 END)`.as(
-                    "error_count"
-                  ),
                 })
                 .from(schema.toolUses)
                 .groupBy(schema.toolUses.toolName)
@@ -564,11 +718,12 @@ export const ToolAnalyticsServiceLive = Layer.effect(
             } else {
               toolHealthData = await db
                 .select({
+                  errorCount:
+                    sql<number>`SUM(CASE WHEN ${schema.toolUses.hasError} = 1 THEN 1 ELSE 0 END)`.as(
+                      "error_count"
+                    ),
                   toolName: schema.toolUses.toolName,
                   totalUses: count(),
-                  errorCount: sql<number>`SUM(CASE WHEN ${schema.toolUses.hasError} = 1 THEN 1 ELSE 0 END)`.as(
-                    "error_count"
-                  ),
                 })
                 .from(schema.toolUses)
                 .innerJoin(
@@ -585,9 +740,9 @@ export const ToolAnalyticsServiceLive = Layer.effect(
             if (dateConditions.length === 0) {
               topErrorsData = await db
                 .select({
-                  toolName: schema.toolUses.toolName,
-                  errorMessage: schema.toolUses.errorMessage,
                   count: count(),
+                  errorMessage: schema.toolUses.errorMessage,
+                  toolName: schema.toolUses.toolName,
                 })
                 .from(schema.toolUses)
                 .where(eq(schema.toolUses.hasError, true))
@@ -597,37 +752,51 @@ export const ToolAnalyticsServiceLive = Layer.effect(
             } else {
               topErrorsData = await db
                 .select({
-                  toolName: schema.toolUses.toolName,
-                  errorMessage: schema.toolUses.errorMessage,
                   count: count(),
+                  errorMessage: schema.toolUses.errorMessage,
+                  toolName: schema.toolUses.toolName,
                 })
                 .from(schema.toolUses)
                 .innerJoin(
                   schema.sessions,
                   eq(schema.toolUses.sessionId, schema.sessions.sessionId)
                 )
-                .where(and(eq(schema.toolUses.hasError, true), ...dateConditions))
+                .where(
+                  and(eq(schema.toolUses.hasError, true), ...dateConditions)
+                )
                 .groupBy(schema.toolUses.toolName, schema.toolUses.errorMessage)
                 .orderBy(desc(count()))
                 .limit(100);
             }
 
             // Group errors by tool
-            const errorsByTool = new Map<string, Array<{ message: string; count: number }>>();
+            const errorsByTool = new Map<
+              string,
+              { message: string; count: number }[]
+            >();
             for (const err of topErrorsData) {
               const toolErrors = errorsByTool.get(err.toolName) ?? [];
-              toolErrors.push({ message: err.errorMessage ?? "Unknown error", count: err.count });
+              toolErrors.push({
+                count: err.count,
+                message: err.errorMessage ?? "Unknown error",
+              });
               errorsByTool.set(err.toolName, toolErrors);
             }
 
             // Calculate metrics for each tool
             const toolMetrics = toolHealthData.map((tool) => ({
-              name: tool.toolName,
-              totalCalls: tool.totalUses,
               errorCount: tool.errorCount ?? 0,
-              errorRate: tool.totalUses > 0 ? (tool.errorCount ?? 0) / tool.totalUses : 0,
-              successRate: tool.totalUses > 0 ? 1 - (tool.errorCount ?? 0) / tool.totalUses : 1,
+              errorRate:
+                tool.totalUses > 0
+                  ? (tool.errorCount ?? 0) / tool.totalUses
+                  : 0,
+              name: tool.toolName,
+              successRate:
+                tool.totalUses > 0
+                  ? 1 - (tool.errorCount ?? 0) / tool.totalUses
+                  : 1,
               topError: errorsByTool.get(tool.toolName)?.[0]?.message ?? "",
+              totalCalls: tool.totalUses,
             }));
 
             // Separate reliable tools from friction points
@@ -642,28 +811,35 @@ export const ToolAnalyticsServiceLive = Layer.effect(
 
             const frictionPoints = toolMetrics
               .filter((t) => t.errorRate >= 0.03 && t.totalCalls >= 10)
-              .sort((a, b) => b.errorCount - a.errorCount)
+              .toSorted((a, b) => b.errorCount - a.errorCount)
               .slice(0, 5)
               .map((t) => ({
-                name: t.name,
                 errorRate: t.errorRate,
+                name: t.name,
                 topError: t.topError.slice(0, 100),
                 totalCalls: t.totalCalls,
               }));
 
             // Get bash category health for deep dive
-            const bashCategoryData = await getBashCategoryHealthInternal(db, dateConditions);
+            const bashCategoryData = await getBashCategoryHealthInternal(
+              db,
+              dateConditions
+            );
 
             // Generate headline and recommendation
-            const totalErrors = toolMetrics.reduce((sum, t) => sum + t.errorCount, 0);
+            const totalErrors = toolMetrics.reduce(
+              (sum, t) => sum + t.errorCount,
+              0
+            );
 
             const topFriction = frictionPoints[0];
             const bashFriction = bashCategoryData
               .filter((c) => c.errorRate > 0.1)
-              .sort((a, b) => b.errorCount - a.errorCount)[0];
+              .toSorted((a, b) => b.errorCount - a.errorCount)[0];
 
             let headline = "Your tools are running smoothly";
-            let recommendation = "Keep up the great work! Your workflow has minimal friction.";
+            let recommendation =
+              "Keep up the great work! Your workflow has minimal friction.";
 
             if (frictionPoints.length > 0 && topFriction) {
               const frictionPercent =
@@ -685,19 +861,19 @@ export const ToolAnalyticsServiceLive = Layer.effect(
             }
 
             return {
-              reliableTools,
-              frictionPoints,
               bashDeepDive: bashCategoryData,
+              frictionPoints,
               headline,
               recommendation,
+              reliableTools,
             };
           },
-          catch: (error) =>
-            new DatabaseError({ operation: "getToolHealthReportCard", cause: error }),
         }),
 
-      getApiErrors: (dateFilter: DateFilter = {}) =>
+      getToolUsage: (dateFilter: DateFilter = {}) =>
         Effect.tryPromise({
+          catch: (error) =>
+            new DatabaseError({ cause: error, operation: "getToolUsage" }),
           try: async () => {
             const dateConditions = buildDateConditions(dateFilter);
 
@@ -705,37 +881,42 @@ export const ToolAnalyticsServiceLive = Layer.effect(
             if (dateConditions.length === 0) {
               result = await db
                 .select({
-                  errorType: schema.apiErrors.errorType,
                   count: count(),
-                  lastOccurred: sql<number>`MAX(${schema.apiErrors.timestamp})`.as("last_occurred"),
+                  name: schema.toolUses.toolName,
+                  sessions:
+                    sql<number>`COUNT(DISTINCT ${schema.toolUses.sessionId})`.as(
+                      "sessions"
+                    ),
                 })
-                .from(schema.apiErrors)
-                .groupBy(schema.apiErrors.errorType)
+                .from(schema.toolUses)
+                .groupBy(schema.toolUses.toolName)
                 .orderBy(desc(count()));
             } else {
               result = await db
                 .select({
-                  errorType: schema.apiErrors.errorType,
                   count: count(),
-                  lastOccurred: sql<number>`MAX(${schema.apiErrors.timestamp})`.as("last_occurred"),
+                  name: schema.toolUses.toolName,
+                  sessions:
+                    sql<number>`COUNT(DISTINCT ${schema.toolUses.sessionId})`.as(
+                      "sessions"
+                    ),
                 })
-                .from(schema.apiErrors)
+                .from(schema.toolUses)
                 .innerJoin(
                   schema.sessions,
-                  eq(schema.apiErrors.sessionId, schema.sessions.sessionId)
+                  eq(schema.toolUses.sessionId, schema.sessions.sessionId)
                 )
                 .where(and(...dateConditions))
-                .groupBy(schema.apiErrors.errorType)
+                .groupBy(schema.toolUses.toolName)
                 .orderBy(desc(count()));
             }
 
             return result.map((row) => ({
-              errorType: row.errorType,
               count: row.count,
-              lastOccurred: row.lastOccurred ?? 0,
+              name: row.name,
+              sessions: row.sessions ?? 0,
             }));
           },
-          catch: (error) => new DatabaseError({ operation: "getApiErrors", cause: error }),
         }),
     };
   })

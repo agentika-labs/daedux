@@ -1,15 +1,28 @@
-import { Section } from "@/components/layout/Section";
-import { SectionHeader } from "@/components/shared/SectionHeader";
-import { ChartCard } from "@/components/shared/ChartCard";
-import { StatCard } from "@/components/shared/StatCard";
-import { EmptyChartState } from "@/components/shared/EmptyChartState";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
-import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
-import { formatCurrency, formatNumber, cn, shortenPath, getSmartProjectName, type SmartProjectName } from "@/lib/utils";
 import type { DashboardData, ProjectSummary } from "@shared/rpc-types";
 import { useMemo } from "react";
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Cell } from "recharts";
+
+import { Section } from "@/components/layout/Section";
+import { ChartCard } from "@/components/shared/ChartCard";
+import { EmptyChartState } from "@/components/shared/EmptyChartState";
+import { SectionHeader } from "@/components/shared/SectionHeader";
+import { StatCard } from "@/components/shared/StatCard";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+} from "@/components/ui/chart";
+import type { ChartConfig } from "@/components/ui/chart";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  formatCurrency,
+  formatNumber,
+  cn,
+  shortenPath,
+  getSmartProjectName,
+} from "@/lib/utils";
+import type { SmartProjectName } from "@/lib/utils";
 
 interface ProjectsSectionProps {
   data: DashboardData | null;
@@ -38,7 +51,7 @@ function TruncatedYAxisTick({
       y={y}
       textAnchor="end"
       dominantBaseline="middle"
-      className="text-xs fill-muted-foreground"
+      className="fill-muted-foreground text-xs"
     >
       {displayText}
     </text>
@@ -47,8 +60,8 @@ function TruncatedYAxisTick({
 
 const projectConfig = {
   cost: {
-    label: "Cost",
     color: "var(--chart-1)",
+    label: "Cost",
   },
 } satisfies ChartConfig;
 
@@ -56,7 +69,9 @@ export function ProjectsSection({ data, loading }: ProjectsSectionProps) {
   const projects = data?.projects ?? [];
 
   // Sort by cost descending
-  const sortedProjects = [...projects].sort((a, b) => b.totalCost - a.totalCost);
+  const sortedProjects = [...projects].toSorted(
+    (a, b) => b.totalCost - a.totalCost
+  );
 
   // Stats
   const totalProjects = projects.length;
@@ -66,11 +81,17 @@ export function ProjectsSection({ data, loading }: ProjectsSectionProps) {
   // Pre-compute smart names for disambiguation
   // Pass cwd when available for accurate path splitting (avoids hyphenated path ambiguity)
   const smartNames = useMemo(() => {
-    const allItems = projects.map(p => ({ projectPath: p.projectPath, cwd: p.cwd }));
+    const allItems = projects.map((p) => ({
+      cwd: p.cwd,
+      projectPath: p.projectPath,
+    }));
     return new Map(
-      projects.map(p => [
+      projects.map((p) => [
         p.projectPath,
-        getSmartProjectName({ projectPath: p.projectPath, cwd: p.cwd }, allItems)
+        getSmartProjectName(
+          { cwd: p.cwd, projectPath: p.projectPath },
+          allItems
+        ),
       ])
     );
   }, [projects]);
@@ -79,10 +100,10 @@ export function ProjectsSection({ data, loading }: ProjectsSectionProps) {
   const chartData = sortedProjects.slice(0, 10).map((p) => {
     const smartName = smartNames.get(p.projectPath)!;
     return {
+      cost: p.totalCost,
       name: smartName.secondary
         ? `${smartName.primary} (${smartName.secondary})`
         : smartName.primary,
-      cost: p.totalCost,
       sessions: p.sessionCount,
       smartName, // Pass the full SmartProjectName object for tooltip
     };
@@ -97,7 +118,7 @@ export function ProjectsSection({ data, loading }: ProjectsSectionProps) {
       />
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-3 gap-4 mb-6">
+      <div className="mb-6 grid grid-cols-3 gap-4">
         <StatCard
           label="Total Projects"
           value={formatNumber(totalProjects)}
@@ -105,20 +126,36 @@ export function ProjectsSection({ data, loading }: ProjectsSectionProps) {
         />
         <StatCard
           label="Most Active"
-          value={mostActiveProject ? smartNames.get(mostActiveProject.projectPath)?.primary ?? "-" : "-"}
-          subtext={mostActiveProject ? `${mostActiveProject.sessionCount} sessions` : undefined}
+          value={
+            mostActiveProject
+              ? (smartNames.get(mostActiveProject.projectPath)?.primary ?? "-")
+              : "-"
+          }
+          subtext={
+            mostActiveProject
+              ? `${mostActiveProject.sessionCount} sessions`
+              : undefined
+          }
           loading={loading}
         />
         <StatCard
           label="Highest Cost"
-          value={highestCostProject ? smartNames.get(highestCostProject.projectPath)?.primary ?? "-" : "-"}
-          subtext={highestCostProject ? formatCurrency(highestCostProject.totalCost) : undefined}
+          value={
+            highestCostProject
+              ? (smartNames.get(highestCostProject.projectPath)?.primary ?? "-")
+              : "-"
+          }
+          subtext={
+            highestCostProject
+              ? formatCurrency(highestCostProject.totalCost)
+              : undefined
+          }
           loading={loading}
         />
       </div>
 
       {/* Project Cost Ranking */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+      <div className="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
         <ChartCard
           title="Project Cost Ranking"
           subtitle="Top 10 projects by cost"
@@ -150,14 +187,16 @@ export function ProjectsSection({ data, loading }: ProjectsSectionProps) {
                       formatter={(value, _name, item) => (
                         <div className="space-y-1">
                           <div className="flex items-baseline gap-2">
-                            <p className="font-medium">{item.payload.smartName.primary}</p>
+                            <p className="font-medium">
+                              {item.payload.smartName.primary}
+                            </p>
                             {item.payload.smartName.secondary && (
-                              <span className="text-xs text-muted-foreground">
+                              <span className="text-muted-foreground text-xs">
                                 in {item.payload.smartName.secondary}
                               </span>
                             )}
                           </div>
-                          <p className="text-xs text-muted-foreground">
+                          <p className="text-muted-foreground text-xs">
                             {shortenPath(item.payload.smartName.full)}
                           </p>
                           <p>Cost: {formatCurrency(value as number)}</p>
@@ -196,7 +235,7 @@ export function ProjectsSection({ data, loading }: ProjectsSectionProps) {
                 <Skeleton className="h-12 w-full" />
               </div>
             ) : sortedProjects.length > 0 ? (
-              <div className="space-y-1 max-h-[300px] overflow-y-auto">
+              <div className="max-h-[300px] space-y-1 overflow-y-auto">
                 {sortedProjects.map((project, i) => (
                   <ProjectRow
                     key={project.projectPath}
@@ -207,7 +246,9 @@ export function ProjectsSection({ data, loading }: ProjectsSectionProps) {
                 ))}
               </div>
             ) : (
-              <p className="text-center text-muted-foreground py-8">No projects found</p>
+              <p className="text-muted-foreground py-8 text-center">
+                No projects found
+              </p>
             )}
           </CardContent>
         </Card>
@@ -239,12 +280,12 @@ export function ProjectsSection({ data, loading }: ProjectsSectionProps) {
               ))}
             </div>
           )}
-          <div className="flex items-center justify-end gap-2 mt-4 text-xs text-muted-foreground">
+          <div className="text-muted-foreground mt-4 flex items-center justify-end gap-2 text-xs">
             <span>Less</span>
-            <div className="h-3 w-3 rounded-sm bg-muted" />
-            <div className="h-3 w-3 rounded-sm bg-chart-2/30" />
-            <div className="h-3 w-3 rounded-sm bg-chart-2/60" />
-            <div className="h-3 w-3 rounded-sm bg-chart-2" />
+            <div className="bg-muted h-3 w-3 rounded-sm" />
+            <div className="bg-chart-2/30 h-3 w-3 rounded-sm" />
+            <div className="bg-chart-2/60 h-3 w-3 rounded-sm" />
+            <div className="bg-chart-2 h-3 w-3 rounded-sm" />
             <span>More</span>
           </div>
         </CardContent>
@@ -268,28 +309,34 @@ function ProjectRow({
 
   return (
     <div
-      className="flex items-center justify-between py-2.5 px-3 rounded-lg hover:bg-muted/50 transition-colors group"
+      className="hover:bg-muted/50 group flex items-center justify-between rounded-lg px-3 py-2.5 transition-colors"
       title={smartName.full}
     >
-      <div className="flex items-center gap-3 min-w-0 flex-1">
-        <span className="text-xs text-muted-foreground/60 w-5 shrink-0">{rank}</span>
+      <div className="flex min-w-0 flex-1 items-center gap-3">
+        <span className="text-muted-foreground/60 w-5 shrink-0 text-xs">
+          {rank}
+        </span>
         <div className="min-w-0 flex-1">
           <div className="flex items-baseline gap-2">
-            <p className="font-medium text-sm truncate">{smartName.primary}</p>
+            <p className="truncate text-sm font-medium">{smartName.primary}</p>
             {smartName.secondary && (
-              <span className="text-xs text-muted-foreground shrink-0">
+              <span className="text-muted-foreground shrink-0 text-xs">
                 in {smartName.secondary}
               </span>
             )}
           </div>
-          <p className="text-xs text-muted-foreground/50 truncate h-4 opacity-0 group-hover:opacity-100 transition-opacity">
+          <p className="text-muted-foreground/50 h-4 truncate text-xs opacity-0 transition-opacity group-hover:opacity-100">
             {shortPath}
           </p>
         </div>
       </div>
-      <div className="text-right shrink-0 ml-4">
-        <p className="font-medium text-sm tabular-nums">{formatCurrency(project.totalCost)}</p>
-        <p className="text-xs text-muted-foreground">{project.sessionCount} sessions</p>
+      <div className="ml-4 shrink-0 text-right">
+        <p className="text-sm font-medium tabular-nums">
+          {formatCurrency(project.totalCost)}
+        </p>
+        <p className="text-muted-foreground text-xs">
+          {project.sessionCount} sessions
+        </p>
       </div>
     </div>
   );
@@ -297,9 +344,11 @@ function ProjectRow({
 
 // ─── Helper Functions ─────────────────────────────────────────────────────────
 
-function generateActivityData(projects: ProjectSummary[]): Array<{ date: string; sessions: number }> {
+function generateActivityData(
+  projects: ProjectSummary[]
+): { date: string; sessions: number }[] {
   const days = 28;
-  const result: Array<{ date: string; sessions: number }> = [];
+  const result: { date: string; sessions: number }[] = [];
   const now = new Date();
 
   for (let i = days - 1; i >= 0; i--) {

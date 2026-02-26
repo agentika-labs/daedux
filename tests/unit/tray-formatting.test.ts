@@ -1,4 +1,5 @@
 import { describe, expect, it } from "bun:test";
+
 import {
   statusIndicator,
   formatRateLimitItem,
@@ -50,7 +51,9 @@ describe("formatRateLimitItem", () => {
     // Double digit
     expect(formatRateLimitItem("Weekly", 9, "7d")).toBe("Weekly (7d) — 9%");
     // Triple digit
-    expect(formatRateLimitItem("Session", 100, "5h")).toBe("Session (5h) — 100% ⚠");
+    expect(formatRateLimitItem("Session", 100, "5h")).toBe(
+      "Session (5h) — 100% ⚠"
+    );
   });
 });
 

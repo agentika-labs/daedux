@@ -1,7 +1,8 @@
 import { Effect } from "effect";
-import * as schema from "./db/schema";
-import { getPricing } from "./utils/pricing";
+
+import type * as schema from "./db/schema";
 import { ParseError } from "./errors";
+import { cacheHitRatio } from "./metrics";
 import {
   extractPreview,
   countThinkingChars,
@@ -14,7 +15,7 @@ import {
   toolToOperation,
   isSystemContent,
 } from "./utils/parsing";
-import { cacheHitRatio } from "./metrics";
+import { getPricing } from "./utils/pricing";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -67,13 +68,17 @@ const streamLinesFromFile = async (filePath: string): Promise<string[]> => {
     while ((newlineIndex = buffer.indexOf("\n")) !== -1) {
       const line = buffer.slice(0, newlineIndex).trim();
       buffer = buffer.slice(newlineIndex + 1);
-      if (line) lines.push(line);
+      if (line) {
+        lines.push(line);
+      }
     }
   }
 
   // Flush any remaining content
   const remaining = buffer.trim();
-  if (remaining) lines.push(remaining);
+  if (remaining) {
+    lines.push(remaining);
+  }
 
   return lines;
 };
@@ -89,13 +94,13 @@ const streamLinesFromFile = async (filePath: string): Promise<string[]> => {
  * @returns Parsed records (session, queries, toolUses, etc.) or null for empty files
  */
 export const parseSessionFile = (
-  fileInfo: FileInfo,
+  fileInfo: FileInfo
 ): Effect.Effect<ParsedRecords | null, ParseError> =>
-  Effect.gen(function* () {
+  Effect.gen(function* parseSessionFile() {
     // Stream lines from file (memory efficient - no full file load)
     const lines = yield* Effect.tryPromise({
+      catch: (cause) => new ParseError({ cause, filePath: fileInfo.filePath }),
       try: () => streamLinesFromFile(fileInfo.filePath),
-      catch: (cause) => new ParseError({ filePath: fileInfo.filePath, cause }),
     });
 
     if (lines.length === 0) {
@@ -121,10 +126,10 @@ export const parseSessionFile = (
 
     // Track pending tool uses for deferred error resolution
     // (tool_result appears AFTER tool_use in JSONL, so we can't resolve errors during first pass)
-    const pendingToolUses: Array<{
+    const pendingToolUses: {
       toolUse: schema.NewToolUse;
       apiToolId: string;
-    }> = [];
+    }[] = [];
 
     // Session aggregates
     let startTime: number | null = null;
@@ -153,7 +158,9 @@ export const parseSessionFile = (
     // Single pass through all entries
     for (const line of lines) {
       const obj = safeJsonParse(line);
-      if (!obj) continue; // Skip malformed lines
+      if (!obj) {
+        continue;
+      } // Skip malformed lines
 
       const type = obj.type as string | undefined;
       const timestamp = obj.timestamp as string | undefined;
@@ -164,13 +171,21 @@ export const parseSessionFile = (
       // Track time range
       if (timestamp) {
         const ts = new Date(timestamp).getTime();
-        if (!startTime || ts < startTime) startTime = ts;
-        if (!endTime || ts > endTime) endTime = ts;
+        if (!startTime || ts < startTime) {
+          startTime = ts;
+        }
+        if (!endTime || ts > endTime) {
+          endTime = ts;
+        }
       }
 
       // Extract metadata from any entry that has it
-      if (obj.cwd && !cwd) cwd = obj.cwd as string;
-      if (obj.version && !version) version = obj.version as string;
+      if (obj.cwd && !cwd) {
+        cwd = obj.cwd as string;
+      }
+      if (obj.version && !version) {
+        version = obj.version as string;
+      }
 
       // ─── System entries (API errors, compactions) ──────────────────────────
       if (type === "system") {
@@ -184,9 +199,9 @@ export const parseSessionFile = (
         // Capture API errors
         if (subtype === "api_error") {
           apiErrors.push({
-            sessionId: fileInfo.sessionId,
-            errorType: (obj.error_type as string) ?? "unknown",
             errorMessage: (obj.message as string)?.slice(0, 500) ?? null,
+            errorType: (obj.error_type as string) ?? "unknown",
+            sessionId: fileInfo.sessionId,
             statusCode: (obj.status_code as number) ?? null,
             timestamp: timestampMs,
           });
@@ -195,19 +210,21 @@ export const parseSessionFile = (
 
       // ─── Progress entries (hooks) ──────────────────────────────────────────
       // Hook events can be in obj.data (Claude Code format) or obj.content (legacy)
-      const progressData = (obj.data ?? obj.content) as Record<string, unknown> | undefined;
+      const progressData = (obj.data ?? obj.content) as
+        | Record<string, unknown>
+        | undefined;
       if (type === "progress" && progressData) {
         // Check for hook_progress subtype
         if (progressData.type === "hook_progress" && progressData.hookEvent) {
           hookEvents.push({
-            sessionId: fileInfo.sessionId,
-            hookType: (progressData.hookEvent as string) ?? "unknown",
-            hookName: (progressData.hookName as string) ?? null,
-            toolName: (progressData.toolName as string) ?? null,
             command: (progressData.command as string) ?? null,
-            exitCode: (progressData.exitCode as number) ?? null,
             durationMs: (progressData.durationMs as number) ?? null,
+            exitCode: (progressData.exitCode as number) ?? null,
+            hookName: (progressData.hookName as string) ?? null,
+            hookType: (progressData.hookEvent as string) ?? "unknown",
+            sessionId: fileInfo.sessionId,
             timestamp: timestampMs,
+            toolName: (progressData.toolName as string) ?? null,
           });
         }
       }
@@ -220,10 +237,8 @@ export const parseSessionFile = (
           // Still process tool results for error tracking, but skip lastUserPreview update
           const message = obj.message as Record<string, unknown>;
           const rawContent = message.content;
-          const content: Array<Record<string, unknown>> = Array.isArray(
-            rawContent,
-          )
-            ? (rawContent as Array<Record<string, unknown>>)
+          const content: Record<string, unknown>[] = Array.isArray(rawContent)
+            ? (rawContent as Record<string, unknown>[])
             : [];
 
           for (const block of content) {
@@ -231,10 +246,10 @@ export const parseSessionFile = (
               const toolUseId = block.tool_use_id as string;
               const isError = block.is_error === true;
               toolResultMap.set(toolUseId, {
-                isError,
                 errorContent: isError
                   ? extractErrorContent(block.content)
                   : undefined,
+                isError,
               });
             }
           }
@@ -244,10 +259,8 @@ export const parseSessionFile = (
         const message = obj.message as Record<string, unknown>;
         const rawContent = message.content;
         // Content can be string, array of blocks, or undefined - normalize to array
-        const content: Array<Record<string, unknown>> = Array.isArray(
-          rawContent,
-        )
-          ? (rawContent as Array<Record<string, unknown>>)
+        const content: Record<string, unknown>[] = Array.isArray(rawContent)
+          ? (rawContent as Record<string, unknown>[])
           : typeof rawContent === "string"
             ? [{ type: "text", text: rawContent }]
             : [];
@@ -256,7 +269,8 @@ export const parseSessionFile = (
         // - Tool results (content is only tool_result blocks)
         // - System injections (<task-notification>, <system-reminder>, etc.)
         const hasTextBlock = content.some((b) => b.type === "text");
-        const hasOnlyToolResults = content.length > 0 && content.every((b) => b.type === "tool_result");
+        const hasOnlyToolResults =
+          content.length > 0 && content.every((b) => b.type === "tool_result");
 
         if (hasTextBlock && !hasOnlyToolResults) {
           const preview = extractPreview(content);
@@ -273,13 +287,13 @@ export const parseSessionFile = (
         // Check for slash commands in user message
         const textContent = content.find((b) => b.type === "text");
         if (textContent && typeof textContent.text === "string") {
-          const text = textContent.text;
+          const { text } = textContent;
           if (text.startsWith("/")) {
             const command = extractSlashCommand(text);
             if (command) {
               slashCommands.push({
-                sessionId: fileInfo.sessionId,
                 command,
+                sessionId: fileInfo.sessionId,
                 timestamp: timestampMs,
               });
             }
@@ -292,10 +306,10 @@ export const parseSessionFile = (
             const toolUseId = block.tool_use_id as string;
             const isError = block.is_error === true;
             toolResultMap.set(toolUseId, {
-              isError,
               errorContent: isError
                 ? extractErrorContent(block.content)
                 : undefined,
+              isError,
             });
           }
         }
@@ -305,9 +319,7 @@ export const parseSessionFile = (
       if (type === "assistant" && obj.message) {
         const message = obj.message as Record<string, unknown>;
         const usage = (message.usage ?? {}) as Record<string, number>;
-        const content = (message.content ?? []) as Array<
-          Record<string, unknown>
-        >;
+        const content = (message.content ?? []) as Record<string, unknown>[];
         const model = (message.model ?? "unknown") as string;
 
         // Token counts
@@ -357,37 +369,37 @@ export const parseSessionFile = (
         // Track cumulative tokens for context window usage
         cumulativeTokens += inputTokens + cacheRead + cacheWrite;
         const hitRatio = cacheHitRatio({
-          uncachedInput: inputTokens,
           cacheRead,
           cacheWrite,
+          uncachedInput: inputTokens,
         });
 
         contextWindowUsage.push({
-          sessionId: fileInfo.sessionId,
-          queryIndex,
-          cumulativeTokens,
           cacheHitRatio: hitRatio,
           costThisQuery: cost,
+          cumulativeTokens,
+          queryIndex,
+          sessionId: fileInfo.sessionId,
         });
 
         // Build query record directly
         const queryId = `${fileInfo.sessionId}:${queryIndex}`;
         queries.push({
-          id: queryId,
-          sessionId: fileInfo.sessionId,
-          queryIndex,
-          timestamp: timestamp ? new Date(timestamp).getTime() : Date.now(),
-          model,
-          inputTokens,
-          outputTokens,
+          assistantPreview: extractPreview(content),
           cacheRead,
           cacheWrite,
           cost,
-          userMessagePreview: lastUserPreview,
-          assistantPreview: extractPreview(content),
-          thinkingChars: countThinkingChars(content),
-          ephemeral5mTokens: ephemeral5m,
           ephemeral1hTokens: ephemeral1h,
+          ephemeral5mTokens: ephemeral5m,
+          id: queryId,
+          inputTokens,
+          model,
+          outputTokens,
+          queryIndex,
+          sessionId: fileInfo.sessionId,
+          thinkingChars: countThinkingChars(content),
+          timestamp: timestamp ? new Date(timestamp).getTime() : Date.now(),
+          userMessagePreview: lastUserPreview,
         });
 
         // Extract tool uses from this response
@@ -423,18 +435,18 @@ export const parseSessionFile = (
             toolUses.push(toolUse);
 
             // Track for deferred error resolution (tool_result comes AFTER tool_use in JSONL)
-            pendingToolUses.push({ toolUse, apiToolId });
+            pendingToolUses.push({ apiToolId, toolUse });
 
             // ─── Extract file operations ─────────────────────────────────────
             const operation = toolToOperation(toolName);
             if (operation && targetPath) {
               fileOperations.push({
-                sessionId: fileInfo.sessionId,
-                toolUseId: globalToolId,
-                operation,
-                filePath: targetPath,
                 fileExtension: extractFileExtension(targetPath),
+                filePath: targetPath,
+                operation,
+                sessionId: fileInfo.sessionId,
                 timestamp: timestampMs,
+                toolUseId: globalToolId,
               });
             }
 
@@ -442,13 +454,13 @@ export const parseSessionFile = (
             if (toolName === "Bash" && input?.command) {
               const command = String(input.command);
               bashCommands.push({
-                sessionId: fileInfo.sessionId,
-                queryId,
+                category: categorizeBashCommand(command),
                 command: command.slice(0, 1000),
                 description: input.description
                   ? String(input.description).slice(0, 200)
                   : null,
-                category: categorizeBashCommand(command),
+                queryId,
+                sessionId: fileInfo.sessionId,
                 timestamp: timestampMs,
               });
             }
@@ -456,10 +468,10 @@ export const parseSessionFile = (
             // ─── Extract skill invocations ───────────────────────────────────
             if (toolName === "Skill" && input?.skill) {
               skillInvocations.push({
-                sessionId: fileInfo.sessionId,
-                skillName: String(input.skill),
                 args: input.args ? String(input.args).slice(0, 500) : null,
                 queryIndex,
+                sessionId: fileInfo.sessionId,
+                skillName: String(input.skill),
                 timestamp: timestampMs,
               });
             }
@@ -467,12 +479,12 @@ export const parseSessionFile = (
             // ─── Extract agent spawns (Task tool) ────────────────────────────
             if (toolName === "Task" && input?.subagent_type) {
               agentSpawns.push({
-                sessionId: fileInfo.sessionId,
                 agentType: String(input.subagent_type),
                 description: input.description
                   ? String(input.description).slice(0, 200)
                   : null,
                 queryIndex,
+                sessionId: fileInfo.sessionId,
                 timestamp: timestampMs,
               });
             }
@@ -499,10 +511,10 @@ export const parseSessionFile = (
 
         if (prNumber != null && prUrl && prRepository) {
           prLinks.push({
-            sessionId: fileInfo.sessionId,
             prNumber,
-            prUrl,
             prRepository,
+            prUrl,
+            sessionId: fileInfo.sessionId,
             timestamp: timestampMs,
           });
         }
@@ -523,49 +535,49 @@ export const parseSessionFile = (
     // Calculate saved by caching
     const savedByCaching = Math.max(
       0,
-      totalFullInputCost - totalActualInputCost,
+      totalFullInputCost - totalActualInputCost
     );
 
     // Build session record
     const session: schema.NewSession = {
-      sessionId: fileInfo.sessionId,
-      projectPath: fileInfo.project,
+      compactions,
+      cwd,
       displayName,
-      startTime: startTime ?? Date.now(),
-      endTime,
       durationMs: startTime && endTime ? endTime - startTime : null,
-      totalInputTokens,
-      totalOutputTokens,
+      endTime,
+      gitBranch: null,
+      isSubagent: fileInfo.isSubagent,
+      parentSessionId: fileInfo.parentSessionId,
+      projectPath: fileInfo.project,
+      queryCount: queries.length,
+      savedByCaching,
+      sessionId: fileInfo.sessionId,
+      slug: null,
+      startTime: startTime ?? Date.now(),
+      toolUseCount: toolUses.length,
       totalCacheRead,
       totalCacheWrite,
       totalCost,
-      queryCount: queries.length,
-      toolUseCount: toolUses.length,
-      cwd,
-      version,
-      gitBranch: null,
-      slug: null,
-      parentSessionId: fileInfo.parentSessionId,
-      isSubagent: fileInfo.isSubagent,
-      compactions,
-      savedByCaching,
-      turnCount,
-      totalEphemeral5mTokens,
       totalEphemeral1hTokens,
+      totalEphemeral5mTokens,
+      totalInputTokens,
+      totalOutputTokens,
+      turnCount,
+      version,
     };
 
     return {
-      session,
-      queries,
-      toolUses,
+      agentSpawns,
+      apiErrors,
+      bashCommands,
+      contextWindowUsage,
       fileOperations,
       hookEvents,
-      bashCommands,
-      apiErrors,
-      skillInvocations,
-      agentSpawns,
-      slashCommands,
-      contextWindowUsage,
       prLinks,
+      queries,
+      session,
+      skillInvocations,
+      slashCommands,
+      toolUses,
     };
   });

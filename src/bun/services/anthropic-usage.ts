@@ -1,8 +1,13 @@
-import { Context, Duration, Effect, Layer, Schedule, Schema } from "effect";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
+
+import { Context, Duration, Effect, Layer, Schedule, Schema } from "effect";
+
+import type {
+  AnthropicUsage,
+  AnthropicUsageWindow,
+} from "../../shared/rpc-types";
 import { AnthropicUsageError } from "../errors";
-import type { AnthropicUsage, AnthropicUsageWindow } from "../../shared/rpc-types";
 
 // ─── Concurrency Control ────────────────────────────────────────────────────
 //
@@ -23,6 +28,12 @@ const cliProbeMutex = Effect.runSync(Effect.makeSemaphore(1));
  * The API returns usage windows with percent_used and reset_at timestamps.
  */
 const OAuthUsageResponse = Schema.Struct({
+  extra_usage: Schema.optional(
+    Schema.Struct({
+      limit_usd: Schema.NullOr(Schema.Number),
+      spent_usd: Schema.Number,
+    })
+  ),
   five_hour: Schema.Struct({
     percent_used: Schema.Number,
     reset_at: Schema.NullOr(Schema.Number),
@@ -31,22 +42,16 @@ const OAuthUsageResponse = Schema.Struct({
     percent_used: Schema.Number,
     reset_at: Schema.NullOr(Schema.Number),
   }),
-  seven_day_sonnet: Schema.optional(
-    Schema.Struct({
-      percent_used: Schema.Number,
-      reset_at: Schema.NullOr(Schema.Number),
-    })
-  ),
   seven_day_opus: Schema.optional(
     Schema.Struct({
       percent_used: Schema.Number,
       reset_at: Schema.NullOr(Schema.Number),
     })
   ),
-  extra_usage: Schema.optional(
+  seven_day_sonnet: Schema.optional(
     Schema.Struct({
-      spent_usd: Schema.Number,
-      limit_usd: Schema.NullOr(Schema.Number),
+      percent_used: Schema.Number,
+      reset_at: Schema.NullOr(Schema.Number),
     })
   ),
 });
@@ -60,11 +65,11 @@ const OAuthUsageResponse = Schema.Struct({
 const KeychainCredentials = Schema.Struct({
   claudeAiOauth: Schema.Struct({
     accessToken: Schema.String,
-    refreshToken: Schema.String,
     expiresAt: Schema.optional(Schema.Number),
-    subscriptionType: Schema.optional(Schema.String),
     rateLimitTier: Schema.optional(Schema.String),
+    refreshToken: Schema.String,
     scopes: Schema.optional(Schema.Array(Schema.String)),
+    subscriptionType: Schema.optional(Schema.String),
   }),
 });
 
@@ -114,17 +119,18 @@ let usageCache: CachedUsage | null = null;
 const parseUsageOutput = (output: string): AnthropicUsage => {
   // Strip all ANSI escape sequences comprehensively
   const clean = output
-    .replace(/\x1b\[[0-9;?]*[a-zA-Z]/g, "") // CSI sequences (colors, cursor)
-    .replace(/\x1b\][^\x07]*\x07/g, "") // OSC sequences (title, etc)
-    .replace(/\x1b[PX^_][^\x1b]*\x1b\\/g, "") // DCS/PM/APC sequences
-    .replace(/\x1b[()][AB012]/g, "") // Character set selection
-    .replace(/\x1b[=>]/g, "") // Keypad mode
-    .replace(/[\x00-\x08\x0b\x0c\x0e-\x1a]/g, ""); // Control chars except \t\n\r
+    .replaceAll(/\u001B\[[0-9;?]*[a-zA-Z]/g, "") // CSI sequences (colors, cursor)
+    .replaceAll(/\u001B\][^\u0007]*\u0007/g, "") // OSC sequences (title, etc)
+    .replaceAll(/\u001B[PX^_][^\u001B]*\u001B\\/g, "") // DCS/PM/APC sequences
+    .replaceAll(/\u001B[()][AB012]/g, "") // Character set selection
+    .replaceAll(/\u001B[=>]/g, "") // Keypad mode
+    .replaceAll(/[\u0000-\u0008\u000B\u000C\u000E-\u001A]/g, ""); // Control chars except \t\n\r
 
   // DEBUG: Find ALL percentage patterns in the output
   const allPercentages = clean.match(/\d+%/g) || [];
   const allUsedPatterns = clean.match(/\d+%\s*used/gi) || [];
-  const allSpentPatterns = clean.match(/\$[\d.]+\s*\/\s*\$[\d.]+\s*spent/gi) || [];
+  const allSpentPatterns =
+    clean.match(/\$[\d.]+\s*\/\s*\$[\d.]+\s*spent/gi) || [];
 
   // Extract reset patterns with timezone - formats:
   // "Resets 4am (Europe/London)" - session
@@ -137,38 +143,44 @@ const parseUsageOutput = (output: string): AnthropicUsage => {
   // - Date + time: "Mar 3 at 4pm (Europe/London)"
   // - Date only: "Mar 1 (Europe/London)"
   const timePatterns = clean.match(/\d+(?::\d+)?(?:am|pm)\s*\([^)]+\)/gi) || [];
-  const dateTimePatterns = clean.match(
-    /(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d+(?:\s+at\s+\d+(?:am|pm))?\s*\([^)]+\)/gi
-  ) || [];
+  const dateTimePatterns =
+    clean.match(
+      /(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d+(?:\s+at\s+\d+(?:am|pm))?\s*\([^)]+\)/gi
+    ) || [];
 
   // Combine and dedupe (dateTime patterns may overlap with time-only patterns)
   const allResetPatterns = [...new Set([...timePatterns, ...dateTimePatterns])];
 
   console.log("[anthropic-usage] DEBUG - All patterns found:", {
-    percentages: allPercentages,
-    usedPatterns: allUsedPatterns,
-    spentPatterns: allSpentPatterns,
-    timePatterns,
     dateTimePatterns,
-    resetPatterns: allResetPatterns,
     hasCurrentSession: clean.includes("Current session"),
     hasCurrentWeek: clean.includes("Current week"),
-    hasSonnet: clean.includes("Sonnet"),
     hasExtraUsage: clean.includes("Extra usage"),
+    hasSonnet: clean.includes("Sonnet"),
+    percentages: allPercentages,
+    resetPatterns: allResetPatterns,
+    spentPatterns: allSpentPatterns,
+    timePatterns,
+    usedPatterns: allUsedPatterns,
   });
 
   // Try the original regex approach first
   const sessionMatch = clean.match(/Current session[\s\S]*?(\d+)%\s*used/i);
-  const weeklyMatch = clean.match(/Current week\s*\(all models\)[\s\S]*?(\d+)%\s*used/i);
+  const weeklyMatch = clean.match(
+    /Current week\s*\(all models\)[\s\S]*?(\d+)%\s*used/i
+  );
   const sonnetMatch = clean.match(/Sonnet only[\s\S]*?(\d+)%\s*used/i);
   const extraUsageMatch = clean.match(/Extra usage[\s\S]*?(\d+)%\s*used/i);
-  const extraSpendingMatch = clean.match(/\$([0-9.]+)\s*\/\s*\$([0-9.]+)\s*spent/i);
+  const extraSpendingMatch = clean.match(
+    /\$([0-9.]+)\s*\/\s*\$([0-9.]+)\s*spent/i
+  );
 
   // FALLBACK: Use positional extraction from "X% used" patterns
   // The usage panel renders in order: session, weekly (all models), sonnet, extra
   // This is more reliable than label-based regex since TUI cursor positioning
   // separates labels from values
-  const extractPct = (s: string) => parseInt(s.match(/(\d+)%/)?.[1] || "0", 10);
+  const extractPct = (s: string) =>
+    Number.parseInt(s.match(/(\d+)%/)?.[1] || "0", 10);
 
   let sessionPct = 0;
   let weeklyPct = 0;
@@ -177,17 +189,22 @@ const parseUsageOutput = (output: string): AnthropicUsage => {
 
   if (allUsedPatterns.length >= 4) {
     // We have all 4 patterns - use positional extraction
-    console.log("[anthropic-usage] Using positional extraction from:", allUsedPatterns);
+    console.log(
+      "[anthropic-usage] Using positional extraction from:",
+      allUsedPatterns
+    );
     sessionPct = extractPct(allUsedPatterns[0]!);
     weeklyPct = extractPct(allUsedPatterns[1]!);
     sonnetPct = extractPct(allUsedPatterns[2]!);
     extraPct = extractPct(allUsedPatterns[3]!);
   } else {
     // Fallback to label-based regex (less reliable with TUI output)
-    sessionPct = sessionMatch?.[1] ? parseInt(sessionMatch[1], 10) : 0;
-    weeklyPct = weeklyMatch?.[1] ? parseInt(weeklyMatch[1], 10) : 0;
-    sonnetPct = sonnetMatch?.[1] ? parseInt(sonnetMatch[1], 10) : 0;
-    extraPct = extraUsageMatch?.[1] ? parseInt(extraUsageMatch[1], 10) : 0;
+    sessionPct = sessionMatch?.[1] ? Number.parseInt(sessionMatch[1], 10) : 0;
+    weeklyPct = weeklyMatch?.[1] ? Number.parseInt(weeklyMatch[1], 10) : 0;
+    sonnetPct = sonnetMatch?.[1] ? Number.parseInt(sonnetMatch[1], 10) : 0;
+    extraPct = extraUsageMatch?.[1]
+      ? Number.parseInt(extraUsageMatch[1], 10)
+      : 0;
   }
 
   // Extract reset times with timezone by position
@@ -199,52 +216,66 @@ const parseUsageOutput = (output: string): AnthropicUsage => {
 
   // Assign by position - time-only patterns typically come first (session),
   // date patterns come later (weekly, extra)
-  if (allResetPatterns.length >= 1) sessionResetRaw = allResetPatterns[0]!.trim();
-  if (allResetPatterns.length >= 2) weeklyResetRaw = allResetPatterns[1]!.trim();
-  if (allResetPatterns.length >= 3) extraResetRaw = allResetPatterns[2]!.trim();
+  if (allResetPatterns.length >= 1) {
+    sessionResetRaw = allResetPatterns[0]!.trim();
+  }
+  if (allResetPatterns.length >= 2) {
+    weeklyResetRaw = allResetPatterns[1]!.trim();
+  }
+  if (allResetPatterns.length >= 3) {
+    extraResetRaw = allResetPatterns[2]!.trim();
+  }
 
   const result: AnthropicUsage = {
     session: {
+      limit: "5-hour window",
       percentUsed: sessionPct,
       resetAt: sessionResetRaw ? parseResetTimeFromDate(sessionResetRaw) : null,
       resetAtRaw: sessionResetRaw,
-      limit: "5-hour window",
     },
     weekly: {
+      limit: "7-day limit",
       percentUsed: weeklyPct,
       resetAt: weeklyResetRaw ? parseResetTimeFromDate(weeklyResetRaw) : null,
       resetAtRaw: weeklyResetRaw,
-      limit: "7-day limit",
     },
     opus: null,
     // Always include sonnet if we have data (even 0% is valid)
-    sonnet: allUsedPatterns.length >= 3
-      ? {
-          percentUsed: sonnetPct,
-          resetAt: null,
-          resetAtRaw: null, // Sonnet doesn't show reset time
-          limit: "Sonnet 7-day",
-        }
-      : null,
+    sonnet:
+      allUsedPatterns.length >= 3
+        ? {
+            percentUsed: sonnetPct,
+            resetAt: null,
+            resetAtRaw: null, // Sonnet doesn't show reset time
+            limit: "Sonnet 7-day",
+          }
+        : null,
     // Include extraUsage if we have percentage or spending data
-    extraUsage: allUsedPatterns.length >= 4 || extraSpendingMatch
-      ? {
-          percentUsed: extraPct,
-          spentUsd: extraSpendingMatch?.[1] ? parseFloat(extraSpendingMatch[1]) : 0,
-          limitUsd: extraSpendingMatch?.[2] ? parseFloat(extraSpendingMatch[2]) : null,
-          resetAtRaw: extraResetRaw,
-        }
-      : undefined,
+    extraUsage:
+      allUsedPatterns.length >= 4 || extraSpendingMatch
+        ? {
+            limitUsd: extraSpendingMatch?.[2]
+              ? Number.parseFloat(extraSpendingMatch[2])
+              : null,
+            percentUsed: extraPct,
+            resetAtRaw: extraResetRaw,
+            spentUsd: extraSpendingMatch?.[1]
+              ? Number.parseFloat(extraSpendingMatch[1])
+              : 0,
+          }
+        : undefined,
     fetchedAt: Date.now(),
     source: "cli",
   };
 
   console.log("[anthropic-usage] Parsed result:", {
-    session: `${result.session.percentUsed}% (resets: ${sessionResetRaw})`,
-    weekly: `${result.weekly.percentUsed}% (resets: ${weeklyResetRaw})`,
-    sonnet: result.sonnet ? `${result.sonnet.percentUsed}%` : null,
+    extraSpending: extraSpendingMatch
+      ? `$${extraSpendingMatch[1]}/$${extraSpendingMatch[2]}`
+      : null,
     extraUsage: `${extraPct}% (resets: ${extraResetRaw})`,
-    extraSpending: extraSpendingMatch ? `$${extraSpendingMatch[1]}/$${extraSpendingMatch[2]}` : null,
+    session: `${result.session.percentUsed}% (resets: ${sessionResetRaw})`,
+    sonnet: result.sonnet ? `${result.sonnet.percentUsed}%` : null,
+    weekly: `${result.weekly.percentUsed}% (resets: ${weeklyResetRaw})`,
   });
 
   return result;
@@ -265,12 +296,16 @@ const parseResetTimeFromDate = (dateStr: string): number | null => {
   // Try to parse "3:59am" or "4am" format (time today)
   const timeMatch = cleanDate.match(/^(\d{1,2})(?::(\d{2}))?(am|pm)$/i);
   if (timeMatch && timeMatch[1] && timeMatch[3]) {
-    let hours = parseInt(timeMatch[1], 10);
-    const minutes = timeMatch[2] ? parseInt(timeMatch[2], 10) : 0;
+    let hours = Number.parseInt(timeMatch[1], 10);
+    const minutes = timeMatch[2] ? Number.parseInt(timeMatch[2], 10) : 0;
     const isPM = timeMatch[3].toLowerCase() === "pm";
 
-    if (isPM && hours !== 12) hours += 12;
-    if (!isPM && hours === 12) hours = 0;
+    if (isPM && hours !== 12) {
+      hours += 12;
+    }
+    if (!isPM && hours === 12) {
+      hours = 0;
+    }
 
     const reset = new Date(now);
     reset.setHours(hours, minutes, 0, 0);
@@ -282,18 +317,45 @@ const parseResetTimeFromDate = (dateStr: string): number | null => {
   }
 
   // Try to parse "Mar 3 at 4pm" format
-  const dateTimeMatch = cleanDate.match(/^(\w+)\s+(\d{1,2})\s+at\s+(\d{1,2})(am|pm)$/i);
-  if (dateTimeMatch && dateTimeMatch[1] && dateTimeMatch[2] && dateTimeMatch[3] && dateTimeMatch[4]) {
-    const monthNames = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
-    const monthIndex = monthNames.indexOf(dateTimeMatch[1].toLowerCase().slice(0, 3));
-    const day = parseInt(dateTimeMatch[2], 10);
-    let hours = parseInt(dateTimeMatch[3], 10);
+  const dateTimeMatch = cleanDate.match(
+    /^(\w+)\s+(\d{1,2})\s+at\s+(\d{1,2})(am|pm)$/i
+  );
+  if (
+    dateTimeMatch &&
+    dateTimeMatch[1] &&
+    dateTimeMatch[2] &&
+    dateTimeMatch[3] &&
+    dateTimeMatch[4]
+  ) {
+    const monthNames = [
+      "jan",
+      "feb",
+      "mar",
+      "apr",
+      "may",
+      "jun",
+      "jul",
+      "aug",
+      "sep",
+      "oct",
+      "nov",
+      "dec",
+    ];
+    const monthIndex = monthNames.indexOf(
+      dateTimeMatch[1].toLowerCase().slice(0, 3)
+    );
+    const day = Number.parseInt(dateTimeMatch[2], 10);
+    let hours = Number.parseInt(dateTimeMatch[3], 10);
     const isPM = dateTimeMatch[4].toLowerCase() === "pm";
 
-    if (isPM && hours !== 12) hours += 12;
-    if (!isPM && hours === 12) hours = 0;
+    if (isPM && hours !== 12) {
+      hours += 12;
+    }
+    if (!isPM && hours === 12) {
+      hours = 0;
+    }
 
-    if (monthIndex >= 0) {
+    if (monthIndex !== -1) {
       const reset = new Date(now.getFullYear(), monthIndex, day, hours, 0, 0);
       // If the date has passed this year, it's next year
       if (reset.getTime() < now.getTime()) {
@@ -306,11 +368,26 @@ const parseResetTimeFromDate = (dateStr: string): number | null => {
   // Try to parse "Mar 1" format (date only, assume midnight)
   const dateOnlyMatch = cleanDate.match(/^(\w+)\s+(\d{1,2})$/i);
   if (dateOnlyMatch && dateOnlyMatch[1] && dateOnlyMatch[2]) {
-    const monthNames = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
-    const monthIndex = monthNames.indexOf(dateOnlyMatch[1].toLowerCase().slice(0, 3));
-    const day = parseInt(dateOnlyMatch[2], 10);
+    const monthNames = [
+      "jan",
+      "feb",
+      "mar",
+      "apr",
+      "may",
+      "jun",
+      "jul",
+      "aug",
+      "sep",
+      "oct",
+      "nov",
+      "dec",
+    ];
+    const monthIndex = monthNames.indexOf(
+      dateOnlyMatch[1].toLowerCase().slice(0, 3)
+    );
+    const day = Number.parseInt(dateOnlyMatch[2], 10);
 
-    if (monthIndex >= 0) {
+    if (monthIndex !== -1) {
       const reset = new Date(now.getFullYear(), monthIndex, day, 0, 0, 0);
       // If the date has passed this year, it's next year
       if (reset.getTime() < now.getTime()) {
@@ -327,7 +404,7 @@ const parseResetTimeFromDate = (dateStr: string): number | null => {
  * Check if a command exists on the system.
  */
 const commandExists = async (cmd: string): Promise<boolean> => {
-  const proc = Bun.spawn(["which", cmd], { stdout: "pipe", stderr: "pipe" });
+  const proc = Bun.spawn(["which", cmd], { stderr: "pipe", stdout: "pipe" });
   return (await proc.exited) === 0;
 };
 
@@ -347,6 +424,12 @@ const commandExists = async (cmd: string): Promise<boolean> => {
  */
 const tryCliUsage = () =>
   Effect.tryPromise({
+    catch: (e) =>
+      new AnthropicUsageError({
+        cause: e,
+        message: `CLI probe failed: ${e}`,
+        reason: "api_error",
+      }),
     try: async () => {
       // Skip CLI probe in test environments to avoid dangling processes
       if (process.env.BUN_TEST === "1" || process.env.NODE_ENV === "test") {
@@ -372,15 +455,16 @@ const tryCliUsage = () =>
       let output = "";
       let resolved = false;
       let dataCallbackCount = 0; // DEBUG: track callback invocations
+      let trustPromptHandled = false; // Prevent re-handling after first confirmation
       const decoder = new TextDecoder();
 
       // Helper to clean up sandbox directory
       const cleanupSandbox = () => {
         try {
-          rmSync(sandboxDir, { recursive: true, force: true });
+          rmSync(sandboxDir, { force: true, recursive: true });
           console.log("[anthropic-usage] Cleaned up sandbox directory");
-        } catch (e) {
-          console.log("[anthropic-usage] Failed to cleanup sandbox:", e);
+        } catch (error) {
+          console.log("[anthropic-usage] Failed to cleanup sandbox:", error);
         }
       };
 
@@ -393,25 +477,28 @@ const tryCliUsage = () =>
 
             // Strip ANSI for debug display
             const cleanedForDebug = output
-              .replace(/\x1b\[[0-9;?]*[a-zA-Z]/g, "")
-              .replace(/\x1b\][^\x07]*\x07/g, "")
-              .replace(/\x1b[PX^_][^\x1b]*\x1b\\/g, "")
-              .replace(/\x1b[()][AB012]/g, "")
-              .replace(/\x1b[=>]/g, "")
-              .replace(/[\x00-\x08\x0b\x0c\x0e-\x1a]/g, "");
+              .replaceAll(/\u001B\[[0-9;?]*[a-zA-Z]/g, "")
+              .replaceAll(/\u001B\][^\u0007]*\u0007/g, "")
+              .replaceAll(/\u001B[PX^_][^\u001B]*\u001B\\/g, "")
+              .replaceAll(/\u001B[()][AB012]/g, "")
+              .replaceAll(/\u001B[=>]/g, "")
+              .replaceAll(/[\u0000-\u0008\u000B\u000C\u000E-\u001A]/g, "");
 
             // DEBUG: Log state at timeout with CLEANED output
             console.log("[anthropic-usage] TIMEOUT DEBUG:", {
-              dataCallbackCount,
-              outputLength: output.length,
               cleanedLength: cleanedForDebug.length,
-              hasPercentUsed: cleanedForDebug.includes("% used"),
+              dataCallbackCount,
               hasCurrentSession: cleanedForDebug.includes("Current session"),
               hasCurrentWeek: cleanedForDebug.includes("Current week"),
+              hasPercentUsed: cleanedForDebug.includes("% used"),
               hasTerminal: !!proc.terminal,
+              outputLength: output.length,
             });
             // Log first 1000 chars of cleaned output to see actual content
-            console.log("[anthropic-usage] CLEANED OUTPUT:", cleanedForDebug.slice(0, 1000));
+            console.log(
+              "[anthropic-usage] CLEANED OUTPUT:",
+              cleanedForDebug.slice(0, 1000)
+            );
             reject(new Error("CLI probe timed out after 10s"));
           }
         }, 10_000);
@@ -432,27 +519,36 @@ const tryCliUsage = () =>
               // DEBUG: Log each chunk received (first 100 chars, newlines escaped)
               console.log(
                 `[anthropic-usage] PTY data #${dataCallbackCount}:`,
-                chunk.slice(0, 100).replace(/\n/g, "\\n").replace(/\r/g, "\\r")
+                chunk
+                  .slice(0, 100)
+                  .replaceAll("\n", "\\n")
+                  .replaceAll("\r", "\\r")
               );
 
               // Strip ANSI codes before pattern matching (same logic as parseUsageOutput)
               const clean = output
-                .replace(/\x1b\[[0-9;?]*[a-zA-Z]/g, "") // CSI sequences
-                .replace(/\x1b\][^\x07]*\x07/g, "") // OSC sequences
-                .replace(/\x1b[PX^_][^\x1b]*\x1b\\/g, "") // DCS/PM/APC
-                .replace(/\x1b[()][AB012]/g, "") // Character set
-                .replace(/\x1b[=>]/g, ""); // Keypad mode
+                .replaceAll(/\u001B\[[0-9;?]*[a-zA-Z]/g, "") // CSI sequences
+                .replaceAll(/\u001B\][^\u0007]*\u0007/g, "") // OSC sequences
+                .replaceAll(/\u001B[PX^_][^\u001B]*\u001B\\/g, "") // DCS/PM/APC
+                .replaceAll(/\u001B[()][AB012]/g, "") // Character set
+                .replaceAll(/\u001B[=>]/g, ""); // Keypad mode
 
               // Detect workspace trust prompt and auto-confirm.
               // This appears when entering an unfamiliar directory (like our temp sandbox).
-              // The prompt asks "Is this a project you created or one you trust?" with options:
-              // 1. Yes, I trust this folder
-              // 2. No, exit
+              // NOTE: TUI cursor positioning embeds spaces in ANSI sequences.
+              // After stripping ANSI codes, text appears without spaces:
+              // "trust this folder" → "trustthisfolder"
+              // "safety check" → "safetycheck"
               if (
-                (clean.includes("trust this folder") || clean.includes("safety check")) &&
+                !trustPromptHandled &&
+                (clean.includes("trustthisfolder") ||
+                  clean.includes("safetycheck")) &&
                 (clean.includes("Yes") || clean.includes("1."))
               ) {
-                console.log("[anthropic-usage] Workspace trust prompt detected, confirming...");
+                console.log(
+                  "[anthropic-usage] Workspace trust prompt detected, confirming..."
+                );
+                trustPromptHandled = true;
                 terminal.write("1\r"); // Select "Yes, I trust this folder"
                 return; // Wait for next data callback
               }
@@ -463,9 +559,12 @@ const tryCliUsage = () =>
               if (
                 clean.includes("MCP server") &&
                 clean.includes("found") &&
-                (clean.includes("Continue without") || clean.includes("without using"))
+                (clean.includes("Continue without") ||
+                  clean.includes("without using"))
               ) {
-                console.log("[anthropic-usage] MCP prompt detected, bypassing...");
+                console.log(
+                  "[anthropic-usage] MCP prompt detected, bypassing..."
+                );
                 terminal.write("3\r"); // Select "Continue without using this MCP server"
                 return; // Wait for next data callback
               }
@@ -475,7 +574,9 @@ const tryCliUsage = () =>
               // We also look for "$X.XX" spending pattern or "Resets" text as confirmation
               const hasUsagePanel =
                 clean.includes("Current session") &&
-                (clean.includes("Esc") || clean.includes("Resets") || clean.includes("spent"));
+                (clean.includes("Esc") ||
+                  clean.includes("Resets") ||
+                  clean.includes("spent"));
 
               // Also check for percentage pattern with regex (handles ANSI-broken strings)
               // Look for patterns like "69% used" in the raw output
@@ -485,12 +586,12 @@ const tryCliUsage = () =>
 
               if (hasUsageData) {
                 console.log("[anthropic-usage] Usage data detected!", {
-                  hasUsagePanel,
-                  hasPercentPattern,
                   hasCurrentSession: clean.includes("Current session"),
                   hasEsc: clean.includes("Esc"),
+                  hasPercentPattern,
                   hasResets: clean.includes("Resets"),
                   hasSpent: clean.includes("spent"),
+                  hasUsagePanel,
                 });
                 setTimeout(() => {
                   if (!resolved) {
@@ -505,9 +606,9 @@ const tryCliUsage = () =>
                         const usage = parseUsageOutput(output);
                         cleanupSandbox();
                         resolve(usage);
-                      } catch (e) {
+                      } catch (error) {
                         cleanupSandbox();
-                        reject(e);
+                        reject(error);
                       }
                     }, 100);
                   }
@@ -522,7 +623,10 @@ const tryCliUsage = () =>
         });
 
         // DEBUG: Check if terminal exists immediately after spawn
-        console.log("[anthropic-usage] PTY spawned, terminal exists:", !!proc.terminal);
+        console.log(
+          "[anthropic-usage] PTY spawned, terminal exists:",
+          !!proc.terminal
+        );
 
         // Wait for prompt, then send /usage command (use \r for PTY)
         // NOTE: /usage opens a command palette menu, so we need to:
@@ -537,7 +641,9 @@ const tryCliUsage = () =>
             // After a short delay, press Enter to select the menu item
             setTimeout(() => {
               if (!resolved && proc.terminal) {
-                console.log("[anthropic-usage] Pressing Enter to select menu item...");
+                console.log(
+                  "[anthropic-usage] Pressing Enter to select menu item..."
+                );
                 proc.terminal.write("\r");
               }
             }, 300);
@@ -547,12 +653,6 @@ const tryCliUsage = () =>
         }, 500);
       });
     },
-    catch: (e) =>
-      new AnthropicUsageError({
-        reason: "api_error",
-        message: `CLI probe failed: ${e}`,
-        cause: e,
-      }),
   });
 
 /**
@@ -561,7 +661,9 @@ const tryCliUsage = () =>
  */
 const tryCliUsageWithRetry = () =>
   tryCliUsage().pipe(
-    Effect.retry(Schedule.recurs(2).pipe(Schedule.addDelay(() => Duration.millis(500)))),
+    Effect.retry(
+      Schedule.recurs(2).pipe(Schedule.addDelay(() => Duration.millis(500)))
+    ),
     Effect.catchAll((err) => {
       console.log("[anthropic-usage] CLI probe failed after retries:", err);
       return Effect.succeed(null);
@@ -577,7 +679,10 @@ export class AnthropicUsageService extends Context.Tag("AnthropicUsageService")<
     readonly getUsage: () => Effect.Effect<AnthropicUsage, AnthropicUsageError>;
 
     /** Force refresh usage data, bypassing cache */
-    readonly refreshUsage: () => Effect.Effect<AnthropicUsage, AnthropicUsageError>;
+    readonly refreshUsage: () => Effect.Effect<
+      AnthropicUsage,
+      AnthropicUsageError
+    >;
 
     /** Clear the usage cache */
     readonly clearCache: () => Effect.Effect<void, never>;
@@ -590,12 +695,12 @@ export class AnthropicUsageService extends Context.Tag("AnthropicUsageService")<
  * Create an "unavailable" usage object when we can't fetch real data.
  */
 const createUnavailableUsage = (): AnthropicUsage => ({
-  session: { percentUsed: 0, resetAt: null, resetAtRaw: null, limit: null },
-  weekly: { percentUsed: 0, resetAt: null, resetAtRaw: null, limit: null },
-  sonnet: null,
-  opus: null,
   fetchedAt: Date.now(),
+  opus: null,
+  session: { limit: null, percentUsed: 0, resetAt: null, resetAtRaw: null },
+  sonnet: null,
   source: "unavailable",
+  weekly: { limit: null, percentUsed: 0, resetAt: null, resetAtRaw: null },
 });
 
 /**
@@ -605,30 +710,36 @@ const createUnavailableUsage = (): AnthropicUsage => ({
 const createCredentialsOnlyUsage = (
   creds: Schema.Schema.Type<typeof KeychainCredentials>
 ): AnthropicUsage => ({
-  session: { percentUsed: 0, resetAt: null, resetAtRaw: null, limit: null },
-  weekly: { percentUsed: 0, resetAt: null, resetAtRaw: null, limit: null },
-  sonnet: null,
-  opus: null,
-  subscription: {
-    type: creds.claudeAiOauth.subscriptionType ?? "unknown",
-    rateLimitTier: creds.claudeAiOauth.rateLimitTier ?? "unknown",
-    expiresAt: creds.claudeAiOauth.expiresAt ?? null,
-  },
   fetchedAt: Date.now(),
+  opus: null,
+  session: { limit: null, percentUsed: 0, resetAt: null, resetAtRaw: null },
+  sonnet: null,
   source: "credentials",
+  subscription: {
+    expiresAt: creds.claudeAiOauth.expiresAt ?? null,
+    rateLimitTier: creds.claudeAiOauth.rateLimitTier ?? "unknown",
+    type: creds.claudeAiOauth.subscriptionType ?? "unknown",
+  },
+  weekly: { limit: null, percentUsed: 0, resetAt: null, resetAtRaw: null },
 });
 
 /**
  * Read Claude Code credentials from macOS Keychain.
  */
 const readKeychainCredentials = () =>
-  Effect.gen(function* () {
+  Effect.gen(function* readKeychainCredentials() {
     // Use macOS security command to read from Keychain
     const proc = Bun.spawn(
-      ["security", "find-generic-password", "-s", "Claude Code-credentials", "-w"],
+      [
+        "security",
+        "find-generic-password",
+        "-s",
+        "Claude Code-credentials",
+        "-w",
+      ],
       {
-        stdout: "pipe",
         stderr: "pipe",
+        stdout: "pipe",
       }
     );
 
@@ -636,31 +747,35 @@ const readKeychainCredentials = () =>
 
     if (exitCode !== 0) {
       return yield* new AnthropicUsageError({
-        reason: "no_credentials",
         message: "No Claude Code credentials found in Keychain",
+        reason: "no_credentials",
       });
     }
 
-    const credentialsJson = yield* Effect.promise(() => new Response(proc.stdout).text());
+    const credentialsJson = yield* Effect.promise(() =>
+      new Response(proc.stdout).text()
+    );
 
     // Parse and validate the JSON
     const parseResult = yield* Effect.tryPromise({
-      try: async () => JSON.parse(credentialsJson.trim()),
       catch: () =>
         new AnthropicUsageError({
-          reason: "parse_error",
           message: "Failed to parse Keychain credentials JSON",
+          reason: "parse_error",
         }),
+      try: async () => JSON.parse(credentialsJson.trim()),
     });
 
     // Validate against schema
-    const credentials = yield* Schema.decodeUnknown(KeychainCredentials)(parseResult).pipe(
+    const credentials = yield* Schema.decodeUnknown(KeychainCredentials)(
+      parseResult
+    ).pipe(
       Effect.mapError(
         (error) =>
           new AnthropicUsageError({
-            reason: "parse_error",
-            message: "Keychain credentials don't match expected schema",
             cause: error,
+            message: "Keychain credentials don't match expected schema",
+            reason: "parse_error",
           })
       )
     );
@@ -672,8 +787,14 @@ const readKeychainCredentials = () =>
  * Call the Anthropic OAuth usage API.
  */
 const fetchUsageFromAPI = (accessToken: string) =>
-  Effect.gen(function* () {
+  Effect.gen(function* fetchUsageFromAPI() {
     const response = yield* Effect.tryPromise({
+      catch: (cause) =>
+        new AnthropicUsageError({
+          cause,
+          message: "Failed to connect to Anthropic API",
+          reason: "api_error",
+        }),
       try: () =>
         fetch("https://api.anthropic.com/api/oauth/usage", {
           headers: {
@@ -681,19 +802,13 @@ const fetchUsageFromAPI = (accessToken: string) =>
             "Content-Type": "application/json",
           },
         }),
-      catch: (cause) =>
-        new AnthropicUsageError({
-          reason: "api_error",
-          message: "Failed to connect to Anthropic API",
-          cause,
-        }),
     });
 
     if (!response.ok) {
       // Try to parse error response for better error messages
       const errorResult = yield* Effect.tryPromise({
-        try: () => response.json() as Promise<{ error?: { message?: string } }>,
         catch: () => null,
+        try: () => response.json() as Promise<{ error?: { message?: string } }>,
       }).pipe(Effect.catchAll(() => Effect.succeed(null)));
 
       let errorMessage = `Anthropic API returned status ${response.status}`;
@@ -704,7 +819,9 @@ const fetchUsageFromAPI = (accessToken: string) =>
         // Check if OAuth is not supported (different from token expiry)
         if (errorMessage.includes("not supported")) {
           reason = "not_supported";
-          console.log("[anthropic-usage] OAuth API not supported by Anthropic yet");
+          console.log(
+            "[anthropic-usage] OAuth API not supported by Anthropic yet"
+          );
         } else if (response.status === 401) {
           reason = "token_expired";
         }
@@ -714,19 +831,19 @@ const fetchUsageFromAPI = (accessToken: string) =>
       }
 
       return yield* new AnthropicUsageError({
-        reason,
         message: errorMessage,
+        reason,
       });
     }
 
     const data = yield* Effect.tryPromise({
-      try: () => response.json(),
       catch: (cause) =>
         new AnthropicUsageError({
-          reason: "parse_error",
-          message: "Failed to parse API response JSON",
           cause,
+          message: "Failed to parse API response JSON",
+          reason: "parse_error",
         }),
+      try: () => response.json(),
     });
 
     // Validate against schema
@@ -734,9 +851,9 @@ const fetchUsageFromAPI = (accessToken: string) =>
       Effect.mapError(
         (error) =>
           new AnthropicUsageError({
-            reason: "parse_error",
-            message: "API response doesn't match expected schema",
             cause: error,
+            message: "API response doesn't match expected schema",
+            reason: "parse_error",
           })
       )
     );
@@ -761,25 +878,34 @@ const transformUsageResponse = (
   });
 
   return {
-    session: makeWindow(response.five_hour, "5-hour window"),
-    weekly: makeWindow(response.seven_day, "7-day limit"),
-    sonnet: response.seven_day_sonnet
-      ? makeWindow(response.seven_day_sonnet, "Sonnet 7-day")
-      : null,
-    opus: response.seven_day_opus ? makeWindow(response.seven_day_opus, "Opus 7-day") : null,
     extraUsage: response.extra_usage
       ? {
           // Calculate percentUsed from spent/limit (caps at 100 when over limit)
-          percentUsed: response.extra_usage.limit_usd
-            ? Math.min(100, Math.round((response.extra_usage.spent_usd / response.extra_usage.limit_usd) * 100))
-            : 0,
-          spentUsd: response.extra_usage.spent_usd,
           limitUsd: response.extra_usage.limit_usd,
-          resetAtRaw: null, // OAuth API doesn't provide this
+          percentUsed: response.extra_usage.limit_usd
+            ? Math.min(
+                100,
+                Math.round(
+                  (response.extra_usage.spent_usd /
+                    response.extra_usage.limit_usd) *
+                    100
+                )
+              )
+            : 0,
+          resetAtRaw: null,
+          spentUsd: response.extra_usage.spent_usd, // OAuth API doesn't provide this
         }
       : undefined,
     fetchedAt: Date.now(),
+    opus: response.seven_day_opus
+      ? makeWindow(response.seven_day_opus, "Opus 7-day")
+      : null,
+    session: makeWindow(response.five_hour, "5-hour window"),
+    sonnet: response.seven_day_sonnet
+      ? makeWindow(response.seven_day_sonnet, "Sonnet 7-day")
+      : null,
     source: "oauth",
+    weekly: makeWindow(response.seven_day, "7-day limit"),
   };
 };
 
@@ -791,26 +917,30 @@ const transformUsageResponse = (
  * which triggers the OAuth flow and may refresh the token automatically.
  */
 const refreshOAuthToken = () =>
-  Effect.gen(function* () {
+  Effect.gen(function* refreshOAuthToken() {
     // Run auth status which should trigger token refresh if needed
     const proc = Bun.spawn(["claude", "auth", "status"], {
-      stdout: "pipe",
+      env: { ...process.env, CLAUDECODE: "" },
       stderr: "pipe",
-      env: { ...process.env, CLAUDECODE: "" }, // Avoid nested session check
+      stdout: "pipe", // Avoid nested session check
     });
 
     const exitCode = yield* Effect.promise(() => proc.exited);
 
     if (exitCode !== 0) {
-      const stderr = yield* Effect.promise(() => new Response(proc.stderr).text());
+      const stderr = yield* Effect.promise(() =>
+        new Response(proc.stderr).text()
+      );
       return yield* new AnthropicUsageError({
-        reason: "api_error",
         message: `Failed to refresh OAuth token: ${stderr.trim()}`,
+        reason: "api_error",
       });
     }
 
     // Give a moment for keychain to update
-    yield* Effect.promise(() => new Promise(resolve => setTimeout(resolve, 500)));
+    yield* Effect.promise(
+      () => new Promise((resolve) => setTimeout(resolve, 500))
+    );
   });
 
 /**
@@ -820,32 +950,47 @@ const refreshOAuthToken = () =>
  * 3. Credentials metadata (instant, shows subscription tier only)
  */
 const tryOAuthAPI = () =>
-  Effect.gen(function* () {
+  Effect.gen(function* tryOAuthAPI() {
     // Read credentials from Keychain
     console.log("[anthropic-usage] Reading credentials from Keychain...");
     const credentials = yield* readKeychainCredentials();
-    console.log("[anthropic-usage] Credentials found, subscription:", credentials.claudeAiOauth.subscriptionType);
+    console.log(
+      "[anthropic-usage] Credentials found, subscription:",
+      credentials.claudeAiOauth.subscriptionType
+    );
 
     // Try to fetch usage from API
     console.log("[anthropic-usage] Trying OAuth API...");
-    const apiResult = yield* fetchUsageFromAPI(credentials.claudeAiOauth.accessToken).pipe(
+    const apiResult = yield* fetchUsageFromAPI(
+      credentials.claudeAiOauth.accessToken
+    ).pipe(
       Effect.catchTag("AnthropicUsageError", (error) => {
-        console.log("[anthropic-usage] OAuth API error:", error.reason, error.message);
+        console.log(
+          "[anthropic-usage] OAuth API error:",
+          error.reason,
+          error.message
+        );
 
         // If OAuth is not supported yet, skip directly to CLI probe (no retry)
         if (error.reason === "not_supported") {
-          console.log("[anthropic-usage] OAuth API not available yet, skipping to CLI probe");
+          console.log(
+            "[anthropic-usage] OAuth API not available yet, skipping to CLI probe"
+          );
           return Effect.succeed(null);
         }
 
         // If token expired, try to refresh and retry
         if (error.reason === "token_expired") {
-          return Effect.gen(function* () {
-            console.log("[anthropic-usage] Token expired, attempting refresh...");
+          return Effect.gen(function* apiResult() {
+            console.log(
+              "[anthropic-usage] Token expired, attempting refresh..."
+            );
             yield* refreshOAuthToken();
             // Re-read credentials (token may have changed)
             const newCredentials = yield* readKeychainCredentials();
-            return yield* fetchUsageFromAPI(newCredentials.claudeAiOauth.accessToken);
+            return yield* fetchUsageFromAPI(
+              newCredentials.claudeAiOauth.accessToken
+            );
           });
         }
 
@@ -854,7 +999,10 @@ const tryOAuthAPI = () =>
       }),
       // If API fails, return null to signal fallback
       Effect.catchAll((err) => {
-        console.log("[anthropic-usage] OAuth API failed, will try CLI probe. Error:", err);
+        console.log(
+          "[anthropic-usage] OAuth API failed, will try CLI probe. Error:",
+          err
+        );
         return Effect.succeed(null);
       })
     );
@@ -867,9 +1015,9 @@ const tryOAuthAPI = () =>
       return {
         ...usage,
         subscription: {
-          type: credentials.claudeAiOauth.subscriptionType ?? "unknown",
-          rateLimitTier: credentials.claudeAiOauth.rateLimitTier ?? "unknown",
           expiresAt: credentials.claudeAiOauth.expiresAt ?? null,
+          rateLimitTier: credentials.claudeAiOauth.rateLimitTier ?? "unknown",
+          type: credentials.claudeAiOauth.subscriptionType ?? "unknown",
         },
       };
     }
@@ -879,36 +1027,53 @@ const tryOAuthAPI = () =>
     const cliResult = yield* tryCliUsageWithRetry();
 
     if (cliResult) {
-      console.log("[anthropic-usage] CLI probe succeeded! Source:", cliResult.source);
-      console.log("[anthropic-usage] Usage data:", JSON.stringify({
-        session: cliResult.session,
-        weekly: cliResult.weekly,
-        opus: cliResult.opus,
-        sonnet: cliResult.sonnet,
-      }, null, 2));
+      console.log(
+        "[anthropic-usage] CLI probe succeeded! Source:",
+        cliResult.source
+      );
+      console.log(
+        "[anthropic-usage] Usage data:",
+        JSON.stringify(
+          {
+            opus: cliResult.opus,
+            session: cliResult.session,
+            sonnet: cliResult.sonnet,
+            weekly: cliResult.weekly,
+          },
+          null,
+          2
+        )
+      );
       // Augment CLI result with subscription info from credentials
       return {
         ...cliResult,
         subscription: {
-          type: credentials.claudeAiOauth.subscriptionType ?? "unknown",
-          rateLimitTier: credentials.claudeAiOauth.rateLimitTier ?? "unknown",
           expiresAt: credentials.claudeAiOauth.expiresAt ?? null,
+          rateLimitTier: credentials.claudeAiOauth.rateLimitTier ?? "unknown",
+          type: credentials.claudeAiOauth.subscriptionType ?? "unknown",
         },
       };
     }
 
     // Final fallback: credentials-only usage (no usage percentages, but subscription info)
-    console.log("[anthropic-usage] Falling back to credentials-only (no percentages)");
+    console.log(
+      "[anthropic-usage] Falling back to credentials-only (no percentages)"
+    );
     return createCredentialsOnlyUsage(credentials);
   });
 
 // ─── Live Implementation ────────────────────────────────────────────────────
 
 export const AnthropicUsageServiceLive = Layer.succeed(AnthropicUsageService, {
+  clearCache: () =>
+    Effect.sync(() => {
+      usageCache = null;
+    }),
+
   getUsage: () =>
     // Acquire permit - only one caller proceeds, others wait
     cliProbeMutex.withPermits(1)(
-      Effect.gen(function* () {
+      Effect.gen(function* getUsage() {
         // Check cache INSIDE mutex to avoid thundering herd
         // (concurrent callers wait here, then get cached data)
         const now = Date.now();
@@ -922,7 +1087,7 @@ export const AnthropicUsageServiceLive = Layer.succeed(AnthropicUsageService, {
         );
 
         // Update cache (safe - we hold the mutex)
-        usageCache = { data: usage, cachedAt: now };
+        usageCache = { cachedAt: now, data: usage };
 
         return usage;
       })
@@ -931,7 +1096,7 @@ export const AnthropicUsageServiceLive = Layer.succeed(AnthropicUsageService, {
   refreshUsage: () =>
     // Acquire permit for refresh (serialized with getUsage)
     cliProbeMutex.withPermits(1)(
-      Effect.gen(function* () {
+      Effect.gen(function* refreshUsage() {
         // Clear cache and fetch fresh data
         usageCache = null;
 
@@ -939,14 +1104,9 @@ export const AnthropicUsageServiceLive = Layer.succeed(AnthropicUsageService, {
           Effect.catchAll(() => Effect.succeed(createUnavailableUsage()))
         );
 
-        usageCache = { data: usage, cachedAt: Date.now() };
+        usageCache = { cachedAt: Date.now(), data: usage };
 
         return usage;
       })
     ),
-
-  clearCache: () =>
-    Effect.sync(() => {
-      usageCache = null;
-    }),
 });

@@ -32,61 +32,64 @@
  * })
  * ```
  */
-import { afterAll, beforeAll, describe, expect, test } from "bun:test"
-import { Effect, TestServices } from "effect"
-import type { Scope } from "effect"
+import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 
-export { afterAll, beforeAll, describe, expect }
+import { Effect, TestServices } from "effect";
+import type { Scope } from "effect";
 
-type TestOptions = { timeout?: number }
+export { afterAll, beforeAll, describe, expect };
 
-const runTest = <E, A>(
-  effect: Effect.Effect<A, E, TestServices.TestServices>,
-) => Effect.runPromise(effect.pipe(Effect.provide(TestServices.liveServices)))
-
-const runTestScoped = <E, A>(
-  effect: Effect.Effect<A, E, TestServices.TestServices | Scope.Scope>,
-) =>
-  Effect.runPromise(
-    effect.pipe(Effect.scoped, Effect.provide(TestServices.liveServices)),
-  )
-
-type EffectFn<A, E, R> = () => Effect.Effect<A, E, R>
-
-type EffectTester = {
-  <A, E>(
-    name: string,
-    fn: EffectFn<A, E, TestServices.TestServices>,
-    options?: number | TestOptions,
-  ): void
-  skip: <A, E>(
-    name: string,
-    fn: EffectFn<A, E, TestServices.TestServices>,
-    options?: number | TestOptions,
-  ) => void
-  only: <A, E>(
-    name: string,
-    fn: EffectFn<A, E, TestServices.TestServices>,
-    options?: number | TestOptions,
-  ) => void
+interface TestOptions {
+  timeout?: number;
 }
 
-type ScopedTester = {
+const runTest = <E, A>(
+  effect: Effect.Effect<A, E, TestServices.TestServices>
+) => Effect.runPromise(effect.pipe(Effect.provide(TestServices.liveServices)));
+
+const runTestScoped = <E, A>(
+  effect: Effect.Effect<A, E, TestServices.TestServices | Scope.Scope>
+) =>
+  Effect.runPromise(
+    effect.pipe(Effect.scoped, Effect.provide(TestServices.liveServices))
+  );
+
+type EffectFn<A, E, R> = () => Effect.Effect<A, E, R>;
+
+interface EffectTester {
+  <A, E>(
+    name: string,
+    fn: EffectFn<A, E, TestServices.TestServices>,
+    options?: number | TestOptions
+  ): void;
+  skip: <A, E>(
+    name: string,
+    fn: EffectFn<A, E, TestServices.TestServices>,
+    options?: number | TestOptions
+  ) => void;
+  only: <A, E>(
+    name: string,
+    fn: EffectFn<A, E, TestServices.TestServices>,
+    options?: number | TestOptions
+  ) => void;
+}
+
+interface ScopedTester {
   <A, E>(
     name: string,
     fn: EffectFn<A, E, TestServices.TestServices | Scope.Scope>,
-    options?: number | TestOptions,
-  ): void
+    options?: number | TestOptions
+  ): void;
   skip: <A, E>(
     name: string,
     fn: EffectFn<A, E, TestServices.TestServices | Scope.Scope>,
-    options?: number | TestOptions,
-  ) => void
+    options?: number | TestOptions
+  ) => void;
   only: <A, E>(
     name: string,
     fn: EffectFn<A, E, TestServices.TestServices | Scope.Scope>,
-    options?: number | TestOptions,
-  ) => void
+    options?: number | TestOptions
+  ) => void;
 }
 
 const makeEffectTest =
@@ -94,31 +97,31 @@ const makeEffectTest =
   <A, E>(
     name: string,
     fn: EffectFn<A, E, TestServices.TestServices>,
-    options?: number | TestOptions,
+    options?: number | TestOptions
   ) => {
-    const timeout = typeof options === "number" ? options : options?.timeout
-    runner(name, () => runTest(fn()), timeout ? { timeout } : undefined)
-  }
+    const timeout = typeof options === "number" ? options : options?.timeout;
+    runner(name, () => runTest(fn()), timeout ? { timeout } : undefined);
+  };
 
 const makeScopedTest =
   (runner: typeof test) =>
   <A, E>(
     name: string,
     fn: EffectFn<A, E, TestServices.TestServices | Scope.Scope>,
-    options?: number | TestOptions,
+    options?: number | TestOptions
   ) => {
-    const timeout = typeof options === "number" ? options : options?.timeout
-    runner(name, () => runTestScoped(fn()), timeout ? { timeout } : undefined)
-  }
+    const timeout = typeof options === "number" ? options : options?.timeout;
+    runner(name, () => runTestScoped(fn()), timeout ? { timeout } : undefined);
+  };
 
 export const effect: EffectTester = Object.assign(makeEffectTest(test), {
-  skip: makeEffectTest(test.skip),
   only: makeEffectTest(test.only),
-})
+  skip: makeEffectTest(test.skip),
+});
 
 export const scoped: ScopedTester = Object.assign(makeScopedTest(test), {
-  skip: makeScopedTest(test.skip),
   only: makeScopedTest(test.only),
-})
+  skip: makeScopedTest(test.skip),
+});
 
-export const it = Object.assign(test, { effect, scoped })
+export const it = Object.assign(test, { effect, scoped });

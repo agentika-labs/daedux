@@ -45,60 +45,61 @@ interface ErrorPattern {
 const ERROR_PATTERNS: ErrorPattern[] = [
   // User rejection
   {
-    pattern: /The user doesn't want to proceed|user (declined|rejected|denied|cancelled)/i,
     category: "user_rejection",
     getSummary: () => "User declined this action",
+    pattern:
+      /The user doesn't want to proceed|user (declined|rejected|denied|cancelled)/i,
   },
   // Exit code errors
   {
-    pattern: /Exit code (\d+)/i,
     category: "exit_code",
+    getExitCode: (m) => (m[1] ? Number.parseInt(m[1], 10) : undefined),
     getSummary: (m) => `Command failed (exit ${m[1] ?? "?"})`,
-    getExitCode: (m) => m[1] ? parseInt(m[1], 10) : undefined,
+    pattern: /Exit code (\d+)/i,
   },
   // Git file not found
   {
-    pattern: /pathspec '([^']+)' did not match/i,
     category: "file_not_found",
-    getSummary: (m) => `File not found: ${truncatePath(m[1] ?? "")}`,
     getFilePath: (m) => m[1],
+    getSummary: (m) => `File not found: ${truncatePath(m[1] ?? "")}`,
+    pattern: /pathspec '([^']+)' did not match/i,
   },
   // General file not found (ENOENT)
   {
-    pattern: /ENOENT[:\s]+.*?['"]?([^'":\s]+)['"]?/i,
     category: "file_not_found",
-    getSummary: (m) => `File not found: ${truncatePath(m[1] ?? "")}`,
     getFilePath: (m) => m[1],
+    getSummary: (m) => `File not found: ${truncatePath(m[1] ?? "")}`,
+    pattern: /ENOENT[:\s]+.*?['"]?([^'":\s]+)['"]?/i,
   },
   {
-    pattern: /no such file or directory[:\s]*['"]?([^'"]+)['"]?/i,
     category: "file_not_found",
-    getSummary: (m) => `File not found: ${truncatePath(m[1] ?? "")}`,
     getFilePath: (m) => m[1],
+    getSummary: (m) => `File not found: ${truncatePath(m[1] ?? "")}`,
+    pattern: /no such file or directory[:\s]*['"]?([^'"]+)['"]?/i,
   },
   // Permission denied
   {
-    pattern: /EACCES|permission denied/i,
     category: "permission_denied",
     getSummary: () => "Permission denied",
+    pattern: /EACCES|permission denied/i,
   },
   // Network errors
   {
-    pattern: /ECONNREFUSED|ETIMEDOUT|ENOTFOUND|network error/i,
     category: "network_error",
     getSummary: () => "Network connection failed",
+    pattern: /ECONNREFUSED|ETIMEDOUT|ENOTFOUND|network error/i,
   },
   // Python stack trace
   {
-    pattern: /Traceback \(most recent call last\)/i,
     category: "stack_trace",
     getSummary: (_, msg) => extractPythonError(msg),
+    pattern: /Traceback \(most recent call last\)/i,
   },
   // JavaScript/TypeScript stack trace
   {
-    pattern: /^\s*at\s+.+\(.+:\d+:\d+\)/m,
     category: "stack_trace",
     getSummary: (_, msg) => extractJsError(msg),
+    pattern: /^\s*at\s+.+\(.+:\d+:\d+\)/m,
   },
 ];
 
@@ -106,14 +107,20 @@ const ERROR_PATTERNS: ErrorPattern[] = [
 
 /** Truncate a file path for display, keeping the filename and immediate parent */
 function truncatePath(path: string, maxLength = 40): string {
-  if (path.length <= maxLength) return path;
+  if (path.length <= maxLength) {
+    return path;
+  }
 
   const parts = path.split("/");
-  if (parts.length <= 2) return path.slice(-maxLength);
+  if (parts.length <= 2) {
+    return path.slice(-maxLength);
+  }
 
   // Show last 2 segments
   const last = parts.slice(-2).join("/");
-  if (last.length <= maxLength) return "…/" + last;
+  if (last.length <= maxLength) {
+    return "…/" + last;
+  }
 
   return "…" + path.slice(-maxLength);
 }
@@ -124,11 +131,13 @@ function extractPythonError(message: string): string {
   // Look for the last line that doesn't start with whitespace and contains an error
   for (let i = lines.length - 1; i >= 0; i--) {
     const rawLine = lines[i];
-    if (!rawLine) continue;
+    if (!rawLine) {
+      continue;
+    }
     const line = rawLine.trim();
     if (line && !line.startsWith("File ") && !line.startsWith("^")) {
       // Common Python error patterns
-      if (line.match(/^(\w+Error|\w+Exception):/)) {
+      if (/^(\w+Error|\w+Exception):/.test(line)) {
         return truncateString(line, 60);
       }
     }
@@ -143,9 +152,13 @@ function extractJsError(message: string): string {
   for (const line of lines) {
     const trimmed = line.trim();
     // Skip stack trace lines
-    if (trimmed.startsWith("at ")) continue;
+    if (trimmed.startsWith("at ")) {
+      continue;
+    }
     // Skip empty lines
-    if (!trimmed) continue;
+    if (!trimmed) {
+      continue;
+    }
     // This is likely the error message
     return truncateString(trimmed, 60);
   }
@@ -154,20 +167,27 @@ function extractJsError(message: string): string {
 
 /** Truncate a string with ellipsis */
 function truncateString(str: string, maxLength: number): string {
-  if (str.length <= maxLength) return str;
+  if (str.length <= maxLength) {
+    return str;
+  }
   return str.slice(0, maxLength - 1) + "…";
 }
 
 /** Truncate a multi-line message to N lines */
-function truncateStackTrace(message: string, maxLines: number = COLLAPSED_LINES): string {
+function truncateStackTrace(
+  message: string,
+  maxLines: number = COLLAPSED_LINES
+): string {
   const lines = message.split("\n");
-  if (lines.length <= maxLines) return message;
+  if (lines.length <= maxLines) {
+    return message;
+  }
   return lines.slice(0, maxLines).join("\n");
 }
 
 /** Check if a message looks like a stack trace or multi-line error */
 function isMultiLineError(message: string): boolean {
-  const lines = message.split("\n").filter(l => l.trim());
+  const lines = message.split("\n").filter((l) => l.trim());
   return lines.length > COLLAPSED_LINES;
 }
 
@@ -183,12 +203,12 @@ export function parseError(message: string): ParsedError {
     if (match) {
       return {
         category: pattern.category,
-        summary: pattern.getSummary(match, message),
-        originalMessage: message,
-        truncatedMessage: truncateStackTrace(message),
-        isExpandable: isMultiLineError(message),
-        filePath: pattern.getFilePath?.(match),
         exitCode: pattern.getExitCode?.(match),
+        filePath: pattern.getFilePath?.(match),
+        isExpandable: isMultiLineError(message),
+        originalMessage: message,
+        summary: pattern.getSummary(match, message),
+        truncatedMessage: truncateStackTrace(message),
       };
     }
   }
@@ -197,10 +217,10 @@ export function parseError(message: string): ParsedError {
   const firstLine = message.split("\n")[0] || message;
   return {
     category: "generic",
-    summary: truncateString(firstLine, 60),
-    originalMessage: message,
-    truncatedMessage: truncateStackTrace(message),
     isExpandable: isMultiLineError(message),
+    originalMessage: message,
+    summary: truncateString(firstLine, 60),
+    truncatedMessage: truncateStackTrace(message),
   };
 }
 
@@ -210,7 +230,10 @@ export function parseError(message: string): ParsedError {
  * Strip XML/HTML tags from error messages (e.g., `<tool_use_error>...`)
  */
 export function stripXmlTags(message: string): string {
-  return message.replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim();
+  return message
+    .replaceAll(/<[^>]+>/g, "")
+    .replaceAll(/\s+/g, " ")
+    .trim();
 }
 
 // ─── Severity Tiers ──────────────────────────────────────────────────────────
@@ -228,36 +251,36 @@ export interface SeverityStyle {
 
 const SEVERITY_STYLES: Record<SeverityTier, SeverityStyle> = {
   critical: {
-    tier: "critical",
-    bgClass: "bg-destructive/10",
-    borderClass: "border-destructive/40",
     badgeBgClass: "bg-destructive/20",
     badgeTextClass: "text-destructive",
+    bgClass: "bg-destructive/10",
+    borderClass: "border-destructive/40",
     label: "Critical - needs immediate attention",
-  },
-  severe: {
-    tier: "severe",
-    bgClass: "bg-destructive/5",
-    borderClass: "border-destructive/25",
-    badgeBgClass: "bg-destructive/15",
-    badgeTextClass: "text-destructive/90",
-    label: "High error rate",
-  },
-  moderate: {
-    tier: "moderate",
-    bgClass: "bg-warning/5",
-    borderClass: "border-warning/25",
-    badgeBgClass: "bg-warning/15",
-    badgeTextClass: "text-warning",
-    label: "Moderate error rate",
+    tier: "critical",
   },
   minor: {
-    tier: "minor",
-    bgClass: "bg-muted/50",
-    borderClass: "border-border/50",
     badgeBgClass: "bg-muted",
     badgeTextClass: "text-muted-foreground",
+    bgClass: "bg-muted/50",
+    borderClass: "border-border/50",
     label: "Occasional errors",
+    tier: "minor",
+  },
+  moderate: {
+    badgeBgClass: "bg-warning/15",
+    badgeTextClass: "text-warning",
+    bgClass: "bg-warning/5",
+    borderClass: "border-warning/25",
+    label: "Moderate error rate",
+    tier: "moderate",
+  },
+  severe: {
+    badgeBgClass: "bg-destructive/15",
+    badgeTextClass: "text-destructive/90",
+    bgClass: "bg-destructive/5",
+    borderClass: "border-destructive/25",
+    label: "High error rate",
+    tier: "severe",
   },
 };
 
@@ -269,9 +292,15 @@ const SEVERITY_STYLES: Record<SeverityTier, SeverityStyle> = {
  * - < 10% = minor (muted gray)
  */
 export function getSeverityFromErrorRate(errorRate: number): SeverityStyle {
-  if (errorRate >= 0.5) return SEVERITY_STYLES.critical;
-  if (errorRate >= 0.25) return SEVERITY_STYLES.severe;
-  if (errorRate >= 0.1) return SEVERITY_STYLES.moderate;
+  if (errorRate >= 0.5) {
+    return SEVERITY_STYLES.critical;
+  }
+  if (errorRate >= 0.25) {
+    return SEVERITY_STYLES.severe;
+  }
+  if (errorRate >= 0.1) {
+    return SEVERITY_STYLES.moderate;
+  }
   return SEVERITY_STYLES.minor;
 }
 
@@ -285,46 +314,46 @@ export interface CategoryStyle {
 }
 
 export const CATEGORY_STYLES: Record<ErrorCategory, CategoryStyle> = {
-  user_rejection: {
-    iconName: "Cancel01Icon",
-    bgClass: "bg-muted/50",
-    borderClass: "border-border/50",
-    textClass: "text-muted-foreground",
-  },
   exit_code: {
-    iconName: "AlertDiamondIcon",
     bgClass: "bg-destructive/5",
     borderClass: "border-destructive/20",
+    iconName: "AlertDiamondIcon",
     textClass: "text-destructive",
   },
   file_not_found: {
-    iconName: "Search01Icon",
     bgClass: "bg-warning/5",
     borderClass: "border-warning/20",
+    iconName: "Search01Icon",
+    textClass: "text-warning",
+  },
+  generic: {
+    bgClass: "bg-muted/50",
+    borderClass: "border-border/50",
+    iconName: "AlertCircleIcon",
+    textClass: "text-muted-foreground",
+  },
+  network_error: {
+    bgClass: "bg-warning/5",
+    borderClass: "border-warning/20",
+    iconName: "Wifi02Icon",
     textClass: "text-warning",
   },
   permission_denied: {
-    iconName: "LockIcon",
     bgClass: "bg-destructive/5",
     borderClass: "border-destructive/20",
+    iconName: "LockIcon",
     textClass: "text-destructive",
-  },
-  network_error: {
-    iconName: "Wifi02Icon",
-    bgClass: "bg-warning/5",
-    borderClass: "border-warning/20",
-    textClass: "text-warning",
   },
   stack_trace: {
-    iconName: "CodeIcon",
     bgClass: "bg-destructive/5",
     borderClass: "border-destructive/20",
+    iconName: "CodeIcon",
     textClass: "text-destructive",
   },
-  generic: {
-    iconName: "AlertCircleIcon",
+  user_rejection: {
     bgClass: "bg-muted/50",
     borderClass: "border-border/50",
+    iconName: "Cancel01Icon",
     textClass: "text-muted-foreground",
   },
 };
@@ -337,7 +366,7 @@ export const CATEGORY_STYLES: Record<ErrorCategory, CategoryStyle> = {
 export function formatRecommendation(recommendation: string): string {
   // Match quoted error messages in the recommendation
   // Pattern: Common error: "..."
-  return recommendation.replace(
+  return recommendation.replaceAll(
     /Common error: "([^"]+)"/g,
     (_, errorMsg) => `Common error: "${parseError(errorMsg).summary}"`
   );
@@ -351,32 +380,35 @@ export function matchSuggestionToError(
   error: ParsedError,
   suggestions: string[]
 ): string | undefined {
-  if (suggestions.length === 0) return undefined;
+  if (suggestions.length === 0) {
+    return undefined;
+  }
 
   // For exit code errors, look for command suggestions
   if (error.category === "exit_code") {
     // Return first suggestion that mentions a command (contains backticks or common commands)
-    return suggestions.find(s =>
-      s.includes("`") ||
-      /\b(run|try|check|install|update)\b/i.test(s)
+    return suggestions.find(
+      (s) => s.includes("`") || /\b(run|try|check|install|update)\b/i.test(s)
     );
   }
 
   // For file not found, look for path-related suggestions
   if (error.category === "file_not_found" && error.filePath) {
-    return suggestions.find(s =>
-      s.toLowerCase().includes("file") ||
-      s.toLowerCase().includes("path") ||
-      s.toLowerCase().includes("create")
+    return suggestions.find(
+      (s) =>
+        s.toLowerCase().includes("file") ||
+        s.toLowerCase().includes("path") ||
+        s.toLowerCase().includes("create")
     );
   }
 
   // For permission errors, look for permission-related suggestions
   if (error.category === "permission_denied") {
-    return suggestions.find(s =>
-      s.toLowerCase().includes("permission") ||
-      s.toLowerCase().includes("sudo") ||
-      s.toLowerCase().includes("chmod")
+    return suggestions.find(
+      (s) =>
+        s.toLowerCase().includes("permission") ||
+        s.toLowerCase().includes("sudo") ||
+        s.toLowerCase().includes("chmod")
     );
   }
 

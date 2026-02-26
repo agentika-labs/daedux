@@ -1,9 +1,12 @@
+import type { Insight, InsightActionTarget } from "@shared/rpc-types";
 import { useMemo } from "react";
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
-import { InsightCard, type InsightType } from "./InsightCard";
-import type { Insight, InsightActionTarget } from "@shared/rpc-types";
+
+import { InsightCard } from "./InsightCard";
+import type { InsightType } from "./InsightCard";
 
 interface InsightsPanelProps {
   insights: Insight[];
@@ -25,17 +28,21 @@ export function InsightsPanel({
   className,
 }: InsightsPanelProps) {
   // Memoize sorted insights with stable action objects to prevent re-renders
-  const processedInsights = useMemo(() => {
-    return [...insights]
-      .sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0))
-      .slice(0, maxInsights)
-      .map((insight) => ({
-        insight,
-        type: mapInsightType(insight.type),
-        priority: (insight.priority && insight.priority > 5 ? "high" : "medium") as "high" | "medium",
-        action: buildAction(insight, onNavigateToSection),
-      }));
-  }, [insights, maxInsights, onNavigateToSection]);
+  const processedInsights = useMemo(
+    () =>
+      [...insights]
+        .toSorted((a, b) => (b.priority ?? 0) - (a.priority ?? 0))
+        .slice(0, maxInsights)
+        .map((insight) => ({
+          action: buildAction(insight, onNavigateToSection),
+          insight,
+          priority: (insight.priority && insight.priority > 5
+            ? "high"
+            : "medium") as "high" | "medium",
+          type: mapInsightType(insight.type),
+        })),
+    [insights, maxInsights, onNavigateToSection]
+  );
 
   return (
     <Card className={className}>
@@ -52,21 +59,25 @@ export function InsightsPanel({
         ) : processedInsights.length > 0 ? (
           <ScrollArea className="h-[340px]">
             <div className="space-y-3 pr-4">
-              {processedInsights.map(({ insight, type, priority, action }, i) => (
-                <InsightCard
-                  key={insight.title + i}
-                  headline={insight.title}
-                  context={insight.description}
-                  type={type}
-                  priority={priority}
-                  dollarImpact={insight.dollarImpact}
-                  action={action}
-                />
-              ))}
+              {processedInsights.map(
+                ({ insight, type, priority, action }, i) => (
+                  <InsightCard
+                    key={insight.title + i}
+                    headline={insight.title}
+                    context={insight.description}
+                    type={type}
+                    priority={priority}
+                    dollarImpact={insight.dollarImpact}
+                    action={action}
+                  />
+                )
+              )}
             </div>
           </ScrollArea>
         ) : (
-          <p className="text-center text-muted-foreground py-8">No insights available</p>
+          <p className="text-muted-foreground py-8 text-center">
+            No insights available
+          </p>
         )}
       </CardContent>
     </Card>
@@ -77,13 +88,16 @@ export function InsightsPanel({
 
 function mapInsightType(type: Insight["type"]): InsightType {
   switch (type) {
-    case "success":
+    case "success": {
       return "success";
-    case "warning":
+    }
+    case "warning": {
       return "warning";
+    }
     case "info":
-    default:
+    default: {
       return "info";
+    }
   }
 }
 
@@ -97,6 +111,7 @@ function buildAction(
 
   return {
     label: insight.actionLabel ?? "View Details",
-    onClick: () => onNavigateToSection(insight.actionTarget as InsightActionTarget),
+    onClick: () =>
+      onNavigateToSection(insight.actionTarget as InsightActionTarget),
   };
 }

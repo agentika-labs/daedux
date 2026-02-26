@@ -6,76 +6,80 @@
  */
 
 import { Layer } from "effect";
-
 // ─── Domain Service Imports ──────────────────────────────────────────────────
-
-import {
-  SessionAnalyticsService,
-  SessionAnalyticsServiceLive,
-  type Totals,
-  type ExtendedTotals,
-  type DailyStat,
-  type SessionSummary,
-  type ProjectSummary,
-  type TopPrompt,
-  type DashboardStats,
-} from "./session-analytics";
-
-import {
-  ModelAnalyticsService,
-  ModelAnalyticsServiceLive,
-  type ModelBreakdown,
-  type ModelUsage,
-} from "./model-analytics";
-
-import {
-  ToolAnalyticsService,
-  ToolAnalyticsServiceLive,
-  type ToolUsageStat,
-  type ToolHealthStat,
-  type BashCommandStat,
-  type BashCategoryHealth,
-  type ToolHealthReportCard,
-  type ApiErrorStat,
-} from "./tool-analytics";
-
-import {
-  FileAnalyticsService,
-  FileAnalyticsServiceLive,
-  type FileActivityStat,
-  type FileExtensionStat,
-  type SessionFileOperation,
-} from "./file-analytics";
 
 import {
   AgentAnalyticsService,
   AgentAnalyticsServiceLive,
-  type SkillROI,
-  type AgentStat,
-  type AgentROI,
-  type AgentUsageSummary,
-  type HookStat,
-  type CommandStat,
 } from "./agent-analytics";
-
+import type {
+  SkillROI,
+  AgentStat,
+  AgentROI,
+  AgentUsageSummary,
+  HookStat,
+  CommandStat,
+} from "./agent-analytics";
 import {
   ContextAnalyticsService,
   ContextAnalyticsServiceLive,
-  type ContextHeatmapPoint,
-  type CacheEfficiencyPoint,
-  type CompactionAnalysis,
-  type ContextWindowFillPoint,
-  type PeakContextData,
 } from "./context-analytics";
-
+import type {
+  ContextHeatmapPoint,
+  CacheEfficiencyPoint,
+  CompactionAnalysis,
+  ContextWindowFillPoint,
+  PeakContextData,
+} from "./context-analytics";
+import {
+  FileAnalyticsService,
+  FileAnalyticsServiceLive,
+} from "./file-analytics";
+import type {
+  FileActivityStat,
+  FileExtensionStat,
+  SessionFileOperation,
+} from "./file-analytics";
 import {
   InsightsAnalyticsService,
   InsightsAnalyticsServiceLive,
-  type Insight,
-  type EfficiencyScore,
-  type WeeklyComparison,
   FIX_SUGGESTIONS,
 } from "./insights-analytics";
+import type {
+  Insight,
+  EfficiencyScore,
+  WeeklyComparison,
+} from "./insights-analytics";
+import {
+  ModelAnalyticsService,
+  ModelAnalyticsServiceLive,
+} from "./model-analytics";
+import type { ModelBreakdown, ModelUsage } from "./model-analytics";
+import {
+  SessionAnalyticsService,
+  SessionAnalyticsServiceLive,
+} from "./session-analytics";
+import type {
+  Totals,
+  ExtendedTotals,
+  DailyStat,
+  SessionSummary,
+  ProjectSummary,
+  TopPrompt,
+  DashboardStats,
+} from "./session-analytics";
+import {
+  ToolAnalyticsService,
+  ToolAnalyticsServiceLive,
+} from "./tool-analytics";
+import type {
+  ToolUsageStat,
+  ToolHealthStat,
+  BashCommandStat,
+  BashCategoryHealth,
+  ToolHealthReportCard,
+  ApiErrorStat,
+} from "./tool-analytics";
 
 // ─── Re-export Types ─────────────────────────────────────────────────────────
 
@@ -122,7 +126,12 @@ export type {
 };
 
 // Re-export shared utilities
-export { buildDateConditions, buildComparisonWindows, DAY_MS, WEEK_MS } from "./shared";
+export {
+  buildDateConditions,
+  buildComparisonWindows,
+  DAY_MS,
+  WEEK_MS,
+} from "./shared";
 export type { DateFilter, ComparisonWindows } from "./shared";
 
 // Re-export FIX_SUGGESTIONS for backward compatibility

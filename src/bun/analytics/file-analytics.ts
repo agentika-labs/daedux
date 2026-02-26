@@ -1,9 +1,11 @@
-import { Context, Effect, Layer } from "effect";
 import { sql, desc, eq, and, count } from "drizzle-orm";
+import { Context, Effect, Layer } from "effect";
+
 import { DatabaseService } from "../db";
-import { DatabaseError } from "../errors";
 import * as schema from "../db/schema";
-import { DateFilter, buildDateConditions } from "./shared";
+import { DatabaseError } from "../errors";
+import type { DateFilter } from "./shared";
+import { buildDateConditions } from "./shared";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -50,12 +52,14 @@ export class FileAnalyticsService extends Context.Tag("FileAnalyticsService")<
 
 export const FileAnalyticsServiceLive = Layer.effect(
   FileAnalyticsService,
-  Effect.gen(function* () {
+  Effect.gen(function* FileAnalyticsServiceLive() {
     const { db } = yield* DatabaseService;
 
     return {
       getFileActivity: (limit = 50, dateFilter: DateFilter = {}) =>
         Effect.tryPromise({
+          catch: (error) =>
+            new DatabaseError({ cause: error, operation: "getFileActivity" }),
           try: async () => {
             const dateConditions = buildDateConditions(dateFilter);
 
@@ -63,18 +67,21 @@ export const FileAnalyticsServiceLive = Layer.effect(
             if (dateConditions.length === 0) {
               result = await db
                 .select({
-                  filePath: schema.fileOperations.filePath,
+                  edits:
+                    sql<number>`SUM(CASE WHEN ${schema.fileOperations.operation} = 'edit' THEN 1 ELSE 0 END)`.as(
+                      "edits"
+                    ),
                   fileExtension: schema.fileOperations.fileExtension,
-                  reads: sql<number>`SUM(CASE WHEN ${schema.fileOperations.operation} = 'read' THEN 1 ELSE 0 END)`.as(
-                    "reads"
-                  ),
-                  writes: sql<number>`SUM(CASE WHEN ${schema.fileOperations.operation} = 'write' THEN 1 ELSE 0 END)`.as(
-                    "writes"
-                  ),
-                  edits: sql<number>`SUM(CASE WHEN ${schema.fileOperations.operation} = 'edit' THEN 1 ELSE 0 END)`.as(
-                    "edits"
-                  ),
+                  filePath: schema.fileOperations.filePath,
+                  reads:
+                    sql<number>`SUM(CASE WHEN ${schema.fileOperations.operation} = 'read' THEN 1 ELSE 0 END)`.as(
+                      "reads"
+                    ),
                   totalOps: count(),
+                  writes:
+                    sql<number>`SUM(CASE WHEN ${schema.fileOperations.operation} = 'write' THEN 1 ELSE 0 END)`.as(
+                      "writes"
+                    ),
                 })
                 .from(schema.fileOperations)
                 .groupBy(schema.fileOperations.filePath)
@@ -83,18 +90,21 @@ export const FileAnalyticsServiceLive = Layer.effect(
             } else {
               result = await db
                 .select({
-                  filePath: schema.fileOperations.filePath,
+                  edits:
+                    sql<number>`SUM(CASE WHEN ${schema.fileOperations.operation} = 'edit' THEN 1 ELSE 0 END)`.as(
+                      "edits"
+                    ),
                   fileExtension: schema.fileOperations.fileExtension,
-                  reads: sql<number>`SUM(CASE WHEN ${schema.fileOperations.operation} = 'read' THEN 1 ELSE 0 END)`.as(
-                    "reads"
-                  ),
-                  writes: sql<number>`SUM(CASE WHEN ${schema.fileOperations.operation} = 'write' THEN 1 ELSE 0 END)`.as(
-                    "writes"
-                  ),
-                  edits: sql<number>`SUM(CASE WHEN ${schema.fileOperations.operation} = 'edit' THEN 1 ELSE 0 END)`.as(
-                    "edits"
-                  ),
+                  filePath: schema.fileOperations.filePath,
+                  reads:
+                    sql<number>`SUM(CASE WHEN ${schema.fileOperations.operation} = 'read' THEN 1 ELSE 0 END)`.as(
+                      "reads"
+                    ),
                   totalOps: count(),
+                  writes:
+                    sql<number>`SUM(CASE WHEN ${schema.fileOperations.operation} = 'write' THEN 1 ELSE 0 END)`.as(
+                      "writes"
+                    ),
                 })
                 .from(schema.fileOperations)
                 .innerJoin(
@@ -108,19 +118,20 @@ export const FileAnalyticsServiceLive = Layer.effect(
             }
 
             return result.map((row) => ({
-              filePath: row.filePath,
-              fileExtension: row.fileExtension ?? "",
-              reads: row.reads ?? 0,
-              writes: row.writes ?? 0,
               edits: row.edits ?? 0,
+              fileExtension: row.fileExtension ?? "",
+              filePath: row.filePath,
+              reads: row.reads ?? 0,
               totalOps: row.totalOps,
+              writes: row.writes ?? 0,
             }));
           },
-          catch: (error) => new DatabaseError({ operation: "getFileActivity", cause: error }),
         }),
 
       getFileExtensions: (dateFilter: DateFilter = {}) =>
         Effect.tryPromise({
+          catch: (error) =>
+            new DatabaseError({ cause: error, operation: "getFileExtensions" }),
           try: async () => {
             const dateConditions = buildDateConditions(dateFilter);
             const extensionNotEmpty = sql`${schema.fileOperations.fileExtension} IS NOT NULL AND ${schema.fileOperations.fileExtension} != ''`;
@@ -129,8 +140,8 @@ export const FileAnalyticsServiceLive = Layer.effect(
             if (dateConditions.length === 0) {
               result = await db
                 .select({
-                  extension: schema.fileOperations.fileExtension,
                   count: count(),
+                  extension: schema.fileOperations.fileExtension,
                 })
                 .from(schema.fileOperations)
                 .where(extensionNotEmpty)
@@ -139,8 +150,8 @@ export const FileAnalyticsServiceLive = Layer.effect(
             } else {
               result = await db
                 .select({
-                  extension: schema.fileOperations.fileExtension,
                   count: count(),
+                  extension: schema.fileOperations.fileExtension,
                 })
                 .from(schema.fileOperations)
                 .innerJoin(
@@ -154,16 +165,20 @@ export const FileAnalyticsServiceLive = Layer.effect(
 
             const total = result.reduce((sum, row) => sum + row.count, 0);
             return result.map((row) => ({
-              extension: row.extension ?? "unknown",
               count: row.count,
+              extension: row.extension ?? "unknown",
               percentage: total > 0 ? (row.count / total) * 100 : 0,
             }));
           },
-          catch: (error) => new DatabaseError({ operation: "getFileExtensions", cause: error }),
         }),
 
       getSessionFileOperations: (dateFilter: DateFilter = {}) =>
         Effect.tryPromise({
+          catch: (error) =>
+            new DatabaseError({
+              cause: error,
+              operation: "getSessionFileOperations",
+            }),
           try: async () => {
             const dateConditions = buildDateConditions(dateFilter);
             const operationCondition = sql`${schema.fileOperations.operation} IN ('read', 'write', 'edit')`;
@@ -172,20 +187,20 @@ export const FileAnalyticsServiceLive = Layer.effect(
             if (dateConditions.length === 0) {
               result = await db
                 .select({
-                  sessionId: schema.fileOperations.sessionId,
+                  fileExtension: schema.fileOperations.fileExtension,
                   filePath: schema.fileOperations.filePath,
                   operation: schema.fileOperations.operation,
-                  fileExtension: schema.fileOperations.fileExtension,
+                  sessionId: schema.fileOperations.sessionId,
                 })
                 .from(schema.fileOperations)
                 .where(operationCondition);
             } else {
               result = await db
                 .select({
-                  sessionId: schema.fileOperations.sessionId,
+                  fileExtension: schema.fileOperations.fileExtension,
                   filePath: schema.fileOperations.filePath,
                   operation: schema.fileOperations.operation,
-                  fileExtension: schema.fileOperations.fileExtension,
+                  sessionId: schema.fileOperations.sessionId,
                 })
                 .from(schema.fileOperations)
                 .innerJoin(
@@ -211,18 +226,13 @@ export const FileAnalyticsServiceLive = Layer.effect(
                       ? "Write"
                       : row.operation;
               sessionMap.get(row.sessionId)!.push({
+                extension: row.fileExtension ?? "",
                 filePath: row.filePath,
                 tool,
-                extension: row.fileExtension ?? "",
               });
             }
             return sessionMap;
           },
-          catch: (error) =>
-            new DatabaseError({
-              operation: "getSessionFileOperations",
-              cause: error,
-            }),
         }),
     };
   })

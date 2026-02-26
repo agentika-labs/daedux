@@ -1,26 +1,40 @@
-import { useMemo } from "react";
-import { Section } from "@/components/layout/Section";
-import { SectionHeader } from "@/components/shared/SectionHeader";
-import { InsightCard } from "@/components/shared/InsightCard";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  XAxis,
-  YAxis,
-} from "recharts";
+  CheckmarkCircle02Icon,
+  AlertCircleIcon,
+  Clock01Icon,
+  StarIcon,
+} from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
+import type {
+  DashboardData,
+  AgentROIEntry,
+  SkillROIEntry,
+  HookStatEntry,
+} from "@shared/rpc-types";
+import { useMemo } from "react";
+import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
+
+import { Section } from "@/components/layout/Section";
+import { InsightCard } from "@/components/shared/InsightCard";
+import { SectionHeader } from "@/components/shared/SectionHeader";
+import { Badge } from "@/components/ui/badge";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
 import {
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
   ChartLegend,
   ChartLegendContent,
-  type ChartConfig,
 } from "@/components/ui/chart";
+import type { ChartConfig } from "@/components/ui/chart";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
   cn,
   formatPercent,
@@ -30,14 +44,6 @@ import {
   getHookHealth,
   formatAvgDuration,
 } from "@/lib/utils";
-import type { DashboardData, AgentROIEntry, SkillROIEntry, HookStatEntry } from "@shared/rpc-types";
-import { HugeiconsIcon } from "@hugeicons/react";
-import {
-  CheckmarkCircle02Icon,
-  AlertCircleIcon,
-  Clock01Icon,
-  StarIcon,
-} from "@hugeicons/core-free-icons";
 
 interface AutomationSectionProps {
   data: DashboardData | null;
@@ -57,12 +63,13 @@ export function AutomationSection({ data, loading }: AutomationSectionProps) {
     }
 
     // Check for high-value agents
-    const highValueAgents = agentROI?.agents.filter(a => a.category === "high-value") ?? [];
+    const highValueAgents =
+      agentROI?.agents.filter((a) => a.category === "high-value") ?? [];
     const firstHighValueAgent = highValueAgents[0];
     if (firstHighValueAgent) {
       return {
-        text: `${highValueAgents.length} high-value agents identified`,
         context: `${firstHighValueAgent.agentType} has ${firstHighValueAgent.successRate}% success rate`,
+        text: `${highValueAgents.length} high-value agents identified`,
         type: "success" as const,
       };
     }
@@ -70,20 +77,25 @@ export function AutomationSection({ data, loading }: AutomationSectionProps) {
     // Check for skill impact
     if (skillImpact && skillImpact.impact.errorRateReduction > 0.05) {
       return {
-        text: `Skills reduce tool errors by ${(skillImpact.impact.errorRateReduction * 100).toFixed(0)}%`,
         context: "Sessions using skills have fewer tool errors",
+        text: `Skills reduce tool errors by ${(skillImpact.impact.errorRateReduction * 100).toFixed(0)}%`,
         type: "success" as const,
       };
     }
 
     // Check for hook issues
-    const problematicHooks = hookStats.filter(h => h.totalExecutions > 0 && h.failures / h.totalExecutions > 0.2);
+    const problematicHooks = hookStats.filter(
+      (h) => h.totalExecutions > 0 && h.failures / h.totalExecutions > 0.2
+    );
     const firstProblematicHook = problematicHooks[0];
     if (firstProblematicHook) {
-      const failureRate = firstProblematicHook.totalExecutions > 0 ? firstProblematicHook.failures / firstProblematicHook.totalExecutions : 0;
+      const failureRate =
+        firstProblematicHook.totalExecutions > 0
+          ? firstProblematicHook.failures / firstProblematicHook.totalExecutions
+          : 0;
       return {
-        text: `${problematicHooks.length} hooks need attention`,
         context: `${firstProblematicHook.hookName ?? "unknown"} has ${formatPercent(failureRate)} failure rate`,
+        text: `${problematicHooks.length} hooks need attention`,
         type: "warning" as const,
       };
     }
@@ -129,7 +141,11 @@ export function AutomationSection({ data, loading }: AutomationSectionProps) {
         </TabsContent>
 
         <TabsContent value="skills">
-          <SkillsTab skills={skillROI} impact={skillImpact ?? null} loading={loading} />
+          <SkillsTab
+            skills={skillROI}
+            impact={skillImpact ?? null}
+            loading={loading}
+          />
         </TabsContent>
 
         <TabsContent value="hooks">
@@ -151,7 +167,7 @@ function AgentsTab({ agents, loading }: AgentsTabProps) {
   if (loading) {
     return (
       <Card>
-        <CardContent className="p-6 space-y-3">
+        <CardContent className="space-y-3 p-6">
           <Skeleton className="h-10 w-full" />
           <Skeleton className="h-10 w-full" />
           <Skeleton className="h-10 w-full" />
@@ -163,7 +179,7 @@ function AgentsTab({ agents, loading }: AgentsTabProps) {
   if (agents.length === 0) {
     return (
       <Card>
-        <CardContent className="p-8 text-center text-muted-foreground">
+        <CardContent className="text-muted-foreground p-8 text-center">
           No agent spawns recorded yet. Agents are created via the Task tool.
         </CardContent>
       </Card>
@@ -179,10 +195,15 @@ function AgentsTab({ agents, loading }: AgentsTabProps) {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="space-y-2 max-h-[400px] overflow-y-auto pr-2">
+        <div className="max-h-[400px] space-y-2 overflow-y-auto pr-2">
           {agents.map((agent) => {
-            const rating = getProductivityRating(agent.successRate, agent.avgToolsPerSpawn);
-            const errors = Math.round(agent.toolsTriggered * (1 - agent.successRate / 100));
+            const rating = getProductivityRating(
+              agent.successRate,
+              agent.avgToolsPerSpawn
+            );
+            const errors = Math.round(
+              agent.toolsTriggered * (1 - agent.successRate / 100)
+            );
 
             return (
               <div
@@ -196,16 +217,18 @@ function AgentsTab({ agents, loading }: AgentsTabProps) {
                       : "bg-destructive/5 border-destructive/20"
                 )}
               >
-                <div className="flex items-center gap-3 min-w-0">
+                <div className="flex min-w-0 items-center gap-3">
                   <div className="min-w-0">
-                    <div className="font-medium truncate">{agent.agentType}</div>
-                    <div className="text-xs text-muted-foreground">
+                    <div className="truncate font-medium">
+                      {agent.agentType}
+                    </div>
+                    <div className="text-muted-foreground text-xs">
                       {formatNumber(agent.spawns)} spawns
                     </div>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-4 shrink-0">
+                <div className="flex shrink-0 items-center gap-4">
                   {/* Success Rate - fixed width */}
                   <div className="w-14 text-right">
                     <Badge
@@ -224,7 +247,7 @@ function AgentsTab({ agents, loading }: AgentsTabProps) {
                   </div>
 
                   {/* Errors - ALWAYS render with fixed width */}
-                  <span className="w-20 text-right text-xs text-destructive">
+                  <span className="text-destructive w-20 text-right text-xs">
                     {errors > 0 ? `${errors} errors` : "—"}
                   </span>
 
@@ -242,7 +265,9 @@ function AgentsTab({ agents, loading }: AgentsTabProps) {
                         />
                       ))}
                     </div>
-                    <span className={cn("w-24 text-xs", `text-${rating.variant}`)}>
+                    <span
+                      className={cn("w-24 text-xs", `text-${rating.variant}`)}
+                    >
                       {rating.label}
                     </span>
                   </div>
@@ -266,19 +291,21 @@ interface SkillsTabProps {
 
 const skillImpactChartConfig = {
   withSkills: {
-    label: "With Skills",
     color: "var(--chart-2)",
+    label: "With Skills",
   },
   withoutSkills: {
-    label: "Without Skills",
     color: "var(--muted)",
+    label: "Without Skills",
   },
 } satisfies ChartConfig;
 
 function SkillsTab({ skills, impact, loading }: SkillsTabProps) {
   // Prepare impact chart data
   const impactData = useMemo(() => {
-    if (!impact) return [];
+    if (!impact) {
+      return [];
+    }
 
     return [
       {
@@ -311,8 +338,9 @@ function SkillsTab({ skills, impact, loading }: SkillsTabProps) {
   if (skills.length === 0) {
     return (
       <Card>
-        <CardContent className="p-8 text-center text-muted-foreground">
-          No skill invocations recorded yet. Skills are invoked via /skill-name commands.
+        <CardContent className="text-muted-foreground p-8 text-center">
+          No skill invocations recorded yet. Skills are invoked via /skill-name
+          commands.
         </CardContent>
       </Card>
     );
@@ -326,26 +354,57 @@ function SkillsTab({ skills, impact, loading }: SkillsTabProps) {
           <CardHeader>
             <CardTitle>Do Skills Improve Output?</CardTitle>
             <CardDescription>
-              Comparing {impact.withSkills.sessionCount} sessions with skills vs {impact.withoutSkills.sessionCount} without
+              Comparing {impact.withSkills.sessionCount} sessions with skills vs{" "}
+              {impact.withoutSkills.sessionCount} without
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="flex flex-col lg:flex-row gap-6">
+            <div className="flex flex-col gap-6 lg:flex-row">
               {/* Chart */}
-              <ChartContainer config={skillImpactChartConfig} className="min-h-[200px] flex-1">
-                <BarChart data={impactData} accessibilityLayer layout="vertical">
+              <ChartContainer
+                config={skillImpactChartConfig}
+                className="min-h-[200px] flex-1"
+              >
+                <BarChart
+                  data={impactData}
+                  accessibilityLayer
+                  layout="vertical"
+                >
                   <CartesianGrid horizontal={false} />
-                  <XAxis type="number" tickLine={false} axisLine={false} domain={[0, 100]} />
-                  <YAxis dataKey="metric" type="category" tickLine={false} axisLine={false} width={80} />
-                  <ChartTooltip content={<ChartTooltipContent />} animationDuration={150} isAnimationActive={false} />
+                  <XAxis
+                    type="number"
+                    tickLine={false}
+                    axisLine={false}
+                    domain={[0, 100]}
+                  />
+                  <YAxis
+                    dataKey="metric"
+                    type="category"
+                    tickLine={false}
+                    axisLine={false}
+                    width={80}
+                  />
+                  <ChartTooltip
+                    content={<ChartTooltipContent />}
+                    animationDuration={150}
+                    isAnimationActive={false}
+                  />
                   <ChartLegend content={<ChartLegendContent />} />
-                  <Bar dataKey="withSkills" fill="var(--color-withSkills)" radius={4} />
-                  <Bar dataKey="withoutSkills" fill="var(--color-withoutSkills)" radius={4} />
+                  <Bar
+                    dataKey="withSkills"
+                    fill="var(--color-withSkills)"
+                    radius={4}
+                  />
+                  <Bar
+                    dataKey="withoutSkills"
+                    fill="var(--color-withoutSkills)"
+                    radius={4}
+                  />
                 </BarChart>
               </ChartContainer>
 
               {/* Impact Badges */}
-              <div className="flex flex-col gap-3 min-w-[180px]">
+              <div className="flex min-w-[180px] flex-col gap-3">
                 <ImpactBadge
                   label="Error Rate"
                   value={impact.impact.errorRateReduction}
@@ -379,7 +438,7 @@ function SkillsTab({ skills, impact, loading }: SkillsTabProps) {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2">
+          <div className="max-h-[300px] space-y-2 overflow-y-auto pr-2">
             {skills.map((skill) => {
               const status = getReliabilityStatus(skill.completionRate);
 
@@ -396,13 +455,16 @@ function SkillsTab({ skills, impact, loading }: SkillsTabProps) {
                   )}
                 >
                   <div className="min-w-0">
-                    <div className="font-medium font-mono truncate">{skill.skillName}</div>
-                    <div className="text-xs text-muted-foreground">
-                      {formatNumber(skill.invocationCount)} uses &middot; {skill.avgToolsTriggered} avg actions
+                    <div className="truncate font-mono font-medium">
+                      {skill.skillName}
+                    </div>
+                    <div className="text-muted-foreground text-xs">
+                      {formatNumber(skill.invocationCount)} uses &middot;{" "}
+                      {skill.avgToolsTriggered} avg actions
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-3 shrink-0">
+                  <div className="flex shrink-0 items-center gap-3">
                     <Badge
                       variant="outline"
                       className={cn(
@@ -441,7 +503,7 @@ function HooksTab({ hooks, loading }: HooksTabProps) {
   if (loading) {
     return (
       <Card>
-        <CardContent className="p-6 space-y-3">
+        <CardContent className="space-y-3 p-6">
           <Skeleton className="h-10 w-full" />
           <Skeleton className="h-10 w-full" />
           <Skeleton className="h-10 w-full" />
@@ -453,8 +515,9 @@ function HooksTab({ hooks, loading }: HooksTabProps) {
   if (hooks.length === 0) {
     return (
       <Card>
-        <CardContent className="p-8 text-center text-muted-foreground">
-          No hook executions recorded yet. Hooks run on events like PreToolUse, PostToolUse, etc.
+        <CardContent className="text-muted-foreground p-8 text-center">
+          No hook executions recorded yet. Hooks run on events like PreToolUse,
+          PostToolUse, etc.
         </CardContent>
       </Card>
     );
@@ -469,9 +532,12 @@ function HooksTab({ hooks, loading }: HooksTabProps) {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="space-y-2 max-h-[400px] overflow-y-auto pr-2">
+        <div className="max-h-[400px] space-y-2 overflow-y-auto pr-2">
           {hooks.map((hook) => {
-            const failureRate = hook.totalExecutions > 0 ? hook.failures / hook.totalExecutions : 0;
+            const failureRate =
+              hook.totalExecutions > 0
+                ? hook.failures / hook.totalExecutions
+                : 0;
             const health = getHookHealth(failureRate, hook.avgDurationMs);
 
             return (
@@ -487,28 +553,37 @@ function HooksTab({ hooks, loading }: HooksTabProps) {
                 )}
               >
                 <div className="min-w-0">
-                  <div className="font-medium truncate">{hook.hookName ?? "unnamed"}</div>
-                  <div className="text-xs text-muted-foreground flex items-center gap-2">
-                    <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                  <div className="truncate font-medium">
+                    {hook.hookName ?? "unnamed"}
+                  </div>
+                  <div className="text-muted-foreground flex items-center gap-2 text-xs">
+                    <Badge
+                      variant="outline"
+                      className="px-1.5 py-0 text-[10px]"
+                    >
                       {hook.hookType}
                     </Badge>
                     <span>{formatNumber(hook.totalExecutions)} triggers</span>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-4 shrink-0">
+                <div className="flex shrink-0 items-center gap-4">
                   {/* Failures */}
                   {hook.failures > 0 && (
-                    <span className={cn(
-                      "text-xs",
-                      failureRate > 0.1 ? "text-destructive" : "text-muted-foreground"
-                    )}>
+                    <span
+                      className={cn(
+                        "text-xs",
+                        failureRate > 0.1
+                          ? "text-destructive"
+                          : "text-muted-foreground"
+                      )}
+                    >
                       {hook.failures} ({formatPercent(failureRate)}) failures
                     </span>
                   )}
 
                   {/* Latency */}
-                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                  <div className="text-muted-foreground flex items-center gap-1 text-xs">
                     <HugeiconsIcon icon={Clock01Icon} className="h-3 w-3" />
                     {formatAvgDuration(hook.avgDurationMs)}
                   </div>
@@ -516,7 +591,11 @@ function HooksTab({ hooks, loading }: HooksTabProps) {
                   {/* Health Status */}
                   <div className="flex items-center gap-1">
                     <HugeiconsIcon
-                      icon={health.icon === "check" ? CheckmarkCircle02Icon : AlertCircleIcon}
+                      icon={
+                        health.icon === "check"
+                          ? CheckmarkCircle02Icon
+                          : AlertCircleIcon
+                      }
                       className={cn(
                         "h-4 w-4",
                         health.variant === "success"
@@ -548,30 +627,46 @@ interface ImpactBadgeProps {
   lowerIsBetter?: boolean;
 }
 
-function ImpactBadge({ label, value, lowerIsBetter = false }: ImpactBadgeProps) {
+function ImpactBadge({
+  label,
+  value,
+  lowerIsBetter = false,
+}: ImpactBadgeProps) {
   const isPositive = lowerIsBetter ? value > 0 : value > 0;
   const absPercent = Math.abs(value * 100);
-  const direction = isPositive ? (lowerIsBetter ? "fewer" : "more") : (lowerIsBetter ? "more" : "less");
+  const direction = isPositive
+    ? lowerIsBetter
+      ? "fewer"
+      : "more"
+    : lowerIsBetter
+      ? "more"
+      : "less";
 
   if (absPercent < 1) {
     return (
-      <div className="p-2 rounded-lg bg-muted/50 text-center">
-        <div className="text-xs text-muted-foreground">{label}</div>
-        <div className="text-sm font-medium text-muted-foreground">No difference</div>
+      <div className="bg-muted/50 rounded-lg p-2 text-center">
+        <div className="text-muted-foreground text-xs">{label}</div>
+        <div className="text-muted-foreground text-sm font-medium">
+          No difference
+        </div>
       </div>
     );
   }
 
   return (
-    <div className={cn(
-      "p-2 rounded-lg text-center",
-      isPositive ? "bg-success/10" : "bg-destructive/10"
-    )}>
-      <div className="text-xs text-muted-foreground">{label}</div>
-      <div className={cn(
-        "text-sm font-medium",
-        isPositive ? "text-success" : "text-destructive"
-      )}>
+    <div
+      className={cn(
+        "p-2 rounded-lg text-center",
+        isPositive ? "bg-success/10" : "bg-destructive/10"
+      )}
+    >
+      <div className="text-muted-foreground text-xs">{label}</div>
+      <div
+        className={cn(
+          "text-sm font-medium",
+          isPositive ? "text-success" : "text-destructive"
+        )}
+      >
         {isPositive ? "▼" : "▲"} {absPercent.toFixed(0)}% {direction}
       </div>
     </div>

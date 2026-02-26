@@ -1,4 +1,6 @@
+import type { SessionSchedule } from "@shared/rpc-types";
 import { useState } from "react";
+
 import {
   AlertDialog,
   AlertDialogContent,
@@ -18,7 +20,6 @@ import {
   SelectItem,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
-import type { SessionSchedule } from "@shared/rpc-types";
 
 interface ScheduleFormProps {
   schedule?: SessionSchedule | null;
@@ -35,13 +36,13 @@ interface ScheduleFormProps {
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
 const MINUTES = [0, 15, 30, 45];
 const DAYS = [
-  { value: 0, label: "Sun" },
-  { value: 1, label: "Mon" },
-  { value: 2, label: "Tue" },
-  { value: 3, label: "Wed" },
-  { value: 4, label: "Thu" },
-  { value: 5, label: "Fri" },
-  { value: 6, label: "Sat" },
+  { label: "Sun", value: 0 },
+  { label: "Mon", value: 1 },
+  { label: "Tue", value: 2 },
+  { label: "Wed", value: 3 },
+  { label: "Thu", value: 4 },
+  { label: "Fri", value: 5 },
+  { label: "Sat", value: 6 },
 ];
 
 const formatHour = (hour: number): string => {
@@ -50,7 +51,11 @@ const formatHour = (hour: number): string => {
   return `${h} ${ampm}`;
 };
 
-export const ScheduleForm = ({ schedule, onSave, onCancel }: ScheduleFormProps) => {
+export const ScheduleForm = ({
+  schedule,
+  onSave,
+  onCancel,
+}: ScheduleFormProps) => {
   const [name, setName] = useState(schedule?.name ?? "");
   const [hour, setHour] = useState(schedule?.hour ?? 15);
   const [minute, setMinute] = useState(schedule?.minute ?? 0);
@@ -61,7 +66,9 @@ export const ScheduleForm = ({ schedule, onSave, onCancel }: ScheduleFormProps) 
 
   const toggleDay = (day: number) => {
     setDaysOfWeek((prev) =>
-      prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day].sort()
+      prev.includes(day)
+        ? prev.filter((d) => d !== day)
+        : [...prev, day].toSorted()
     );
   };
 
@@ -77,25 +84,28 @@ export const ScheduleForm = ({ schedule, onSave, onCancel }: ScheduleFormProps) 
     }
 
     onSave({
-      name: name.trim(),
-      hour,
-      minute,
       daysOfWeek,
       enabled: schedule?.enabled ?? true,
+      hour,
+      minute,
+      name: name.trim(),
     });
   };
 
   const handleSelectPreset = (preset: "weekdays" | "weekends" | "everyday") => {
     switch (preset) {
-      case "weekdays":
+      case "weekdays": {
         setDaysOfWeek([1, 2, 3, 4, 5]);
         break;
-      case "weekends":
+      }
+      case "weekends": {
         setDaysOfWeek([0, 6]);
         break;
-      case "everyday":
+      }
+      case "everyday": {
         setDaysOfWeek([0, 1, 2, 3, 4, 5, 6]);
         break;
+      }
     }
   };
 
@@ -103,7 +113,9 @@ export const ScheduleForm = ({ schedule, onSave, onCancel }: ScheduleFormProps) 
     <AlertDialog open onOpenChange={(open) => !open && onCancel()}>
       <AlertDialogContent className="max-w-md">
         <AlertDialogHeader>
-          <AlertDialogTitle>{schedule ? "Edit Schedule" : "New Schedule"}</AlertDialogTitle>
+          <AlertDialogTitle>
+            {schedule ? "Edit Schedule" : "New Schedule"}
+          </AlertDialogTitle>
           <AlertDialogDescription>
             Configure when this warm-up session should run.
           </AlertDialogDescription>
@@ -121,7 +133,7 @@ export const ScheduleForm = ({ schedule, onSave, onCancel }: ScheduleFormProps) 
                 setError(null);
               }}
               placeholder="e.g., Before work"
-              className="w-full h-9 px-3 rounded-xl border border-input bg-input/30 text-sm focus:border-ring focus:ring-ring/50 focus:ring-2 outline-none transition-colors"
+              className="border-input bg-input/30 focus:border-ring focus:ring-ring/50 h-9 w-full rounded-xl border px-3 text-sm transition-colors outline-none focus:ring-2"
             />
           </div>
 
@@ -129,7 +141,10 @@ export const ScheduleForm = ({ schedule, onSave, onCancel }: ScheduleFormProps) 
           <div className="space-y-2">
             <label className="text-sm font-medium">Time</label>
             <div className="flex items-center gap-2">
-              <Select value={hour.toString()} onValueChange={(v) => v && setHour(parseInt(v, 10))}>
+              <Select
+                value={hour.toString()}
+                onValueChange={(v) => v && setHour(Number.parseInt(v, 10))}
+              >
                 <SelectTrigger className="w-24">
                   <SelectValue>{formatHour(hour)}</SelectValue>
                 </SelectTrigger>
@@ -142,9 +157,14 @@ export const ScheduleForm = ({ schedule, onSave, onCancel }: ScheduleFormProps) 
                 </SelectContent>
               </Select>
               <span className="text-muted-foreground">:</span>
-              <Select value={minute.toString()} onValueChange={(v) => v && setMinute(parseInt(v, 10))}>
+              <Select
+                value={minute.toString()}
+                onValueChange={(v) => v && setMinute(Number.parseInt(v, 10))}
+              >
                 <SelectTrigger className="w-20">
-                  <SelectValue>{minute.toString().padStart(2, "0")}</SelectValue>
+                  <SelectValue>
+                    {minute.toString().padStart(2, "0")}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {MINUTES.map((m) => (
@@ -189,7 +209,9 @@ export const ScheduleForm = ({ schedule, onSave, onCancel }: ScheduleFormProps) 
               {DAYS.map((day) => (
                 <Button
                   key={day.value}
-                  variant={daysOfWeek.includes(day.value) ? "default" : "outline"}
+                  variant={
+                    daysOfWeek.includes(day.value) ? "default" : "outline"
+                  }
                   size="sm"
                   className={cn(
                     "flex-1 min-w-0 px-0",
@@ -204,9 +226,7 @@ export const ScheduleForm = ({ schedule, onSave, onCancel }: ScheduleFormProps) 
           </div>
 
           {/* Error Message */}
-          {error && (
-            <p className="text-sm text-destructive">{error}</p>
-          )}
+          {error && <p className="text-destructive text-sm">{error}</p>}
         </div>
 
         <AlertDialogFooter>

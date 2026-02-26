@@ -1,4 +1,10 @@
-import { sqliteTable, text, integer, real, index } from "drizzle-orm/sqlite-core";
+import {
+  sqliteTable,
+  text,
+  integer,
+  real,
+  index,
+} from "drizzle-orm/sqlite-core";
 
 // ─── Session Files (mtime tracking for incremental sync) ────────────────────
 
@@ -238,12 +244,12 @@ export const bashCommands = sqliteTable(
 export const apiErrors = sqliteTable(
   "api_errors",
   {
+    errorMessage: text("error_message"),
+    errorType: text("error_type").notNull(),
     id: integer("id").primaryKey({ autoIncrement: true }),
     sessionId: text("session_id")
       .notNull()
       .references(() => sessions.sessionId, { onDelete: "cascade" }),
-    errorType: text("error_type").notNull(),
-    errorMessage: text("error_message"),
     statusCode: integer("status_code"),
     timestamp: integer("timestamp"),
   },
@@ -261,13 +267,13 @@ export const apiErrors = sqliteTable(
 export const skillInvocations = sqliteTable(
   "skill_invocations",
   {
+    args: text("args"),
     id: integer("id").primaryKey({ autoIncrement: true }),
+    queryIndex: integer("query_index"),
     sessionId: text("session_id")
       .notNull()
       .references(() => sessions.sessionId, { onDelete: "cascade" }),
     skillName: text("skill_name").notNull(),
-    args: text("args"),
-    queryIndex: integer("query_index"),
     timestamp: integer("timestamp"),
   },
   (table) => [
@@ -284,13 +290,13 @@ export const skillInvocations = sqliteTable(
 export const agentSpawns = sqliteTable(
   "agent_spawns",
   {
+    agentType: text("agent_type").notNull(),
+    description: text("description"),
     id: integer("id").primaryKey({ autoIncrement: true }),
+    queryIndex: integer("query_index"),
     sessionId: text("session_id")
       .notNull()
       .references(() => sessions.sessionId, { onDelete: "cascade" }),
-    agentType: text("agent_type").notNull(),
-    description: text("description"),
-    queryIndex: integer("query_index"),
     timestamp: integer("timestamp"),
   },
   (table) => [
@@ -307,11 +313,11 @@ export const agentSpawns = sqliteTable(
 export const slashCommands = sqliteTable(
   "slash_commands",
   {
+    command: text("command").notNull(),
     id: integer("id").primaryKey({ autoIncrement: true }),
     sessionId: text("session_id")
       .notNull()
       .references(() => sessions.sessionId, { onDelete: "cascade" }),
-    command: text("command").notNull(),
     timestamp: integer("timestamp"),
   },
   (table) => [
@@ -328,14 +334,14 @@ export const slashCommands = sqliteTable(
 export const contextWindowUsage = sqliteTable(
   "context_window_usage",
   {
+    cacheHitRatio: real("cache_hit_ratio"),
+    costThisQuery: real("cost_this_query"),
+    cumulativeTokens: integer("cumulative_tokens"),
     id: integer("id").primaryKey({ autoIncrement: true }),
+    queryIndex: integer("query_index").notNull(),
     sessionId: text("session_id")
       .notNull()
       .references(() => sessions.sessionId, { onDelete: "cascade" }),
-    queryIndex: integer("query_index").notNull(),
-    cumulativeTokens: integer("cumulative_tokens"),
-    cacheHitRatio: real("cache_hit_ratio"),
-    costThisQuery: real("cost_this_query"),
   },
   (table) => [
     index("context_usage_session_idx").on(table.sessionId),
@@ -353,12 +359,12 @@ export const prLinks = sqliteTable(
   "pr_links",
   {
     id: integer("id").primaryKey({ autoIncrement: true }),
+    prNumber: integer("pr_number").notNull(),
+    prRepository: text("pr_repository").notNull(),
+    prUrl: text("pr_url").notNull(),
     sessionId: text("session_id")
       .notNull()
       .references(() => sessions.sessionId, { onDelete: "cascade" }),
-    prNumber: integer("pr_number").notNull(),
-    prUrl: text("pr_url").notNull(),
-    prRepository: text("pr_repository").notNull(),
     timestamp: integer("timestamp").notNull(),
   },
   (table) => [

@@ -1,4 +1,6 @@
-import { gte, lte, type SQL } from "drizzle-orm";
+import { gte, lte } from "drizzle-orm";
+import type { SQL } from "drizzle-orm";
+
 import * as schema from "../db/schema";
 
 // Re-export shared utilities from metrics
@@ -26,28 +28,32 @@ export interface ComparisonWindows {
 }
 
 /** Build comparable current/previous windows, honoring explicit date filters when present. */
-export const buildComparisonWindows = (dateFilter: DateFilter = {}): ComparisonWindows => {
+export const buildComparisonWindows = (
+  dateFilter: DateFilter = {}
+): ComparisonWindows => {
   const now = Date.now();
-  const hasFilter = dateFilter.startTime !== undefined || dateFilter.endTime !== undefined;
+  const hasFilter =
+    dateFilter.startTime !== undefined || dateFilter.endTime !== undefined;
 
   if (!hasFilter) {
     return {
-      currentStart: now - 7 * 86400000,
       currentEnd: now,
-      previousStart: now - 14 * 86400000,
-      previousEnd: now - 7 * 86400000,
+      currentStart: now - 7 * 86_400_000,
+      previousEnd: now - 7 * 86_400_000,
+      previousStart: now - 14 * 86_400_000,
     };
   }
 
-  const currentStart = dateFilter.startTime ?? (dateFilter.endTime ?? now) - 7 * 86400000;
+  const currentStart =
+    dateFilter.startTime ?? (dateFilter.endTime ?? now) - 7 * 86_400_000;
   const currentEnd = dateFilter.endTime ?? now;
   const span = Math.max(1, currentEnd - currentStart);
 
   return {
-    currentStart,
     currentEnd,
-    previousStart: currentStart - span,
+    currentStart,
     previousEnd: currentStart,
+    previousStart: currentStart - span,
   };
 };
 
@@ -78,7 +84,7 @@ export const buildDateConditions = (
 // ─── Common Constants ────────────────────────────────────────────────────────
 
 /** One day in milliseconds */
-export const DAY_MS = 86400000;
+export const DAY_MS = 86_400_000;
 
 /** One week in milliseconds */
 export const WEEK_MS = 7 * DAY_MS;

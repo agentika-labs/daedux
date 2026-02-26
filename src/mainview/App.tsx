@@ -1,15 +1,17 @@
+import type { DashboardData } from "@shared/rpc-types";
 import { useEffect, useState, useCallback } from "react";
-import { useRPC, rpcRequest } from "./hooks/useRPC";
-import { useActiveSection, scrollToSection } from "./hooks/useActiveSection";
-import { Header, type FilterOption } from "./components/layout/Header";
-import { OverviewSection } from "./components/sections/OverviewSection";
+
+import { Header } from "./components/layout/Header";
+import type { FilterOption } from "./components/layout/Header";
+import { AutomationSection } from "./components/sections/AutomationSection";
 import { CostSection } from "./components/sections/CostSection";
 import { EfficiencySection } from "./components/sections/EfficiencySection";
-import { ToolsSection } from "./components/sections/ToolsSection";
-import { AutomationSection } from "./components/sections/AutomationSection";
-import { SessionsSection } from "./components/sections/SessionsSection";
+import { OverviewSection } from "./components/sections/OverviewSection";
 import { ProjectsSection } from "./components/sections/ProjectsSection";
-import type { DashboardData } from "@shared/rpc-types";
+import { SessionsSection } from "./components/sections/SessionsSection";
+import { ToolsSection } from "./components/sections/ToolsSection";
+import { useActiveSection, scrollToSection } from "./hooks/useActiveSection";
+import { useRPC, rpcRequest } from "./hooks/useRPC";
 
 type ThemeMode = "system" | "light" | "dark";
 
@@ -17,7 +19,9 @@ const applyTheme = (theme: ThemeMode) => {
   const root = document.documentElement;
 
   if (theme === "system") {
-    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+    const prefersDark = window.matchMedia(
+      "(prefers-color-scheme: dark)"
+    ).matches;
     root.classList.toggle("dark", prefersDark);
   } else {
     root.classList.toggle("dark", theme === "dark");
@@ -46,8 +50,10 @@ const App = () => {
   // Listen for theme changes from main process
   useEffect(() => {
     const listener = (payload: unknown) => {
-      if (!payload || typeof payload !== "object") return;
-      const theme = (payload as { theme?: ThemeMode }).theme;
+      if (!payload || typeof payload !== "object") {
+        return;
+      }
+      const { theme } = payload as { theme?: ThemeMode };
       if (theme === "system" || theme === "light" || theme === "dark") {
         applyTheme(theme);
       }
@@ -66,9 +72,9 @@ const App = () => {
       setError(null);
       const dashboardData = await rpcRequest("getDashboardData", { filter });
       setData(dashboardData);
-    } catch (err) {
-      console.error("Failed to load dashboard data:", err);
-      setError(err instanceof Error ? err.message : "Failed to load data");
+    } catch (error) {
+      console.error("Failed to load dashboard data:", error);
+      setError(error instanceof Error ? error.message : "Failed to load data");
     } finally {
       setIsLoading(false);
     }
@@ -95,8 +101,8 @@ const App = () => {
       setIsSyncing(true);
       await rpcRequest("triggerSync", { fullResync: false });
       await loadData();
-    } catch (err) {
-      console.error("Sync failed:", err);
+    } catch (error) {
+      console.error("Sync failed:", error);
     } finally {
       setIsSyncing(false);
     }
@@ -104,18 +110,29 @@ const App = () => {
 
   // Navigate to section handler for insights
   const handleNavigateToSection = (section: string) => {
-    scrollToSection(section as "overview" | "cost" | "efficiency" | "tools" | "sessions" | "projects");
+    scrollToSection(
+      section as
+        | "overview"
+        | "cost"
+        | "efficiency"
+        | "tools"
+        | "sessions"
+        | "projects"
+    );
   };
 
   if (error && !data) {
     return (
-      <div className="flex h-screen items-center justify-center bg-background">
+      <div className="bg-background flex h-screen items-center justify-center">
         <div className="text-center">
-          <h1 className="text-2xl font-semibold text-destructive mb-2">Error</h1>
+          <h1 className="text-destructive mb-2 text-2xl font-semibold">
+            Error
+          </h1>
           <p className="text-muted-foreground">{error}</p>
           <button
+            type="button"
             onClick={() => window.location.reload()}
-            className="mt-4 px-4 py-2 bg-primary text-primary-foreground rounded-lg"
+            className="bg-primary text-primary-foreground mt-4 rounded-lg px-4 py-2"
           >
             Retry
           </button>
@@ -125,7 +142,7 @@ const App = () => {
   }
 
   return (
-    <div className="h-screen flex flex-col bg-background text-foreground">
+    <div className="bg-background text-foreground flex h-screen flex-col">
       {/* Sticky Header */}
       <Header
         filter={filter}
@@ -137,42 +154,24 @@ const App = () => {
 
       {/* Scrollable Content */}
       <main className="flex-1 overflow-auto">
-        <div className="max-w-7xl mx-auto px-6 pb-12">
+        <div className="mx-auto max-w-7xl px-6 pb-12">
           <OverviewSection
             data={data}
             loading={isLoading}
             onNavigateToSection={handleNavigateToSection}
           />
 
-          <CostSection
-            data={data}
-            loading={isLoading}
-          />
+          <CostSection data={data} loading={isLoading} />
 
-          <EfficiencySection
-            data={data}
-            loading={isLoading}
-          />
+          <EfficiencySection data={data} loading={isLoading} />
 
-          <ToolsSection
-            data={data}
-            loading={isLoading}
-          />
+          <ToolsSection data={data} loading={isLoading} />
 
-          <AutomationSection
-            data={data}
-            loading={isLoading}
-          />
+          <AutomationSection data={data} loading={isLoading} />
 
-          <ProjectsSection
-            data={data}
-            loading={isLoading}
-          />
+          <ProjectsSection data={data} loading={isLoading} />
 
-          <SessionsSection
-            data={data}
-            loading={isLoading}
-          />
+          <SessionsSection data={data} loading={isLoading} />
         </div>
       </main>
     </div>

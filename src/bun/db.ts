@@ -1,9 +1,12 @@
+import { Database } from "bun:sqlite";
 import { existsSync, mkdirSync, copyFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
+
+import { drizzle } from "drizzle-orm/bun-sqlite";
+import type { SQLiteBunDatabase } from "drizzle-orm/bun-sqlite";
 import { Context, Effect, Layer } from "effect";
-import { Database } from "bun:sqlite";
-import { drizzle, type SQLiteBunDatabase } from "drizzle-orm/bun-sqlite";
+
 import * as schema from "./db/schema";
 import { DatabaseError } from "./errors";
 
@@ -49,12 +52,22 @@ const getLegacyDbPaths = (): string[] => {
 
   if (process.platform === "darwin") {
     // Old app name in Application Support (most recent legacy)
-    paths.push(join(home, "Library", "Application Support", "Claude Usage Monitor", "usage-monitor.db"));
+    paths.push(
+      join(
+        home,
+        "Library",
+        "Application Support",
+        "Claude Usage Monitor",
+        "usage-monitor.db"
+      )
+    );
   } else if (process.platform === "win32") {
     const appData = process.env.APPDATA ?? join(home, "AppData", "Roaming");
     paths.push(join(appData, "Claude Usage Monitor", "usage-monitor.db"));
   } else {
-    paths.push(join(home, ".local", "share", "claude-usage-monitor", "usage-monitor.db"));
+    paths.push(
+      join(home, ".local", "share", "claude-usage-monitor", "usage-monitor.db")
+    );
   }
 
   // Oldest legacy location (all platforms)
@@ -70,7 +83,9 @@ const getLegacyDbPaths = (): string[] => {
  */
 const migrateFromLegacyLocation = (): void => {
   // If new DB already exists, nothing to do
-  if (existsSync(DB_PATH)) return;
+  if (existsSync(DB_PATH)) {
+    return;
+  }
 
   // Create parent directory
   const dbDir = dirname(DB_PATH);
@@ -87,8 +102,12 @@ const migrateFromLegacyLocation = (): void => {
       // Also copy WAL files if they exist
       const walPath = `${legacyPath}-wal`;
       const shmPath = `${legacyPath}-shm`;
-      if (existsSync(walPath)) copyFileSync(walPath, `${DB_PATH}-wal`);
-      if (existsSync(shmPath)) copyFileSync(shmPath, `${DB_PATH}-shm`);
+      if (existsSync(walPath)) {
+        copyFileSync(walPath, `${DB_PATH}-wal`);
+      }
+      if (existsSync(shmPath)) {
+        copyFileSync(shmPath, `${DB_PATH}-shm`);
+      }
 
       return; // Stop after first successful migration
     }
@@ -105,11 +124,11 @@ export const DatabaseServiceLive = Layer.scoped(
       const sqlite = new Database(DB_PATH);
 
       // Optimize SQLite for our workload
-      sqlite.exec("PRAGMA journal_mode = WAL");      // Better concurrent reads
-      sqlite.exec("PRAGMA synchronous = NORMAL");    // Balanced durability/speed
-      sqlite.exec("PRAGMA cache_size = -64000");     // 64MB cache
-      sqlite.exec("PRAGMA foreign_keys = ON");       // Enforce FK constraints
-      sqlite.exec("PRAGMA temp_store = MEMORY");     // Temp tables in memory
+      sqlite.exec("PRAGMA journal_mode = WAL"); // Better concurrent reads
+      sqlite.exec("PRAGMA synchronous = NORMAL"); // Balanced durability/speed
+      sqlite.exec("PRAGMA cache_size = -64000"); // 64MB cache
+      sqlite.exec("PRAGMA foreign_keys = ON"); // Enforce FK constraints
+      sqlite.exec("PRAGMA temp_store = MEMORY"); // Temp tables in memory
 
       const db = drizzle({ client: sqlite, schema });
 
@@ -122,10 +141,13 @@ export const DatabaseServiceLive = Layer.scoped(
 // ─── Helper: Execute SQL with Effect Error Handling ─────────────────────────
 
 /** Wrap raw SQL execution in Effect error handling */
-const execSql = (sqlite: Database, sql: string): Effect.Effect<void, DatabaseError> =>
+const execSql = (
+  sqlite: Database,
+  sql: string
+): Effect.Effect<void, DatabaseError> =>
   Effect.try({
+    catch: (cause) => new DatabaseError({ cause, operation: sql }),
     try: () => sqlite.exec(sql),
-    catch: (cause) => new DatabaseError({ operation: sql, cause }),
   });
 
 // ─── Helper: Reusable Database Query ─────────────────────────────────────────
@@ -142,11 +164,11 @@ export const dbQuery = <A>(
   operation: string,
   query: (db: SQLiteBunDatabase<typeof schema>) => Promise<A>
 ): Effect.Effect<A, DatabaseError, DatabaseService> =>
-  Effect.gen(function* () {
+  Effect.gen(function* dbQuery() {
     const { db } = yield* DatabaseService;
     return yield* Effect.tryPromise({
+      catch: (cause) => new DatabaseError({ cause, operation }),
       try: () => query(db),
-      catch: (cause) => new DatabaseError({ operation, cause }),
     });
   });
 
@@ -160,15 +182,13 @@ export const dbQuery = <A>(
 export const runInTransaction = <A, E>(
   effect: Effect.Effect<A, E, DatabaseService>
 ): Effect.Effect<A, E | DatabaseError, DatabaseService> =>
-  Effect.gen(function* () {
+  Effect.gen(function* runInTransaction() {
     const { sqlite } = yield* DatabaseService;
 
     yield* execSql(sqlite, "BEGIN IMMEDIATE");
 
     const result = yield* Effect.catchAll(effect, (error) =>
-      execSql(sqlite, "ROLLBACK").pipe(
-        Effect.flatMap(() => Effect.fail(error))
-      )
+      execSql(sqlite, "ROLLBACK").pipe(Effect.flatMap(() => Effect.fail(error)))
     );
 
     yield* execSql(sqlite, "COMMIT");

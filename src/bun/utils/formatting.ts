@@ -7,27 +7,24 @@
  * @param ratio - Value between 0 and 1
  * @param decimals - Number of decimal places (default: 0)
  */
-export const formatPercentFromRatio = (ratio: number, decimals = 0): string => {
-  return `${(ratio * 100).toFixed(decimals)}%`;
-};
+export const formatPercentFromRatio = (ratio: number, decimals = 0): string =>
+  `${(ratio * 100).toFixed(decimals)}%`;
 
 /**
  * Format a percentage value as a string.
  * @param percent - Percentage value (already multiplied by 100)
  * @param decimals - Number of decimal places (default: 0)
  */
-export const formatPercent = (percent: number, decimals = 0): string => {
-  return `${percent.toFixed(decimals)}%`;
-};
+export const formatPercent = (percent: number, decimals = 0): string =>
+  `${percent.toFixed(decimals)}%`;
 
 /**
  * Format a cost value in USD.
  * @param cost - Cost in dollars
  * @param decimals - Number of decimal places (default: 2)
  */
-export const formatCost = (cost: number, decimals = 2): string => {
-  return `$${cost.toFixed(decimals)}`;
-};
+export const formatCost = (cost: number, decimals = 2): string =>
+  `$${cost.toFixed(decimals)}`;
 
 /**
  * Convert timestamp (ms) to YYYY-MM-DD string in local timezone.

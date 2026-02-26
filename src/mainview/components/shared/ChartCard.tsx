@@ -1,4 +1,10 @@
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardContent,
+} from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
@@ -28,7 +34,7 @@ export function ChartCard({
             {subtitle && <CardDescription>{subtitle}</CardDescription>}
           </div>
           {annotation && (
-            <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded">
+            <span className="text-muted-foreground bg-muted rounded px-2 py-1 text-xs">
               {annotation}
             </span>
           )}

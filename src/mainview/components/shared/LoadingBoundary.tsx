@@ -41,19 +41,25 @@ export function LoadingBoundary({
 
   // Render predefined skeleton variant
   switch (skeleton) {
-    case "list":
+    case "list": {
       return <ListSkeleton count={count} className={className} />;
-    case "grid":
+    }
+    case "grid": {
       return <GridSkeleton count={count} className={className} />;
-    case "chart":
+    }
+    case "chart": {
       return <ChartSkeleton height={height} className={className} />;
-    case "card":
+    }
+    case "card": {
       return <CardSkeleton className={className} />;
-    case "stat":
+    }
+    case "stat": {
       return <StatSkeleton className={className} />;
-    default:
+    }
+    default: {
       // Default to a simple skeleton
       return <Skeleton className={cn("h-20 w-full", className)} />;
+    }
   }
 }
 
@@ -121,7 +127,7 @@ export function CardSkeleton({ className }: SkeletonProps) {
 export function StatSkeleton({ className }: SkeletonProps) {
   return (
     <div className={cn("space-y-2", className)}>
-      <Skeleton className="h-4 w-20 mb-2" />
+      <Skeleton className="mb-2 h-4 w-20" />
       <Skeleton className="h-6 w-16" />
     </div>
   );
