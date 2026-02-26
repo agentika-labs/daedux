@@ -1,0 +1,11 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["typescript", "react"],
+  "rules": {
+    "no-unused-vars": "warn",
+    "no-console": "off",
+    "typescript/no-explicit-any": "warn",
+    "react/no-array-index-key": "warn"
+  },
+  "ignorePatterns": ["dist", "build", ".electrobun", "node_modules", "coverage"]
+}

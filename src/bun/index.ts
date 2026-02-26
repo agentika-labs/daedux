@@ -821,7 +821,7 @@ const createMainWindow = () => {
   isMainViewReady = false;
 
   const window = new BrowserWindow({
-    title: "Claude Usage Monitor",
+    title: "Daedux",
     frame: {
       x: 64,
       y: 64,
@@ -1351,7 +1351,7 @@ const refreshApplicationMenu = () => {
     ...(isMac
       ? [
           {
-            label: "Claude Usage Monitor",
+            label: "Daedux",
             submenu: [
               {
                 label: "Show Dashboard",

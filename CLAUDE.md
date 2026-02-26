@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Overview
 
-claude-usage-monitor is a token usage dashboard for Claude Code. It parses session JSONL files from `~/.claude/projects/`, stores aggregated data in SQLite, and serves an interactive HTML dashboard showing costs, token usage, tool health, and cache efficiency.
+Daedux is a token usage dashboard for Claude Code. It parses session JSONL files from `~/.claude/projects/`, stores aggregated data in SQLite, and serves an interactive HTML dashboard showing costs, token usage, tool health, and cache efficiency.
 
 ## Commands
 
@@ -60,7 +60,7 @@ Services are defined in `src/services/`:
 
 ### Database
 
-- Location: `~/.claude/usage-monitor.db`
+- Location: `~/Library/Application Support/Daedux/daedux.db` (macOS)
 - Schema: `src/db/schema.ts` (Drizzle ORM)
 - Migrations: Manual via `drizzle-kit push`
 

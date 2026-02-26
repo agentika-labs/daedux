@@ -76,7 +76,7 @@ const Dashboard = ({ isLoading: initialLoading }: DashboardProps) => {
       <header className="flex-shrink-0 border-b border-border px-6 py-4">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-semibold">Claude Usage Monitor</h1>
+            <h1 className="text-2xl font-semibold">Daedux</h1>
             <p className="text-sm text-muted-foreground">
               Track your token usage and costs
             </p>

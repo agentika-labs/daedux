@@ -10,14 +10,14 @@ const getDbPath = (): string => {
   const home = homedir();
 
   if (process.platform === "darwin") {
-    return join(home, "Library", "Application Support", "Claude Usage Monitor", "usage-monitor.db");
+    return join(home, "Library", "Application Support", "Daedux", "daedux.db");
   }
   if (process.platform === "win32") {
     const appData = process.env.APPDATA ?? join(home, "AppData", "Roaming");
-    return join(appData, "Claude Usage Monitor", "usage-monitor.db");
+    return join(appData, "Daedux", "daedux.db");
   }
   // Linux and others
-  return join(home, ".local", "share", "claude-usage-monitor", "usage-monitor.db");
+  return join(home, ".local", "share", "daedux", "daedux.db");
 };
 
 const DB_PATH = getDbPath();
@@ -74,7 +74,8 @@ export function initializeDatabase(): void {
       compactions INTEGER DEFAULT 0,
       saved_by_caching REAL DEFAULT 0,
       total_ephemeral_5m_tokens INTEGER DEFAULT 0,
-      total_ephemeral_1h_tokens INTEGER DEFAULT 0
+      total_ephemeral_1h_tokens INTEGER DEFAULT 0,
+      turn_count INTEGER DEFAULT 0
     )
   `);
 
@@ -90,6 +91,9 @@ export function initializeDatabase(): void {
   } catch { /* column may already exist */ }
   try {
     sqlite.exec(`ALTER TABLE sessions ADD COLUMN total_ephemeral_1h_tokens INTEGER DEFAULT 0`);
+  } catch { /* column may already exist */ }
+  try {
+    sqlite.exec(`ALTER TABLE sessions ADD COLUMN turn_count INTEGER DEFAULT 0`);
   } catch { /* column may already exist */ }
 
   sqlite.exec(`

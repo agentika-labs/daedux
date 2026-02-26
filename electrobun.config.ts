@@ -2,8 +2,8 @@ import type { ElectrobunConfig } from "electrobun";
 
 export default {
   app: {
-    name: "Claude Usage Monitor",
-    identifier: "com.claude-usage-monitor.app",
+    name: "Daedux",
+    identifier: "com.daedux.app",
     version: "0.1.0",
   },
   runtime: {
@@ -26,6 +26,6 @@ export default {
   },
   release: {
     baseUrl:
-      "https://github.com/adamferguson/claude-usage-monitor/releases/download/",
+      "https://github.com/adamferguson/daedux/releases/download/",
   },
 } satisfies ElectrobunConfig;

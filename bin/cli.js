@@ -1,12 +1,12 @@
 #!/usr/bin/env bun
-// CLI entry point for npx claude-usage-monitor
+// CLI entry point for npx daedux
 // This script provides a terminal-based interface to view usage stats
 
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { existsSync } from "node:fs";
 
-const DB_PATH = join(homedir(), ".claude", "usage-monitor.db");
+const DB_PATH = join(homedir(), ".claude", "daedux.db");
 const CLAUDE_PROJECTS = join(homedir(), ".claude", "projects");
 
 async function main() {
@@ -16,16 +16,16 @@ async function main() {
 
   if (showVersion) {
     const pkg = await import("../package.json");
-    console.log(`claude-usage-monitor v${pkg.version}`);
+    console.log(`daedux v${pkg.version}`);
     return;
   }
 
   if (showHelp) {
     console.log(`
-claude-usage-monitor - Claude Code token usage dashboard
+daedux - Claude Code token usage dashboard
 
 Usage:
-  npx claude-usage-monitor [options]
+  npx daedux [options]
 
 Options:
   -h, --help     Show this help message
@@ -33,7 +33,7 @@ Options:
   --info         Show database and session info
 
 For the full dashboard experience, download the desktop app from:
-https://github.com/adamferguson/claude-usage-monitor/releases
+https://github.com/adamferguson/daedux/releases
 
 The desktop app provides:
   - Interactive dashboard with charts and insights
@@ -46,7 +46,7 @@ The desktop app provides:
 
   const showInfo = args.includes("--info");
 
-  console.log("Claude Usage Monitor\n");
+  console.log("Daedux\n");
 
   // Check if Claude projects directory exists
   if (!existsSync(CLAUDE_PROJECTS)) {
@@ -78,7 +78,7 @@ The desktop app provides:
   }
 
   console.log("\nDownload the desktop app:");
-  console.log("https://github.com/adamferguson/claude-usage-monitor/releases");
+  console.log("https://github.com/adamferguson/daedux/releases");
 }
 
 main().catch(console.error);

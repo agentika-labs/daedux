@@ -96,7 +96,7 @@ export function Header({
         <div className="flex items-center justify-between">
           {/* Title and nav */}
           <div className="flex items-center gap-6">
-            <h1 className="text-lg font-semibold">Claude Usage Monitor</h1>
+            <h1 className="text-lg font-semibold">Daedux</h1>
             <Separator orientation="vertical" className="h-6" />
             <nav className="flex items-center gap-1">
               {SECTIONS.map(({ id, label }) => (

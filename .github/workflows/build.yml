@@ -72,13 +72,13 @@ jobs:
           cd build/stable
 
           # Create zip from app bundle
-          zip -r "claude-usage-monitor-${VERSION}-darwin-${ARCH}.zip" "Claude Usage Monitor.app"
+          zip -r "daedux-${VERSION}-darwin-${ARCH}.zip" "Daedux.app"
 
           # Create DMG
-          hdiutil create -volname "Claude Usage Monitor" \
-            -srcfolder "Claude Usage Monitor.app" \
+          hdiutil create -volname "Daedux" \
+            -srcfolder "Daedux.app" \
             -ov -format UDZO \
-            "claude-usage-monitor-${VERSION}-darwin-${ARCH}.dmg"
+            "daedux-${VERSION}-darwin-${ARCH}.dmg"
 
       - name: Upload to release
         if: github.event_name == 'release'
@@ -93,8 +93,8 @@ jobs:
 
           # Upload zip and dmg
           gh release upload "${{ github.event.release.tag_name }}" \
-            "claude-usage-monitor-${VERSION}-darwin-${ARCH}.zip" \
-            "claude-usage-monitor-${VERSION}-darwin-${ARCH}.dmg" \
+            "daedux-${VERSION}-darwin-${ARCH}.zip" \
+            "daedux-${VERSION}-darwin-${ARCH}.dmg" \
             --clobber
 
           # Upload update artifacts if they exist

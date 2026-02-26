@@ -1,10 +1,10 @@
 {
-  "name": "claude-usage-monitor",
+  "name": "daedux",
   "version": "0.1.0",
   "description": "Claude Code token usage dashboard - Desktop app",
   "type": "module",
   "bin": {
-    "claude-usage-monitor": "./bin/cli.js"
+    "daedux": "./bin/cli.js"
   },
   "files": [
     "bin/",
@@ -31,7 +31,11 @@
     "test": "bun test",
     "test:watch": "bun test --watch",
     "test:coverage": "bun test --coverage",
-    "clean": "rm -rf dist build .electrobun"
+    "clean": "rm -rf dist build .electrobun",
+    "lint": "oxlint src tests",
+    "lint:fix": "oxlint src tests --fix",
+    "format": "oxfmt src tests --write",
+    "format:check": "oxfmt src tests --check"
   },
   "dependencies": {
     "@base-ui/react": "^1.2",
@@ -62,6 +66,8 @@
     "@vitejs/plugin-react": "^5.1",
     "concurrently": "^9.1",
     "drizzle-kit": "^0.30",
+    "oxfmt": "^0.35.0",
+    "oxlint": "^1.50.0",
     "shadcn": "^3.8.5",
     "tailwindcss": "^4.1",
     "typescript": "^5",

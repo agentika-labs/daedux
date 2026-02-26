@@ -5,6 +5,6 @@ export default {
   out: "./drizzle",
   dialect: "sqlite",
   dbCredentials: {
-    url: `${process.env.HOME}/.claude/usage-monitor.db`,
+    url: `${process.env.HOME}/.claude/daedux.db`,
   },
 } satisfies Config;

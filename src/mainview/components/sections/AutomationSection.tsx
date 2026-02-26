@@ -206,8 +206,8 @@ function AgentsTab({ agents, loading }: AgentsTabProps) {
                 </div>
 
                 <div className="flex items-center gap-4 shrink-0">
-                  {/* Success Rate */}
-                  <div className="text-right">
+                  {/* Success Rate - fixed width */}
+                  <div className="w-14 text-right">
                     <Badge
                       variant="outline"
                       className={cn(
@@ -223,26 +223,26 @@ function AgentsTab({ agents, loading }: AgentsTabProps) {
                     </Badge>
                   </div>
 
-                  {/* Errors */}
-                  {errors > 0 && (
-                    <span className="text-xs text-destructive">
-                      {errors} errors
-                    </span>
-                  )}
+                  {/* Errors - ALWAYS render with fixed width */}
+                  <span className="w-20 text-right text-xs text-destructive">
+                    {errors > 0 ? `${errors} errors` : "—"}
+                  </span>
 
-                  {/* Productivity Rating */}
-                  <div className="flex items-center gap-1">
-                    {Array.from({ length: 5 }).map((_, i) => (
-                      <HugeiconsIcon
-                        key={i}
-                        icon={StarIcon}
-                        className={cn(
-                          "h-3 w-3",
-                          i < rating.stars ? "text-chart-4" : "text-muted"
-                        )}
-                      />
-                    ))}
-                    <span className={cn("text-xs ml-1", `text-${rating.variant}`)}>
+                  {/* Productivity Rating - split into fixed columns */}
+                  <div className="flex items-center gap-2">
+                    <div className="flex items-center">
+                      {Array.from({ length: 5 }).map((_, i) => (
+                        <HugeiconsIcon
+                          key={i}
+                          icon={StarIcon}
+                          className={cn(
+                            "h-3 w-3",
+                            i < rating.stars ? "text-chart-4" : "text-muted"
+                          )}
+                        />
+                      ))}
+                    </div>
+                    <span className={cn("w-24 text-xs", `text-${rating.variant}`)}>
                       {rating.label}
                     </span>
                   </div>

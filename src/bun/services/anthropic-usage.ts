@@ -1,4 +1,6 @@
 import { Context, Duration, Effect, Layer, Schedule, Schema } from "effect";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { AnthropicUsageError } from "../errors";
 import type { AnthropicUsage, AnthropicUsageWindow } from "../../shared/rpc-types";
 
@@ -361,16 +363,33 @@ const tryCliUsage = () =>
         throw new Error("claude binary not found in PATH");
       }
 
+      // Create isolated sandbox directory to prevent MCP prompt issues.
+      // The CLI searches parent directories for .mcp.json files - spawning in
+      // an isolated temp directory prevents it from finding any project configs.
+      const sandboxDir = mkdtempSync(`${tmpdir()}/claude-probe-`);
+      console.log("[anthropic-usage] Created sandbox directory:", sandboxDir);
+
       let output = "";
       let resolved = false;
       let dataCallbackCount = 0; // DEBUG: track callback invocations
       const decoder = new TextDecoder();
+
+      // Helper to clean up sandbox directory
+      const cleanupSandbox = () => {
+        try {
+          rmSync(sandboxDir, { recursive: true, force: true });
+          console.log("[anthropic-usage] Cleaned up sandbox directory");
+        } catch (e) {
+          console.log("[anthropic-usage] Failed to cleanup sandbox:", e);
+        }
+      };
 
       return new Promise<AnthropicUsage>((resolve, reject) => {
         const timeout = setTimeout(() => {
           if (!resolved) {
             resolved = true;
             proc.kill();
+            cleanupSandbox();
 
             // Strip ANSI for debug display
             const cleanedForDebug = output
@@ -400,6 +419,7 @@ const tryCliUsage = () =>
         // Use Bun's native PTY API - this provides real terminal emulation
         // that the Claude CLI's TUI requires to render properly
         const proc = Bun.spawn(["claude"], {
+          cwd: sandboxDir, // Sandboxed directory prevents project .mcp.json discovery
           env: { ...process.env, CLAUDECODE: "" },
           terminal: {
             cols: 120,
@@ -422,6 +442,33 @@ const tryCliUsage = () =>
                 .replace(/\x1b[PX^_][^\x1b]*\x1b\\/g, "") // DCS/PM/APC
                 .replace(/\x1b[()][AB012]/g, "") // Character set
                 .replace(/\x1b[=>]/g, ""); // Keypad mode
+
+              // Detect workspace trust prompt and auto-confirm.
+              // This appears when entering an unfamiliar directory (like our temp sandbox).
+              // The prompt asks "Is this a project you created or one you trust?" with options:
+              // 1. Yes, I trust this folder
+              // 2. No, exit
+              if (
+                (clean.includes("trust this folder") || clean.includes("safety check")) &&
+                (clean.includes("Yes") || clean.includes("1."))
+              ) {
+                console.log("[anthropic-usage] Workspace trust prompt detected, confirming...");
+                terminal.write("1\r"); // Select "Yes, I trust this folder"
+                return; // Wait for next data callback
+              }
+
+              // Safety net: Detect MCP server prompt and bypass it.
+              // Even with sandbox cwd, global MCP servers from ~/.claude/ could prompt.
+              // We select option 3 "Continue without using this MCP server" to proceed.
+              if (
+                clean.includes("MCP server") &&
+                clean.includes("found") &&
+                (clean.includes("Continue without") || clean.includes("without using"))
+              ) {
+                console.log("[anthropic-usage] MCP prompt detected, bypassing...");
+                terminal.write("3\r"); // Select "Continue without using this MCP server"
+                return; // Wait for next data callback
+              }
 
               // Check if we have the usage output panel
               // The usage panel shows "Current session" and ends with "Esc" (to cancel)
@@ -456,8 +503,10 @@ const tryCliUsage = () =>
                     setTimeout(() => {
                       try {
                         const usage = parseUsageOutput(output);
+                        cleanupSandbox();
                         resolve(usage);
                       } catch (e) {
+                        cleanupSandbox();
                         reject(e);
                       }
                     }, 100);

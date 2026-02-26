@@ -47,6 +47,22 @@ static NSString *const kElectrobunNativeDragViewIdentifier =
 	}
 }
 
+- (void)scrollWheel:(NSEvent *)event {
+	NSView *contentView = [[self window] contentView];
+	if (contentView == nil) {
+		return;
+	}
+
+	// Find the WebView sibling and forward scroll events to it
+	for (NSView *sibling in [contentView subviews]) {
+		if (sibling != self &&
+			![sibling isKindOfClass:[NSVisualEffectView class]]) {
+			[sibling scrollWheel:event];
+			return;
+		}
+	}
+}
+
 - (void)setExclusionZonesFromArray:(NSArray<NSValue *> *)zones {
 	[self.exclusionZones removeAllObjects];
 	[self.exclusionZones addObjectsFromArray:zones];

@@ -27,21 +27,45 @@ const getDbPath = (): string => {
   const home = homedir();
 
   if (process.platform === "darwin") {
-    return join(home, "Library", "Application Support", "Claude Usage Monitor", "usage-monitor.db");
+    return join(home, "Library", "Application Support", "Daedux", "daedux.db");
   }
   if (process.platform === "win32") {
     const appData = process.env.APPDATA ?? join(home, "AppData", "Roaming");
-    return join(appData, "Claude Usage Monitor", "usage-monitor.db");
+    return join(appData, "Daedux", "daedux.db");
   }
   // Linux and others
-  return join(home, ".local", "share", "claude-usage-monitor", "usage-monitor.db");
+  return join(home, ".local", "share", "daedux", "daedux.db");
 };
 
-const LEGACY_DB_PATH = join(homedir(), ".claude", "usage-monitor.db");
 const DB_PATH = getDbPath();
 
 /**
+ * Get legacy database paths to check for migration.
+ * Returns paths in order of preference (most recent first).
+ */
+const getLegacyDbPaths = (): string[] => {
+  const home = homedir();
+  const paths: string[] = [];
+
+  if (process.platform === "darwin") {
+    // Old app name in Application Support (most recent legacy)
+    paths.push(join(home, "Library", "Application Support", "Claude Usage Monitor", "usage-monitor.db"));
+  } else if (process.platform === "win32") {
+    const appData = process.env.APPDATA ?? join(home, "AppData", "Roaming");
+    paths.push(join(appData, "Claude Usage Monitor", "usage-monitor.db"));
+  } else {
+    paths.push(join(home, ".local", "share", "claude-usage-monitor", "usage-monitor.db"));
+  }
+
+  // Oldest legacy location (all platforms)
+  paths.push(join(home, ".claude", "usage-monitor.db"));
+
+  return paths;
+};
+
+/**
  * Migrate database from legacy location if needed.
+ * Checks multiple legacy paths and migrates from the first one found.
  * Only runs once on first app launch.
  */
 const migrateFromLegacyLocation = (): void => {
@@ -54,16 +78,20 @@ const migrateFromLegacyLocation = (): void => {
     mkdirSync(dbDir, { recursive: true });
   }
 
-  // If legacy DB exists, copy it to new location
-  if (existsSync(LEGACY_DB_PATH)) {
-    console.log(`[db] Migrating database from ${LEGACY_DB_PATH} to ${DB_PATH}`);
-    copyFileSync(LEGACY_DB_PATH, DB_PATH);
+  // Check legacy paths in order and migrate from first found
+  for (const legacyPath of getLegacyDbPaths()) {
+    if (existsSync(legacyPath)) {
+      console.log(`[db] Migrating database from ${legacyPath} to ${DB_PATH}`);
+      copyFileSync(legacyPath, DB_PATH);
 
-    // Also copy WAL files if they exist
-    const walPath = `${LEGACY_DB_PATH}-wal`;
-    const shmPath = `${LEGACY_DB_PATH}-shm`;
-    if (existsSync(walPath)) copyFileSync(walPath, `${DB_PATH}-wal`);
-    if (existsSync(shmPath)) copyFileSync(shmPath, `${DB_PATH}-shm`);
+      // Also copy WAL files if they exist
+      const walPath = `${legacyPath}-wal`;
+      const shmPath = `${legacyPath}-shm`;
+      if (existsSync(walPath)) copyFileSync(walPath, `${DB_PATH}-wal`);
+      if (existsSync(shmPath)) copyFileSync(shmPath, `${DB_PATH}-shm`);
+
+      return; // Stop after first successful migration
+    }
   }
 };
 
