@@ -64,7 +64,9 @@ export function EfficiencySection({ data, loading }: EfficiencySectionProps) {
 
   // Efficiency metrics from efficiencyScore (distinct from cache hit rate)
   const toolSuccessRate = data?.efficiencyScore?.toolSuccess ?? 0;
-  const sessionEfficiency = data?.efficiencyScore?.sessionEfficiency ?? null;
+  const vcsActivityCount = data?.efficiencyScore?.vcsActivityCount ?? 0;
+  const prsCreated = data?.efficiencyScore?.prsCreated ?? 0;
+  const prEfficiency = data?.efficiencyScore?.prEfficiency;
 
   return (
     <Section id="efficiency">
@@ -103,38 +105,58 @@ export function EfficiencySection({ data, loading }: EfficiencySectionProps) {
           }
         />
         <StatCard
-          label="Session Efficiency"
-          value={
-            sessionEfficiency !== null
-              ? Math.round(sessionEfficiency).toString()
-              : "—"
-          }
-          subtext="Queries per session score"
+          label="VCS Activity"
+          value={vcsActivityCount.toString()}
+          subtext="Commits, pushes, merges"
           loading={loading}
           variant={
-            sessionEfficiency !== null && sessionEfficiency >= 70
+            vcsActivityCount >= 30
               ? "success"
-              : sessionEfficiency !== null && sessionEfficiency >= 40
+              : vcsActivityCount >= 10
                 ? "warning"
                 : "default"
           }
           tooltip={
             <InfoTooltip
               title="What does this measure?"
-              description="Average queries per session. Longer sessions benefit more from prompt caching, reducing costs."
+              description="Commits, pushes, merges, and rebases across Git and JJ. Excludes read-only commands like status and log."
               scale={[
-                { quality: "Low (< 50)", range: "1-4 queries" },
-                { quality: "Good (50-99)", range: "5-9 queries" },
-                { quality: "Optimal (100)", range: "10+ queries" },
+                { quality: "Low", range: "0-10 actions" },
+                { quality: "Moderate", range: "11-30 actions" },
+                { quality: "Active", range: "30+ actions" },
               ]}
             />
           }
         />
         <StatCard
-          label="Prompt Efficiency"
-          value={formatPercent(data?.totals?.promptEfficiencyRatio ?? 0)}
-          subtext="Output vs input ratio"
+          label="PR Efficiency"
+          value={
+            prEfficiency !== null && prEfficiency !== undefined
+              ? `$${prEfficiency.toFixed(2)}/PR`
+              : "—"
+          }
+          subtext={prsCreated > 0 ? `${prsCreated} PRs shipped` : "No PRs yet"}
           loading={loading}
+          variant={
+            prEfficiency !== null && prEfficiency !== undefined
+              ? prEfficiency < 5
+                ? "success"
+                : prEfficiency < 15
+                  ? "warning"
+                  : "default"
+              : "default"
+          }
+          tooltip={
+            <InfoTooltip
+              title="What does this measure?"
+              description="Total cost divided by PRs created. Lower is better — it shows how efficiently you're shipping work."
+              scale={[
+                { quality: "Excellent", range: "< $5/PR" },
+                { quality: "Good", range: "$5-15/PR" },
+                { quality: "Review workflow", range: "> $15/PR" },
+              ]}
+            />
+          }
         />
       </div>
 

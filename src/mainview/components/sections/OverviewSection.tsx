@@ -87,10 +87,16 @@ export function OverviewSection({
           loading={loading}
         />
         <StatCard
-          label="Avg Turns"
-          value={(totals?.avgTurnsPerSession ?? 0).toFixed(1)}
-          subtext={`${formatNumber(totals?.totalTurns ?? 0)} total turns`}
+          label="PRs Created"
+          value={formatNumber(efficiencyScore?.prsCreated ?? 0)}
+          subtext={
+            efficiencyScore?.prEfficiency !== null &&
+            efficiencyScore?.prEfficiency !== undefined
+              ? `$${efficiencyScore.prEfficiency.toFixed(2)}/PR`
+              : "Track your shipped work"
+          }
           loading={loading}
+          variant={(efficiencyScore?.prsCreated ?? 0) > 0 ? "success" : "default"}
         />
         <StatCard
           label="Cache Savings"
