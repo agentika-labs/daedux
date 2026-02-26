@@ -43,6 +43,7 @@ export interface SessionSummary {
   readonly totalCost: number | null;
   readonly queryCount: number | null;
   readonly toolUseCount: number | null;
+  readonly turnCount: number | null;
   readonly isSubagent: boolean | null;
   // Token fields for per-session aggregation
   readonly totalInputTokens: number | null;
@@ -354,6 +355,7 @@ export const SessionAnalyticsServiceLive = Layer.effect(
                 totalCost: schema.sessions.totalCost,
                 queryCount: schema.sessions.queryCount,
                 toolUseCount: schema.sessions.toolUseCount,
+                turnCount: schema.sessions.turnCount,
                 isSubagent: schema.sessions.isSubagent,
                 totalInputTokens: schema.sessions.totalInputTokens,
                 totalOutputTokens: schema.sessions.totalOutputTokens,
@@ -451,6 +453,7 @@ export const SessionAnalyticsServiceLive = Layer.effect(
                 totalCost: schema.sessions.totalCost,
                 queryCount: schema.sessions.queryCount,
                 toolUseCount: schema.sessions.toolUseCount,
+                turnCount: schema.sessions.turnCount,
                 isSubagent: schema.sessions.isSubagent,
                 totalInputTokens: schema.sessions.totalInputTokens,
                 totalOutputTokens: schema.sessions.totalOutputTokens,

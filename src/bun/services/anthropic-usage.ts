@@ -2,6 +2,18 @@ import { Context, Duration, Effect, Layer, Schedule, Schema } from "effect";
 import { AnthropicUsageError } from "../errors";
 import type { AnthropicUsage, AnthropicUsageWindow } from "../../shared/rpc-types";
 
+// ─── Concurrency Control ────────────────────────────────────────────────────
+//
+// Mutex to prevent concurrent CLI probes. Multiple getUsage() calls at startup
+// can race and overwrite the cache with stale/fallback data. Using a semaphore
+// with 1 permit ensures only one probe runs at a time - others wait and get
+// cached data.
+//
+// Created synchronously at module load - Effect.runSync is safe here since
+// makeSemaphore has no requirements (returns Effect<Semaphore, never, never>).
+
+const cliProbeMutex = Effect.runSync(Effect.makeSemaphore(1));
+
 // ─── OAuth Response Schema ──────────────────────────────────────────────────
 
 /**
@@ -116,12 +128,26 @@ const parseUsageOutput = (output: string): AnthropicUsage => {
   // "Resets 4am (Europe/London)" - session
   // "Resets Mar 3 at 4pm (Europe/London)" - weekly
   // "Resets Mar 1 (Europe/London)" - extra usage
-  const allResetPatterns = clean.match(/Resets\s+[^(]+\([^)]+\)/gi) || [];
+  //
+  // NOTE: TUI cursor positioning fragments text, so "Resets" and the time may be separated.
+  // Instead of relying on "Resets" label, we look for timezone patterns directly:
+  // - Time only: "4am (Europe/London)", "3:59pm (America/New_York)"
+  // - Date + time: "Mar 3 at 4pm (Europe/London)"
+  // - Date only: "Mar 1 (Europe/London)"
+  const timePatterns = clean.match(/\d+(?::\d+)?(?:am|pm)\s*\([^)]+\)/gi) || [];
+  const dateTimePatterns = clean.match(
+    /(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d+(?:\s+at\s+\d+(?:am|pm))?\s*\([^)]+\)/gi
+  ) || [];
+
+  // Combine and dedupe (dateTime patterns may overlap with time-only patterns)
+  const allResetPatterns = [...new Set([...timePatterns, ...dateTimePatterns])];
 
   console.log("[anthropic-usage] DEBUG - All patterns found:", {
     percentages: allPercentages,
     usedPatterns: allUsedPatterns,
     spentPatterns: allSpentPatterns,
+    timePatterns,
+    dateTimePatterns,
     resetPatterns: allResetPatterns,
     hasCurrentSession: clean.includes("Current session"),
     hasCurrentWeek: clean.includes("Current week"),
@@ -164,22 +190,16 @@ const parseUsageOutput = (output: string): AnthropicUsage => {
 
   // Extract reset times with timezone by position
   // Order: session reset, weekly reset, extra usage reset (sonnet has no reset)
-  // Format: "Resets 4am (Europe/London)" -> "4am (Europe/London)"
-  const extractResetRaw = (s: string) => s.replace(/^Resets\s+/i, "").trim();
+  // The patterns are already clean (e.g., "4am (Europe/London)") - no "Resets" prefix
   let sessionResetRaw: string | null = null;
   let weeklyResetRaw: string | null = null;
   let extraResetRaw: string | null = null;
 
-  if (allResetPatterns.length >= 1) sessionResetRaw = extractResetRaw(allResetPatterns[0]!);
-  if (allResetPatterns.length >= 2) weeklyResetRaw = extractResetRaw(allResetPatterns[1]!);
-  if (allResetPatterns.length >= 3) extraResetRaw = extractResetRaw(allResetPatterns[2]!);
-
-  // Also try label-based extraction as fallback
-  const sessionResetMatch = clean.match(/Current session[\s\S]*?Resets\s+([^\n(]+\([^)]+\))/i);
-  const weeklyResetMatch = clean.match(/Current week\s*\(all models\)[\s\S]*?Resets\s+([^\n(]+\([^)]+\))/i);
-
-  if (!sessionResetRaw && sessionResetMatch?.[1]) sessionResetRaw = sessionResetMatch[1].trim();
-  if (!weeklyResetRaw && weeklyResetMatch?.[1]) weeklyResetRaw = weeklyResetMatch[1].trim();
+  // Assign by position - time-only patterns typically come first (session),
+  // date patterns come later (weekly, extra)
+  if (allResetPatterns.length >= 1) sessionResetRaw = allResetPatterns[0]!.trim();
+  if (allResetPatterns.length >= 2) weeklyResetRaw = allResetPatterns[1]!.trim();
+  if (allResetPatterns.length >= 3) extraResetRaw = allResetPatterns[2]!.trim();
 
   const result: AnthropicUsage = {
     session: {
@@ -229,17 +249,22 @@ const parseUsageOutput = (output: string): AnthropicUsage => {
 };
 
 /**
- * Parse reset time from date string like "3:59am" or "Mar 3 at 4pm".
+ * Parse reset time from date string like "3:59am", "4am", "Mar 3 at 4pm", or "Mar 1".
+ * Handles timezone suffix like "(Europe/London)" by stripping it.
  * Returns Unix timestamp in seconds.
  */
 const parseResetTimeFromDate = (dateStr: string): number | null => {
   const now = new Date();
 
-  // Try to parse "3:59am" format (time today)
-  const timeMatch = dateStr.match(/^(\d{1,2}):(\d{2})(am|pm)$/i);
-  if (timeMatch && timeMatch[1] && timeMatch[2] && timeMatch[3]) {
+  // Strip timezone suffix like "(Europe/London)" for parsing
+  // We don't do timezone conversion - just parse the local time
+  const cleanDate = dateStr.replace(/\s*\([^)]+\)\s*$/, "").trim();
+
+  // Try to parse "3:59am" or "4am" format (time today)
+  const timeMatch = cleanDate.match(/^(\d{1,2})(?::(\d{2}))?(am|pm)$/i);
+  if (timeMatch && timeMatch[1] && timeMatch[3]) {
     let hours = parseInt(timeMatch[1], 10);
-    const minutes = parseInt(timeMatch[2], 10);
+    const minutes = timeMatch[2] ? parseInt(timeMatch[2], 10) : 0;
     const isPM = timeMatch[3].toLowerCase() === "pm";
 
     if (isPM && hours !== 12) hours += 12;
@@ -255,7 +280,7 @@ const parseResetTimeFromDate = (dateStr: string): number | null => {
   }
 
   // Try to parse "Mar 3 at 4pm" format
-  const dateTimeMatch = dateStr.match(/^(\w+)\s+(\d{1,2})\s+at\s+(\d{1,2})(am|pm)$/i);
+  const dateTimeMatch = cleanDate.match(/^(\w+)\s+(\d{1,2})\s+at\s+(\d{1,2})(am|pm)$/i);
   if (dateTimeMatch && dateTimeMatch[1] && dateTimeMatch[2] && dateTimeMatch[3] && dateTimeMatch[4]) {
     const monthNames = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
     const monthIndex = monthNames.indexOf(dateTimeMatch[1].toLowerCase().slice(0, 3));
@@ -268,6 +293,23 @@ const parseResetTimeFromDate = (dateStr: string): number | null => {
 
     if (monthIndex >= 0) {
       const reset = new Date(now.getFullYear(), monthIndex, day, hours, 0, 0);
+      // If the date has passed this year, it's next year
+      if (reset.getTime() < now.getTime()) {
+        reset.setFullYear(reset.getFullYear() + 1);
+      }
+      return Math.floor(reset.getTime() / 1000);
+    }
+  }
+
+  // Try to parse "Mar 1" format (date only, assume midnight)
+  const dateOnlyMatch = cleanDate.match(/^(\w+)\s+(\d{1,2})$/i);
+  if (dateOnlyMatch && dateOnlyMatch[1] && dateOnlyMatch[2]) {
+    const monthNames = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
+    const monthIndex = monthNames.indexOf(dateOnlyMatch[1].toLowerCase().slice(0, 3));
+    const day = parseInt(dateOnlyMatch[2], 10);
+
+    if (monthIndex >= 0) {
+      const reset = new Date(now.getFullYear(), monthIndex, day, 0, 0, 0);
       // If the date has passed this year, it's next year
       if (reset.getTime() < now.getTime()) {
         reset.setFullYear(reset.getFullYear() + 1);
@@ -815,37 +857,44 @@ const tryOAuthAPI = () =>
 
 export const AnthropicUsageServiceLive = Layer.succeed(AnthropicUsageService, {
   getUsage: () =>
-    Effect.gen(function* () {
-      // Check cache first
-      const now = Date.now();
-      if (usageCache && now - usageCache.cachedAt < CACHE_TTL_MS) {
-        return usageCache.data;
-      }
+    // Acquire permit - only one caller proceeds, others wait
+    cliProbeMutex.withPermits(1)(
+      Effect.gen(function* () {
+        // Check cache INSIDE mutex to avoid thundering herd
+        // (concurrent callers wait here, then get cached data)
+        const now = Date.now();
+        if (usageCache && now - usageCache.cachedAt < CACHE_TTL_MS) {
+          return usageCache.data;
+        }
 
-      // Try OAuth API, fall back to unavailable on any error
-      const usage = yield* tryOAuthAPI().pipe(
-        Effect.catchAll(() => Effect.succeed(createUnavailableUsage()))
-      );
+        // Try OAuth API, fall back to unavailable on any error
+        const usage = yield* tryOAuthAPI().pipe(
+          Effect.catchAll(() => Effect.succeed(createUnavailableUsage()))
+        );
 
-      // Update cache
-      usageCache = { data: usage, cachedAt: now };
+        // Update cache (safe - we hold the mutex)
+        usageCache = { data: usage, cachedAt: now };
 
-      return usage;
-    }),
+        return usage;
+      })
+    ),
 
   refreshUsage: () =>
-    Effect.gen(function* () {
-      // Clear cache and fetch fresh data
-      usageCache = null;
+    // Acquire permit for refresh (serialized with getUsage)
+    cliProbeMutex.withPermits(1)(
+      Effect.gen(function* () {
+        // Clear cache and fetch fresh data
+        usageCache = null;
 
-      const usage = yield* tryOAuthAPI().pipe(
-        Effect.catchAll(() => Effect.succeed(createUnavailableUsage()))
-      );
+        const usage = yield* tryOAuthAPI().pipe(
+          Effect.catchAll(() => Effect.succeed(createUnavailableUsage()))
+        );
 
-      usageCache = { data: usage, cachedAt: Date.now() };
+        usageCache = { data: usage, cachedAt: Date.now() };
 
-      return usage;
-    }),
+        return usage;
+      })
+    ),
 
   clearCache: () =>
     Effect.sync(() => {

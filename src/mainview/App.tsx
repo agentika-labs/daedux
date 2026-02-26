@@ -6,6 +6,7 @@ import { OverviewSection } from "./components/sections/OverviewSection";
 import { CostSection } from "./components/sections/CostSection";
 import { EfficiencySection } from "./components/sections/EfficiencySection";
 import { ToolsSection } from "./components/sections/ToolsSection";
+import { AutomationSection } from "./components/sections/AutomationSection";
 import { SessionsSection } from "./components/sections/SessionsSection";
 import { ProjectsSection } from "./components/sections/ProjectsSection";
 import type { DashboardData } from "@shared/rpc-types";
@@ -154,6 +155,11 @@ const App = () => {
           />
 
           <ToolsSection
+            data={data}
+            loading={isLoading}
+          />
+
+          <AutomationSection
             data={data}
             loading={isLoading}
           />

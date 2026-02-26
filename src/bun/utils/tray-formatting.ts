@@ -13,16 +13,18 @@
  * @returns Status emoji: "" (normal), "⚠" (warning >=70%)
  */
 export const statusIndicator = (percent: number): string => {
-  if (percent >= 70) return "⚠";
+  if (percent >= 70) return " ⚠";
   return "";
 };
 
 /**
- * Format a rate limit item with label (left-aligned) and percentage (right-aligned).
+ * Format a rate limit item with label and percentage separated by em-dash.
+ * Uses em-dash for separation since macOS menus use proportional fonts
+ * where tab characters render as small spaces (no tab stop support).
  * @param label - Short label (e.g., "Session", "Weekly")
  * @param percent - Usage percentage (0-100)
  * @param windowHint - Optional time window hint (e.g., "5h", "7d")
- * @returns Formatted string like "Session (5h)        25%"
+ * @returns Formatted string like "Session (5h) — 40%"
  */
 export const formatRateLimitItem = (
   label: string,
@@ -30,29 +32,27 @@ export const formatRateLimitItem = (
   windowHint?: string
 ): string => {
   const status = statusIndicator(percent);
-  const pctStr = `${percent.toFixed(0)}%`.padStart(4);
+  const pctStr = `${percent.toFixed(0)}%`;
   const labelWithHint = windowHint ? `${label} (${windowHint})` : label;
-  return `${labelWithHint.padEnd(18)}${pctStr}${status}`;
+  return `${labelWithHint} — ${pctStr}${status}`;
 };
 
 /**
  * Format extra usage (Max overage) with clear over/under indication.
  * @param spent - Amount spent in USD
  * @param limit - Spending limit in USD (null = no limit)
- * @returns Formatted string like "$40.42 over cap ⚠"
+ * @returns Formatted string like "$40.42 / $37.50 extra ⚠"
  */
 export const formatExtraUsage = (spent: number, limit: number | null): string => {
   const spentStr = `$${spent.toFixed(2)}`;
 
   if (limit === null) {
-    return `${spentStr} (no cap)`;
+    return `${spentStr} extra`;
   }
 
-  if (spent > limit) {
-    return `${spentStr} over cap ⚠`;
-  }
-
-  return `${spentStr} / $${limit.toFixed(2)}`;
+  const limitStr = `$${limit.toFixed(2)}`;
+  const warning = spent > limit ? " ⚠" : "";
+  return `${spentStr} / ${limitStr} extra${warning}`;
 };
 
 /**

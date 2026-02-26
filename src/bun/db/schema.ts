@@ -55,6 +55,7 @@ export const sessions = sqliteTable(
     // Extended metrics (Phase 1 additions)
     compactions: integer("compactions").default(0),
     savedByCaching: real("saved_by_caching").default(0),
+    turnCount: integer("turn_count").default(0), // Number of user turns (human messages)
 
     // Ephemeral cache totals
     totalEphemeral5mTokens: integer("total_ephemeral_5m_tokens").default(0),

@@ -67,6 +67,31 @@ export interface CommandStat {
   readonly avgSessionCost: number; // Not tracked yet
 }
 
+/**
+ * Metrics for skill impact comparison.
+ */
+export interface SkillImpactMetrics {
+  readonly sessionCount: number;
+  readonly avgToolErrorRate: number;
+  readonly avgCompletionRate: number;
+  readonly avgTurnCount: number;
+  readonly avgCacheHitRatio: number;
+}
+
+/**
+ * Comparison of sessions with vs without skill usage.
+ */
+export interface SkillImpactComparison {
+  readonly withSkills: SkillImpactMetrics;
+  readonly withoutSkills: SkillImpactMetrics;
+  readonly impact: {
+    readonly errorRateReduction: number;
+    readonly completionImprovement: number;
+    readonly turnsReduction: number;
+    readonly cacheImprovement: number;
+  };
+}
+
 // ─── Service Interface ───────────────────────────────────────────────────────
 
 export class AgentAnalyticsService extends Context.Tag("AgentAnalyticsService")<
@@ -90,6 +115,9 @@ export class AgentAnalyticsService extends Context.Tag("AgentAnalyticsService")<
     readonly getCommandStats: (
       dateFilter?: DateFilter
     ) => Effect.Effect<CommandStat[], DatabaseError>;
+    readonly getSkillImpactComparison: (
+      dateFilter?: DateFilter
+    ) => Effect.Effect<SkillImpactComparison | null, DatabaseError>;
   }
 >() {}
 
@@ -106,8 +134,7 @@ export const AgentAnalyticsServiceLive = Layer.effect(
           try: async () => {
             const dateConditions = buildDateConditions(dateFilter);
 
-            // FIX: Use COUNT(DISTINCT ...) for session-based metrics to avoid inflation
-            // when a session has multiple invocations of the same skill.
+            // Get skill invocation counts
             const result = await db
               .select({
                 skillName: schema.skillInvocations.skillName,
@@ -115,11 +142,6 @@ export const AgentAnalyticsServiceLive = Layer.effect(
                 uniqueSessions:
                   sql<number>`COUNT(DISTINCT ${schema.skillInvocations.sessionId})`.as(
                     "unique_sessions"
-                  ),
-                // FIX: Count distinct completed sessions, not sum per row
-                completedSessions:
-                  sql<number>`COUNT(DISTINCT CASE WHEN ${schema.sessions.endTime} IS NOT NULL THEN ${schema.skillInvocations.sessionId} END)`.as(
-                    "completed_sessions"
                   ),
               })
               .from(schema.skillInvocations)
@@ -130,6 +152,62 @@ export const AgentAnalyticsServiceLive = Layer.effect(
               .where(dateConditions.length > 0 ? and(...dateConditions) : undefined)
               .groupBy(schema.skillInvocations.skillName)
               .orderBy(desc(count()));
+
+            // FIX: Get actual Skill tool success rates from tool_uses table
+            // This measures whether the Skill tool execution succeeded (not session completion)
+            const skillToolErrorsResult =
+              dateConditions.length === 0
+                ? await db
+                    .select({
+                      skillName: schema.skillInvocations.skillName,
+                      totalSkillCalls: count(),
+                      errorCalls:
+                        sql<number>`SUM(CASE WHEN ${schema.toolUses.hasError} = 1 THEN 1 ELSE 0 END)`.as(
+                          "error_calls"
+                        ),
+                    })
+                    .from(schema.skillInvocations)
+                    .innerJoin(
+                      schema.toolUses,
+                      and(
+                        eq(schema.skillInvocations.sessionId, schema.toolUses.sessionId),
+                        eq(schema.toolUses.toolName, "Skill")
+                      )
+                    )
+                    .groupBy(schema.skillInvocations.skillName)
+                : await db
+                    .select({
+                      skillName: schema.skillInvocations.skillName,
+                      totalSkillCalls: count(),
+                      errorCalls:
+                        sql<number>`SUM(CASE WHEN ${schema.toolUses.hasError} = 1 THEN 1 ELSE 0 END)`.as(
+                          "error_calls"
+                        ),
+                    })
+                    .from(schema.skillInvocations)
+                    .innerJoin(
+                      schema.toolUses,
+                      and(
+                        eq(schema.skillInvocations.sessionId, schema.toolUses.sessionId),
+                        eq(schema.toolUses.toolName, "Skill")
+                      )
+                    )
+                    .innerJoin(
+                      schema.sessions,
+                      eq(schema.skillInvocations.sessionId, schema.sessions.sessionId)
+                    )
+                    .where(and(...dateConditions))
+                    .groupBy(schema.skillInvocations.skillName);
+
+            // Build error rate map: skillName -> successRate (0-1)
+            const skillErrorMap = new Map<string, number>();
+            for (const row of skillToolErrorsResult) {
+              const successRate =
+                row.totalSkillCalls > 0
+                  ? (row.totalSkillCalls - (row.errorCalls ?? 0)) / row.totalSkillCalls
+                  : 1; // Default to 100% if no data
+              skillErrorMap.set(row.skillName, successRate);
+            }
 
             // FIX: Get session tokens per distinct session using window function approach
             // This sums tokens only once per unique (skillName, sessionId) pair
@@ -228,14 +306,10 @@ export const AgentAnalyticsServiceLive = Layer.effect(
                 invocationCount > 0 ? Math.round(totalTokens / invocationCount) : 0;
               const avgToolsTriggered =
                 invocationCount > 0 ? Number((toolCount / invocationCount).toFixed(1)) : 0;
-              // FIX: Now completedSessions is correctly distinct, so this rate is capped at 1.0
-              const completionRate =
-                row.uniqueSessions > 0
-                  ? Math.min(
-                      1,
-                      Number(((row.completedSessions ?? 0) / row.uniqueSessions).toFixed(2))
-                    )
-                  : 0;
+              // FIX: Use actual Skill tool success rate from tool_uses table
+              // This measures whether the Skill tool execution succeeded (hasError = false)
+              // Falls back to 1.0 if no Skill tool data found (conservative assumption)
+              const completionRate = skillErrorMap.get(row.skillName) ?? 1;
 
               // Raw efficiency: actions * completion rate / token cost (higher is better)
               // Add 1 to denominator to avoid division by zero and reduce extreme values
@@ -656,6 +730,178 @@ export const AgentAnalyticsServiceLive = Layer.effect(
             }));
           },
           catch: (error) => new DatabaseError({ operation: "getCommandStats", cause: error }),
+        }),
+
+      getSkillImpactComparison: (dateFilter: DateFilter = {}) =>
+        Effect.tryPromise({
+          try: async () => {
+            const dateConditions = buildDateConditions(dateFilter);
+
+            // Get all session IDs that used skills
+            const skillSessionsResult =
+              dateConditions.length === 0
+                ? await db
+                    .selectDistinct({ sessionId: schema.skillInvocations.sessionId })
+                    .from(schema.skillInvocations)
+                : await db
+                    .selectDistinct({ sessionId: schema.skillInvocations.sessionId })
+                    .from(schema.skillInvocations)
+                    .innerJoin(
+                      schema.sessions,
+                      eq(schema.skillInvocations.sessionId, schema.sessions.sessionId)
+                    )
+                    .where(and(...dateConditions));
+
+            const skillSessionSet = new Set(skillSessionsResult.map((r) => r.sessionId));
+
+            if (skillSessionSet.size === 0) {
+              return null; // No skill data to compare
+            }
+
+            // Get all sessions with their metrics
+            const allSessions =
+              dateConditions.length === 0
+                ? await db
+                    .select({
+                      sessionId: schema.sessions.sessionId,
+                      endTime: schema.sessions.endTime,
+                      toolUseCount: schema.sessions.toolUseCount,
+                      turnCount: schema.sessions.turnCount,
+                      totalCacheRead: schema.sessions.totalCacheRead,
+                      totalInputTokens: schema.sessions.totalInputTokens,
+                      totalCacheWrite: schema.sessions.totalCacheWrite,
+                    })
+                    .from(schema.sessions)
+                    .where(eq(schema.sessions.isSubagent, false))
+                : await db
+                    .select({
+                      sessionId: schema.sessions.sessionId,
+                      endTime: schema.sessions.endTime,
+                      toolUseCount: schema.sessions.toolUseCount,
+                      turnCount: schema.sessions.turnCount,
+                      totalCacheRead: schema.sessions.totalCacheRead,
+                      totalInputTokens: schema.sessions.totalInputTokens,
+                      totalCacheWrite: schema.sessions.totalCacheWrite,
+                    })
+                    .from(schema.sessions)
+                    .where(and(eq(schema.sessions.isSubagent, false), ...dateConditions));
+
+            // Get tool errors per session
+            const toolErrorsResult =
+              dateConditions.length === 0
+                ? await db
+                    .select({
+                      sessionId: schema.toolUses.sessionId,
+                      errors:
+                        sql<number>`SUM(CASE WHEN ${schema.toolUses.hasError} = 1 THEN 1 ELSE 0 END)`.as(
+                          "errors"
+                        ),
+                      total: count(),
+                    })
+                    .from(schema.toolUses)
+                    .groupBy(schema.toolUses.sessionId)
+                : await db
+                    .select({
+                      sessionId: schema.toolUses.sessionId,
+                      errors:
+                        sql<number>`SUM(CASE WHEN ${schema.toolUses.hasError} = 1 THEN 1 ELSE 0 END)`.as(
+                          "errors"
+                        ),
+                      total: count(),
+                    })
+                    .from(schema.toolUses)
+                    .innerJoin(
+                      schema.sessions,
+                      eq(schema.toolUses.sessionId, schema.sessions.sessionId)
+                    )
+                    .where(and(...dateConditions))
+                    .groupBy(schema.toolUses.sessionId);
+
+            const toolErrorMap = new Map(
+              toolErrorsResult.map((r) => [
+                r.sessionId,
+                { errors: r.errors ?? 0, total: r.total },
+              ])
+            );
+
+            // Partition sessions
+            const withSkills = allSessions.filter((s) => skillSessionSet.has(s.sessionId));
+            const withoutSkills = allSessions.filter((s) => !skillSessionSet.has(s.sessionId));
+
+            // Calculate metrics for each group
+            const calcMetrics = (
+              sessions: typeof allSessions
+            ): SkillImpactMetrics => {
+              if (sessions.length === 0) {
+                return {
+                  sessionCount: 0,
+                  avgToolErrorRate: 0,
+                  avgCompletionRate: 0,
+                  avgTurnCount: 0,
+                  avgCacheHitRatio: 0,
+                };
+              }
+
+              let totalErrorRate = 0;
+              let totalCompletionRate = 0;
+              let totalTurns = 0;
+              let totalCacheRatio = 0;
+
+              for (const session of sessions) {
+                // Tool error rate
+                const toolStats = toolErrorMap.get(session.sessionId);
+                if (toolStats && toolStats.total > 0) {
+                  totalErrorRate += toolStats.errors / toolStats.total;
+                }
+
+                // Completion rate (has endTime = completed)
+                totalCompletionRate += session.endTime ? 1 : 0;
+
+                // Turn count
+                totalTurns += session.turnCount ?? 0;
+
+                // Cache hit ratio
+                const totalInput =
+                  (session.totalInputTokens ?? 0) +
+                  (session.totalCacheRead ?? 0) +
+                  (session.totalCacheWrite ?? 0);
+                if (totalInput > 0) {
+                  totalCacheRatio += (session.totalCacheRead ?? 0) / totalInput;
+                }
+              }
+
+              return {
+                sessionCount: sessions.length,
+                avgToolErrorRate: totalErrorRate / sessions.length,
+                avgCompletionRate: totalCompletionRate / sessions.length,
+                avgTurnCount: totalTurns / sessions.length,
+                avgCacheHitRatio: totalCacheRatio / sessions.length,
+              };
+            };
+
+            const withSkillsMetrics = calcMetrics(withSkills);
+            const withoutSkillsMetrics = calcMetrics(withoutSkills);
+
+            // Calculate impact (positive = skills are better)
+            const impact = {
+              errorRateReduction:
+                withoutSkillsMetrics.avgToolErrorRate - withSkillsMetrics.avgToolErrorRate,
+              completionImprovement:
+                withSkillsMetrics.avgCompletionRate - withoutSkillsMetrics.avgCompletionRate,
+              turnsReduction:
+                withoutSkillsMetrics.avgTurnCount - withSkillsMetrics.avgTurnCount,
+              cacheImprovement:
+                withSkillsMetrics.avgCacheHitRatio - withoutSkillsMetrics.avgCacheHitRatio,
+            };
+
+            return {
+              withSkills: withSkillsMetrics,
+              withoutSkills: withoutSkillsMetrics,
+              impact,
+            };
+          },
+          catch: (error) =>
+            new DatabaseError({ operation: "getSkillImpactComparison", cause: error }),
         }),
     };
   })

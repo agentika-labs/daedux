@@ -58,7 +58,7 @@ const SQLITE_PARAM_LIMIT = 999;
  * SQLite limit is ~999 params, so max batch = floor(999 / columnCount).
  */
 const TABLE_COLUMN_COUNTS: Record<string, number> = {
-  sessions: 19,           // Safe batch: 52 (added ephemeral columns)
+  sessions: 20,           // Safe batch: 49 (added turnCount column)
   queries: 15,            // Safe batch: 66 (added ephemeral columns)
   toolUses: 10,           // Safe batch: 99 (added callerType)
   fileOperations: 6,      // Safe batch: 166
@@ -308,6 +308,7 @@ const insertRecords = (
               slug: session.slug,
               compactions: session.compactions,
               savedByCaching: session.savedByCaching,
+              turnCount: session.turnCount,
               totalEphemeral5mTokens: session.totalEphemeral5mTokens,
               totalEphemeral1hTokens: session.totalEphemeral1hTokens,
               parentSessionId: session.parentSessionId,

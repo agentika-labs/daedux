@@ -145,6 +145,7 @@ export const parseSessionFile = (
     // Extended tracking
     let compactions = 0;
     let cumulativeTokens = 0;
+    let turnCount = 0; // Count of genuine user turns (non-meta human messages)
     // Ephemeral cache tracking
     let totalEphemeral5mTokens = 0;
     let totalEphemeral1hTokens = 0;
@@ -193,17 +194,19 @@ export const parseSessionFile = (
       }
 
       // ─── Progress entries (hooks) ──────────────────────────────────────────
-      if (type === "progress" && obj.content) {
-        const content = obj.content as Record<string, unknown>;
-        if (content.hookEvent) {
+      // Hook events can be in obj.data (Claude Code format) or obj.content (legacy)
+      const progressData = (obj.data ?? obj.content) as Record<string, unknown> | undefined;
+      if (type === "progress" && progressData) {
+        // Check for hook_progress subtype
+        if (progressData.type === "hook_progress" && progressData.hookEvent) {
           hookEvents.push({
             sessionId: fileInfo.sessionId,
-            hookType: (content.hookEvent as string) ?? "unknown",
-            hookName: (content.hookName as string) ?? null,
-            toolName: (content.toolName as string) ?? null,
-            command: (content.command as string) ?? null,
-            exitCode: (content.exitCode as number) ?? null,
-            durationMs: (content.durationMs as number) ?? null,
+            hookType: (progressData.hookEvent as string) ?? "unknown",
+            hookName: (progressData.hookName as string) ?? null,
+            toolName: (progressData.toolName as string) ?? null,
+            command: (progressData.command as string) ?? null,
+            exitCode: (progressData.exitCode as number) ?? null,
+            durationMs: (progressData.durationMs as number) ?? null,
             timestamp: timestampMs,
           });
         }
@@ -260,6 +263,7 @@ export const parseSessionFile = (
           // Skip system-injected content (pattern-based fallback for entries without metadata flags)
           if (preview && !isSystemContent(preview)) {
             lastUserPreview = preview;
+            turnCount++; // Count this as a genuine user turn
             if (!displayName) {
               displayName = preview.slice(0, 200);
             }
@@ -545,6 +549,7 @@ export const parseSessionFile = (
       isSubagent: fileInfo.isSubagent,
       compactions,
       savedByCaching,
+      turnCount,
       totalEphemeral5mTokens,
       totalEphemeral1hTokens,
     };
