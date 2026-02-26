@@ -31,13 +31,21 @@ static NSString *const kElectrobunNativeDragViewIdentifier =
 - (NSView *)hitTest:(NSPoint)point {
 	NSPoint localPoint = [self convertPoint:point fromView:[self superview]];
 
+	// CRITICAL: Check if point is within our bounds first.
+	// Without this, we capture clicks outside our header region since
+	// we're at the top of the z-order and would intercept ALL clicks.
+	if (!NSPointInRect(localPoint, self.bounds)) {
+		return nil; // Outside our frame - pass through to views below
+	}
+
+	// Check exclusion zones (buttons in header)
 	for (NSValue *zoneValue in self.exclusionZones) {
 		NSRect zone = [zoneValue rectValue];
 		if (NSPointInRect(localPoint, zone)) {
-			return nil; // Pass through to WebView
+			return nil; // Pass through to WebView for button clicks
 		}
 	}
-	return self; // Capture for drag
+	return self; // Capture for drag (only within our header region)
 }
 
 - (void)mouseDown:(NSEvent *)event {
