@@ -14,6 +14,7 @@ import { ChartCard } from "@/components/shared/ChartCard";
 import { EmptyChartState } from "@/components/shared/EmptyChartState";
 import { InfoTooltip } from "@/components/shared/InfoTooltip";
 import { SectionHeader } from "@/components/shared/SectionHeader";
+import { StatCard } from "@/components/shared/StatCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   ChartContainer,
@@ -22,7 +23,7 @@ import {
 } from "@/components/ui/chart";
 import type { ChartConfig } from "@/components/ui/chart";
 import { Skeleton } from "@/components/ui/skeleton";
-import { formatPercent, cn } from "@/lib/utils";
+import { formatPercent } from "@/lib/utils";
 
 interface EfficiencySectionProps {
   data: DashboardData | null;
@@ -75,10 +76,10 @@ export function EfficiencySection({ data, loading }: EfficiencySectionProps) {
 
       {/* Summary Cards */}
       <div className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-4">
-        <MetricCard
+        <StatCard
           label="Cache Hit Rate"
           value={formatPercent(data?.totals?.cacheEfficiencyRatio ?? 0)}
-          description="Tokens served from cache"
+          subtext="Tokens served from cache"
           loading={loading}
           variant={
             (data?.totals?.cacheEfficiencyRatio ?? 0) >= 0.5
@@ -88,10 +89,10 @@ export function EfficiencySection({ data, loading }: EfficiencySectionProps) {
                 : "default"
           }
         />
-        <MetricCard
+        <StatCard
           label="Tool Success Rate"
           value={`${Math.round(toolSuccessRate)}%`}
-          description="Tools completing without errors"
+          subtext="Tools completing without errors"
           loading={loading}
           variant={
             toolSuccessRate >= 95
@@ -101,14 +102,14 @@ export function EfficiencySection({ data, loading }: EfficiencySectionProps) {
                 : "default"
           }
         />
-        <MetricCard
+        <StatCard
           label="Session Efficiency"
           value={
             sessionEfficiency !== null
               ? Math.round(sessionEfficiency).toString()
               : "—"
           }
-          description="Queries per session score"
+          subtext="Queries per session score"
           loading={loading}
           variant={
             sessionEfficiency !== null && sessionEfficiency >= 70
@@ -129,10 +130,10 @@ export function EfficiencySection({ data, loading }: EfficiencySectionProps) {
             />
           }
         />
-        <MetricCard
+        <StatCard
           label="Prompt Efficiency"
           value={formatPercent(data?.totals?.promptEfficiencyRatio ?? 0)}
-          description="Output vs input ratio"
+          subtext="Output vs input ratio"
           loading={loading}
         />
       </div>
@@ -291,58 +292,6 @@ export function EfficiencySection({ data, loading }: EfficiencySectionProps) {
 }
 
 // ─── Helper Components ────────────────────────────────────────────────────────
-
-interface MetricCardProps {
-  label: string;
-  value: string;
-  description?: string;
-  loading?: boolean;
-  variant?: "default" | "success" | "warning";
-  tooltip?: React.ReactNode;
-}
-
-function MetricCard({
-  label,
-  value,
-  description,
-  loading,
-  variant = "default",
-  tooltip,
-}: MetricCardProps) {
-  if (loading) {
-    return (
-      <Card size="sm">
-        <CardContent className="pt-4">
-          <Skeleton className="mb-2 h-4 w-20" />
-          <Skeleton className="h-6 w-16" />
-        </CardContent>
-      </Card>
-    );
-  }
-
-  return (
-    <Card size="sm">
-      <CardContent className="pt-4">
-        <div className="mb-1 flex items-center gap-1.5">
-          <p className="text-muted-foreground text-sm">{label}</p>
-          {tooltip}
-        </div>
-        <p
-          className={cn(
-            "text-xl font-semibold",
-            variant === "success" && "text-success",
-            variant === "warning" && "text-chart-4"
-          )}
-        >
-          {value}
-        </p>
-        {description && (
-          <p className="text-muted-foreground mt-1 text-xs">{description}</p>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
 
 function CompactionStat({
   label,

@@ -14,6 +14,8 @@ export interface StatCardProps {
   variant?: "default" | "success" | "warning" | "destructive";
   loading?: boolean;
   className?: string;
+  /** Optional tooltip element (e.g., InfoTooltip) displayed after the label */
+  tooltip?: React.ReactNode;
 }
 
 export function StatCard({
@@ -25,6 +27,7 @@ export function StatCard({
   variant = "default",
   loading = false,
   className,
+  tooltip,
 }: StatCardProps) {
   if (loading) {
     return (
@@ -49,7 +52,10 @@ export function StatCard({
     <Card size="sm" className={cn("min-h-[100px]", className)}>
       <CardContent className="pt-4">
         <div className="mb-1 flex items-center justify-between">
-          <p className="text-muted-foreground text-sm">{label}</p>
+          <div className="flex items-center gap-1.5">
+            <p className="text-muted-foreground text-sm">{label}</p>
+            {tooltip}
+          </div>
           {trend && (
             <TrendBadge value={trend.value} direction={trend.direction} />
           )}

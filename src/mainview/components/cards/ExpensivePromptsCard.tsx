@@ -1,8 +1,8 @@
 import { modelFamily, modelBadgeId } from "@shared/model-utils";
 import type { DashboardData } from "@shared/rpc-types";
-import { useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
+import { useExpandedIndex } from "@/hooks/useExpandedIndex";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Collapsible,
@@ -177,7 +177,7 @@ export function ExpensivePromptsCard({
   data,
   loading,
 }: ExpensivePromptsCardProps) {
-  const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
+  const { isExpanded, toggle } = useExpandedIndex();
 
   const topPrompts = data?.topPrompts?.slice(0, 5) ?? [];
   const maxCost = topPrompts[0]?.cost ?? 0;
@@ -224,10 +224,8 @@ export function ExpensivePromptsCard({
                 percentOfTotal={
                   totalOfTop5 > 0 ? (prompt.cost / totalOfTop5) * 100 : 0
                 }
-                expanded={expandedIndex === i}
-                onToggle={() =>
-                  setExpandedIndex(expandedIndex === i ? null : i)
-                }
+                expanded={isExpanded(i)}
+                onToggle={() => toggle(i)}
               />
             ))}
           </div>

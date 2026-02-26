@@ -16,6 +16,8 @@ import type { DashboardData } from "@shared/rpc-types";
 import { useState } from "react";
 
 import { Section } from "@/components/layout/Section";
+import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
+import { useExpandedIndex } from "@/hooks/useExpandedIndex";
 import { InsightCard } from "@/components/shared/InsightCard";
 import { SectionHeader } from "@/components/shared/SectionHeader";
 import { Badge } from "@/components/ui/badge";
@@ -43,8 +45,8 @@ interface ToolsSectionProps {
 }
 
 export function ToolsSection({ data, loading }: ToolsSectionProps) {
-  const [expandedFrictionIndex, setExpandedFrictionIndex] = useState<number | null>(null);
-  const [expandedBashIndex, setExpandedBashIndex] = useState<number | null>(null);
+  const frictionExpansion = useExpandedIndex();
+  const bashExpansion = useExpandedIndex();
 
   const toolHealthReport = data?.toolHealthReportCard;
 
@@ -158,8 +160,8 @@ export function ToolsSection({ data, loading }: ToolsSectionProps) {
                       errorRate={tool.errorRate}
                       topError={tool.topError}
                       errorCount={Math.round(tool.totalCalls * tool.errorRate)}
-                      expanded={expandedFrictionIndex === i}
-                      onToggle={() => setExpandedFrictionIndex(expandedFrictionIndex === i ? null : i)}
+                      expanded={frictionExpansion.isExpanded(i)}
+                      onToggle={() => frictionExpansion.toggle(i)}
                     />
                   ))}
               </div>
@@ -191,8 +193,8 @@ export function ToolsSection({ data, loading }: ToolsSectionProps) {
                 <BashCategoryAccordion
                   key={i}
                   category={category}
-                  expanded={expandedBashIndex === i}
-                  onToggle={() => setExpandedBashIndex(expandedBashIndex === i ? null : i)}
+                  expanded={bashExpansion.isExpanded(i)}
+                  onToggle={() => bashExpansion.toggle(i)}
                 />
               ))}
             </div>
@@ -220,6 +222,14 @@ const CATEGORY_ICONS: Record<ErrorCategory, typeof AlertCircleIcon> = {
   user_rejection: Cancel01Icon,
 };
 
+/** Tailwind-safe border classes by severity tier (avoids dynamic class purging issues) */
+const SEVERITY_BADGE_BORDER: Record<string, string> = {
+  critical: "border-destructive/30",
+  severe: "border-destructive/30",
+  moderate: "border-warning/30",
+  minimal: "border-border/30",
+};
+
 // ─── Friction Point Card ─────────────────────────────────────────────────────
 
 interface FrictionPointCardProps {
@@ -241,19 +251,12 @@ function FrictionPointCard({
   expanded,
   onToggle,
 }: FrictionPointCardProps) {
-  const [copied, setCopied] = useState(false);
-
   const severity = getSeverityFromErrorRate(errorRate);
   const parsed = parseError(topError);
   const Icon = CATEGORY_ICONS[parsed.category];
   const cleanedError = stripXmlTags(topError);
   const cleanedSummary = stripXmlTags(parsed.summary);
-
-  const handleCopy = async () => {
-    await navigator.clipboard.writeText(cleanedError);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
+  const { copied, copy } = useCopyToClipboard();
 
   return (
     <Collapsible open={expanded} onOpenChange={onToggle}>
@@ -285,7 +288,7 @@ function FrictionPointCard({
                     "text-xs px-1.5 py-0",
                     severity.badgeBgClass,
                     severity.badgeTextClass,
-                    `border-${severity.tier === "critical" || severity.tier === "severe" ? "destructive" : severity.tier === "moderate" ? "warning" : "border"}/30`
+                    SEVERITY_BADGE_BORDER[severity.tier]
                   )}
                 >
                   {formatPercent(errorRate)} errors
@@ -315,7 +318,7 @@ function FrictionPointCard({
                 type="button"
                 onClick={(e) => {
                   e.stopPropagation();
-                  handleCopy();
+                  copy(cleanedError);
                 }}
                 className="text-muted-foreground hover:text-foreground p-1 transition-colors"
                 title="Copy full error message"
@@ -359,18 +362,12 @@ interface SmartErrorCardProps {
 }
 
 function SmartErrorCard({ message, count, suggestion }: SmartErrorCardProps) {
-  const [copied, setCopied] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
+  const { copied, copy } = useCopyToClipboard();
 
   const parsed = parseError(message);
   const style = CATEGORY_STYLES[parsed.category];
   const Icon = CATEGORY_ICONS[parsed.category];
-
-  const handleCopy = async () => {
-    await navigator.clipboard.writeText(message);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
 
   return (
     <div className={cn("rounded-lg border", style.bgClass, style.borderClass)}>
@@ -389,7 +386,7 @@ function SmartErrorCard({ message, count, suggestion }: SmartErrorCardProps) {
           </Badge>
           <button
             type="button"
-            onClick={handleCopy}
+            onClick={() => copy(message)}
             className="text-muted-foreground hover:text-foreground p-1 transition-colors"
             title="Copy full error message"
           >
