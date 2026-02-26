@@ -124,6 +124,10 @@ export interface EfficiencyScore {
   sessionEfficiency: number;
   trend: "improving" | "declining" | "stable";
   topOpportunity: string;
+  // Outcome metrics
+  vcsActivityCount?: number;
+  prsCreated?: number;
+  prEfficiency?: number | null;
 }
 
 export interface WeeklyStats {

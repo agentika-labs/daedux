@@ -1,19 +1,30 @@
 {
-  "name": "daedux",
+  "name": "@agentika/daedux",
   "version": "0.1.0",
-  "description": "Claude Code token usage dashboard - Desktop app",
+  "description": "Claude Code analytics dashboard",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/agentika-labs/daedux.git"
+  },
+  "keywords": [
+    "claude",
+    "anthropic",
+    "token",
+    "usage",
+    "dashboard",
+    "cli"
+  ],
   "bin": {
-    "daedux": "./bin/cli.js"
+    "daedux": "index.js"
   },
   "files": [
-    "bin/",
-    "src/bun/",
-    "src/shared/",
-    "dist/",
-    "public/",
-    "electrobun.config.ts",
-    "icon.*"
+    "index.js",
+    "README.md"
   ],
+  "optionalDependencies": {
+    "@agentika/daedux-darwin-arm64": "0.1.0"
+  },
   "type": "module",
   "scripts": {
     "prepack": "bun run build:frontend",
