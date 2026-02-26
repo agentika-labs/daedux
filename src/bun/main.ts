@@ -1,10 +1,10 @@
 import { Layer } from "effect";
 
 import { AllAnalyticsServicesLive } from "./analytics/index";
-import { DatabaseServiceLive } from "./db";
-import { AnthropicUsageServiceLive } from "./services/anthropic-usage";
-import { SchedulerServiceLive } from "./services/scheduler";
-import { SyncServiceLive } from "./sync";
+import { DatabaseService } from "./db";
+import { AnthropicUsageService } from "./services/anthropic-usage";
+import { SchedulerService } from "./services/scheduler";
+import { SyncService } from "./sync";
 
 // ─── Composed Application Layer ─────────────────────────────────────────────
 
@@ -17,8 +17,8 @@ import { SyncServiceLive } from "./sync";
  * 3. Add AnthropicUsageService (no deps) to the final layer
  */
 export const AppLive = Layer.mergeAll(
-  SyncServiceLive,
+  SyncService.Default,
   AllAnalyticsServicesLive,
-  SchedulerServiceLive,
-  AnthropicUsageServiceLive
-).pipe(Layer.provideMerge(DatabaseServiceLive));
+  SchedulerService.Default,
+  AnthropicUsageService.Default
+).pipe(Layer.provideMerge(DatabaseService.Default));

@@ -1,7 +1,7 @@
 import { sql, desc, eq, and, count } from "drizzle-orm";
 import type { SQL } from "drizzle-orm";
 import type { SQLiteBunDatabase } from "drizzle-orm/bun-sqlite";
-import { Context, Effect, Layer } from "effect";
+import { Effect } from "effect";
 
 import { DatabaseService } from "../db";
 import * as schema from "../db/schema";
@@ -376,46 +376,19 @@ async function getBashCategoryHealthInternal(
   });
 }
 
-// ─── Service Interface ───────────────────────────────────────────────────────
+// ─── Service Definition ──────────────────────────────────────────────────────
 
-export class ToolAnalyticsService extends Context.Tag("ToolAnalyticsService")<
-  ToolAnalyticsService,
+/**
+ * ToolAnalyticsService provides tool usage and health analytics.
+ * Tracks tool invocations, error rates, bash commands, and API errors.
+ */
+export class ToolAnalyticsService extends Effect.Service<ToolAnalyticsService>()(
+  "ToolAnalyticsService",
   {
-    readonly getToolUsage: (
-      dateFilter?: DateFilter
-    ) => Effect.Effect<ToolUsageStat[], DatabaseError>;
-    readonly getToolHealth: (
-      dateFilter?: DateFilter
-    ) => Effect.Effect<ToolHealthStat[], DatabaseError>;
-    readonly getBashCommandStats: (
-      dateFilter?: DateFilter
-    ) => Effect.Effect<BashCommandStat[], DatabaseError>;
-    readonly getSessionToolCounts: (
-      dateFilter?: DateFilter
-    ) => Effect.Effect<Map<string, Record<string, number>>, DatabaseError>;
-    readonly getSessionToolErrorCounts: (
-      dateFilter?: DateFilter
-    ) => Effect.Effect<Map<string, number>, DatabaseError>;
-    readonly getBashCategoryHealth: (
-      dateFilter?: DateFilter
-    ) => Effect.Effect<BashCategoryHealth[], DatabaseError>;
-    readonly getToolHealthReportCard: (
-      dateFilter?: DateFilter
-    ) => Effect.Effect<ToolHealthReportCard, DatabaseError>;
-    readonly getApiErrors: (
-      dateFilter?: DateFilter
-    ) => Effect.Effect<ApiErrorStat[], DatabaseError>;
-  }
->() {}
+    effect: Effect.gen(function* () {
+      const { db } = yield* DatabaseService;
 
-// ─── Live Implementation ─────────────────────────────────────────────────────
-
-export const ToolAnalyticsServiceLive = Layer.effect(
-  ToolAnalyticsService,
-  Effect.gen(function* ToolAnalyticsServiceLive() {
-    const { db } = yield* DatabaseService;
-
-    return {
+      return {
       getApiErrors: (dateFilter: DateFilter = {}) =>
         Effect.tryPromise({
           catch: (error) =>
@@ -918,6 +891,10 @@ export const ToolAnalyticsServiceLive = Layer.effect(
             }));
           },
         }),
-    };
-  })
-);
+      } as const;
+    }),
+  }
+) {}
+
+/** @deprecated Use ToolAnalyticsService.Default instead */
+export const ToolAnalyticsServiceLive = ToolAnalyticsService.Default;

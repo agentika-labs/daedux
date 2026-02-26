@@ -1,5 +1,16 @@
-import { sql, eq, and, count, desc, gte, lte } from "drizzle-orm";
-import { Context, Effect, Layer } from "effect";
+import {
+  sql,
+  eq,
+  and,
+  count,
+  countDistinct,
+  desc,
+  gte,
+  lte,
+  or,
+  like,
+} from "drizzle-orm";
+import { Effect } from "effect";
 
 import { DatabaseService } from "../db";
 import * as schema from "../db/schema";
@@ -275,33 +286,19 @@ export function getFixSuggestions(
   return suggestions.slice(0, 3);
 }
 
-// ─── Service Interface ───────────────────────────────────────────────────────
+// ─── Service Definition ──────────────────────────────────────────────────────
 
-export class InsightsAnalyticsService extends Context.Tag(
-  "InsightsAnalyticsService"
-)<
-  InsightsAnalyticsService,
+/**
+ * InsightsAnalyticsService generates actionable insights and efficiency metrics.
+ * Analyzes workflow patterns to provide recommendations and trend analysis.
+ */
+export class InsightsAnalyticsService extends Effect.Service<InsightsAnalyticsService>()(
+  "InsightsAnalyticsService",
   {
-    readonly generateInsights: (
-      dateFilter?: DateFilter
-    ) => Effect.Effect<Insight[], DatabaseError>;
-    readonly getEfficiencyScore: (
-      dateFilter?: DateFilter
-    ) => Effect.Effect<EfficiencyScore, DatabaseError>;
-    readonly getWeeklyComparison: (
-      dateFilter?: DateFilter
-    ) => Effect.Effect<WeeklyComparison, DatabaseError>;
-  }
->() {}
+    effect: Effect.gen(function* () {
+      const { db } = yield* DatabaseService;
 
-// ─── Live Implementation ─────────────────────────────────────────────────────
-
-export const InsightsAnalyticsServiceLive = Layer.effect(
-  InsightsAnalyticsService,
-  Effect.gen(function* InsightsAnalyticsServiceLive() {
-    const { db } = yield* DatabaseService;
-
-    return {
+      return {
       generateInsights: (dateFilter: DateFilter = {}) =>
         Effect.tryPromise({
           catch: (error) =>
@@ -1176,6 +1173,109 @@ export const InsightsAnalyticsServiceLive = Layer.effect(
             };
           },
         }),
-    };
-  })
-);
+
+      /**
+       * Get outcome metrics: VCS activity, PRs created, and PR efficiency.
+       * These measure actual shipped work rather than just usage patterns.
+       */
+      getOutcomeMetrics: (dateFilter: DateFilter = {}) =>
+        Effect.tryPromise({
+          catch: (error) =>
+            new DatabaseError({
+              cause: error,
+              operation: "getOutcomeMetrics",
+            }),
+          try: async () => {
+            const { currentStart, currentEnd } =
+              buildComparisonWindows(dateFilter);
+
+            // Meaningful VCS command patterns
+            const meaningfulPatterns = [
+              "git commit",
+              "git push",
+              "git merge",
+              "git rebase",
+              "git cherry-pick",
+              "jj new",
+              "jj commit",
+              "jj squash",
+              "jj git push",
+              "jj rebase",
+              "jj describe",
+              "gh pr create",
+              "gh pr merge",
+            ];
+
+            // VCS activity: count meaningful git/jj/gh commands
+            const vcsResult = await db
+              .select({ count: count() })
+              .from(schema.bashCommands)
+              .innerJoin(
+                schema.sessions,
+                eq(schema.bashCommands.sessionId, schema.sessions.sessionId)
+              )
+              .where(
+                and(
+                  eq(schema.bashCommands.category, "git"),
+                  or(
+                    ...meaningfulPatterns.map((p) =>
+                      like(schema.bashCommands.command, `${p}%`)
+                    )
+                  ),
+                  gte(schema.sessions.startTime, currentStart),
+                  lte(schema.sessions.startTime, currentEnd)
+                )
+              );
+
+            // PRs created: count distinct PR URLs in the time period
+            const prResult = await db
+              .select({ count: countDistinct(schema.prLinks.prUrl) })
+              .from(schema.prLinks)
+              .innerJoin(
+                schema.sessions,
+                eq(schema.prLinks.sessionId, schema.sessions.sessionId)
+              )
+              .where(
+                and(
+                  gte(schema.sessions.startTime, currentStart),
+                  lte(schema.sessions.startTime, currentEnd)
+                )
+              );
+
+            // Get total cost for PR efficiency calculation
+            const costResult = await db
+              .select({
+                totalCost: sql<number>`SUM(${schema.sessions.totalCost})`.as(
+                  "total_cost"
+                ),
+              })
+              .from(schema.sessions)
+              .where(
+                and(
+                  gte(schema.sessions.startTime, currentStart),
+                  lte(schema.sessions.startTime, currentEnd)
+                )
+              );
+
+            const vcsActivityCount = vcsResult[0]?.count ?? 0;
+            const prsCreated = prResult[0]?.count ?? 0;
+            const totalCost = costResult[0]?.totalCost ?? 0;
+
+            // PR efficiency: cost per PR (lower is better)
+            const prEfficiency =
+              prsCreated > 0 ? totalCost / prsCreated : null;
+
+            return {
+              prsCreated,
+              prEfficiency,
+              vcsActivityCount,
+            };
+          },
+        }),
+      } as const;
+    }),
+  }
+) {}
+
+/** @deprecated Use InsightsAnalyticsService.Default instead */
+export const InsightsAnalyticsServiceLive = InsightsAnalyticsService.Default;

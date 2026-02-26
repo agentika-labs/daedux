@@ -1,5 +1,5 @@
 import { sql, desc, eq, and, count } from "drizzle-orm";
-import { Context, Effect, Layer } from "effect";
+import { Effect } from "effect";
 
 import { DatabaseService } from "../db";
 import * as schema from "../db/schema";
@@ -30,32 +30,19 @@ export interface SessionFileOperation {
   readonly extension: string;
 }
 
-// ─── Service Interface ───────────────────────────────────────────────────────
+// ─── Service Definition ──────────────────────────────────────────────────────
 
-export class FileAnalyticsService extends Context.Tag("FileAnalyticsService")<
-  FileAnalyticsService,
+/**
+ * FileAnalyticsService provides file operation statistics.
+ * Tracks file activity, extensions, and per-session operations.
+ */
+export class FileAnalyticsService extends Effect.Service<FileAnalyticsService>()(
+  "FileAnalyticsService",
   {
-    readonly getFileActivity: (
-      limit?: number,
-      dateFilter?: DateFilter
-    ) => Effect.Effect<FileActivityStat[], DatabaseError>;
-    readonly getFileExtensions: (
-      dateFilter?: DateFilter
-    ) => Effect.Effect<FileExtensionStat[], DatabaseError>;
-    readonly getSessionFileOperations: (
-      dateFilter?: DateFilter
-    ) => Effect.Effect<Map<string, SessionFileOperation[]>, DatabaseError>;
-  }
->() {}
+    effect: Effect.gen(function* () {
+      const { db } = yield* DatabaseService;
 
-// ─── Live Implementation ─────────────────────────────────────────────────────
-
-export const FileAnalyticsServiceLive = Layer.effect(
-  FileAnalyticsService,
-  Effect.gen(function* FileAnalyticsServiceLive() {
-    const { db } = yield* DatabaseService;
-
-    return {
+      return {
       getFileActivity: (limit = 50, dateFilter: DateFilter = {}) =>
         Effect.tryPromise({
           catch: (error) =>
@@ -234,6 +221,10 @@ export const FileAnalyticsServiceLive = Layer.effect(
             return sessionMap;
           },
         }),
-    };
-  })
-);
+      } as const;
+    }),
+  }
+) {}
+
+/** @deprecated Use FileAnalyticsService.Default instead */
+export const FileAnalyticsServiceLive = FileAnalyticsService.Default;

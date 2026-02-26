@@ -1,5 +1,5 @@
 import { eq, desc } from "drizzle-orm";
-import { Context, Effect, Layer, Schema } from "effect";
+import { Effect, Schema } from "effect";
 
 import { DatabaseService } from "../db";
 import * as schema from "../db/schema";
@@ -148,70 +148,16 @@ export const parseDaysOfWeek = (daysJson: string): number[] => {
   }
 };
 
-// ─── Service Interface ───────────────────────────────────────────────────────
+// ─── Service Definition ──────────────────────────────────────────────────────
 
-export class SchedulerService extends Context.Tag("SchedulerService")<
-  SchedulerService,
+/**
+ * SchedulerService manages scheduled session warm-ups.
+ * Handles CRUD for schedules, execution tracking, and CLI interactions.
+ */
+export class SchedulerService extends Effect.Service<SchedulerService>()(
+  "SchedulerService",
   {
-    /** Get all schedules */
-    readonly getSchedules: () => Effect.Effect<
-      schema.SessionSchedule[],
-      DatabaseError
-    >;
-
-    /** Get a single schedule by ID */
-    readonly getSchedule: (
-      id: string
-    ) => Effect.Effect<schema.SessionSchedule | null, DatabaseError>;
-
-    /** Create a new schedule */
-    readonly createSchedule: (
-      input: ScheduleInput
-    ) => Effect.Effect<schema.SessionSchedule, DatabaseError>;
-
-    /** Update an existing schedule */
-    readonly updateSchedule: (
-      id: string,
-      patch: Partial<ScheduleInput>
-    ) => Effect.Effect<boolean, DatabaseError>;
-
-    /** Delete a schedule */
-    readonly deleteSchedule: (
-      id: string
-    ) => Effect.Effect<boolean, DatabaseError>;
-
-    /** Get execution history for a schedule */
-    readonly getScheduleHistory: (
-      scheduleId: string,
-      limit?: number
-    ) => Effect.Effect<schema.ScheduleExecution[], DatabaseError>;
-
-    /** Check Claude CLI auth status */
-    readonly checkAuthStatus: () => Effect.Effect<AuthStatus, SchedulerError>;
-
-    /** Run a schedule immediately (manual trigger) */
-    readonly runScheduleNow: (
-      scheduleId: string
-    ) => Effect.Effect<ExecutionResult, DatabaseError | SchedulerError>;
-
-    /** Check all schedules and run any that are due */
-    readonly checkSchedules: () => Effect.Effect<
-      void,
-      DatabaseError | SchedulerError
-    >;
-
-    /** Check for missed schedules (e.g., after system wake) */
-    readonly checkMissedSchedules: (
-      windowMs?: number
-    ) => Effect.Effect<ExecutionResult[], DatabaseError | SchedulerError>;
-  }
->() {}
-
-// ─── Live Implementation ─────────────────────────────────────────────────────
-
-export const SchedulerServiceLive = Layer.effect(
-  SchedulerService,
-  Effect.gen(function* SchedulerServiceLive() {
+    effect: Effect.gen(function* () {
     const { db } = yield* DatabaseService;
 
     /**
@@ -728,6 +674,10 @@ export const SchedulerServiceLive = Layer.effect(
             return true;
           },
         }),
-    };
-  })
-);
+      } as const;
+    }),
+  }
+) {}
+
+/** @deprecated Use SchedulerService.Default instead */
+export const SchedulerServiceLive = SchedulerService.Default;

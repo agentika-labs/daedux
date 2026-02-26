@@ -1,6 +1,6 @@
 import { sql, eq, and, count, avg } from "drizzle-orm";
 import type { SQL } from "drizzle-orm";
-import { Context, Effect, Layer } from "effect";
+import { Effect } from "effect";
 
 import { DatabaseService } from "../db";
 import * as schema from "../db/schema";
@@ -45,44 +45,19 @@ export interface PeakContextData {
   readonly model: string | null;
 }
 
-// ─── Service Interface ───────────────────────────────────────────────────────
+// ─── Service Definition ──────────────────────────────────────────────────────
 
-export class ContextAnalyticsService extends Context.Tag(
-  "ContextAnalyticsService"
-)<
-  ContextAnalyticsService,
+/**
+ * ContextAnalyticsService provides context window utilization analytics.
+ * Tracks cache efficiency, compaction patterns, and token usage over turns.
+ */
+export class ContextAnalyticsService extends Effect.Service<ContextAnalyticsService>()(
+  "ContextAnalyticsService",
   {
-    readonly getContextHeatmap: (
-      dateFilter?: DateFilter,
-      projectPath?: string
-    ) => Effect.Effect<ContextHeatmapPoint[], DatabaseError>;
-    readonly getCacheEfficiencyCurve: (
-      dateFilter?: DateFilter,
-      projectPath?: string
-    ) => Effect.Effect<CacheEfficiencyPoint[], DatabaseError>;
-    readonly getCompactionAnalysis: (
-      dateFilter?: DateFilter,
-      projectPath?: string
-    ) => Effect.Effect<CompactionAnalysis, DatabaseError>;
-    readonly getContextWindowFill: (
-      dateFilter?: DateFilter,
-      projectPath?: string
-    ) => Effect.Effect<ContextWindowFillPoint[], DatabaseError>;
-    readonly getContextPeakDistribution: (
-      dateFilter?: DateFilter,
-      projectPath?: string
-    ) => Effect.Effect<PeakContextData[], DatabaseError>;
-  }
->() {}
+    effect: Effect.gen(function* () {
+      const { db } = yield* DatabaseService;
 
-// ─── Live Implementation ─────────────────────────────────────────────────────
-
-export const ContextAnalyticsServiceLive = Layer.effect(
-  ContextAnalyticsService,
-  Effect.gen(function* ContextAnalyticsServiceLive() {
-    const { db } = yield* DatabaseService;
-
-    return {
+      return {
       getCacheEfficiencyCurve: (
         dateFilter: DateFilter = {},
         projectPath?: string
@@ -454,6 +429,10 @@ export const ContextAnalyticsServiceLive = Layer.effect(
             return fillPoints.slice(0, 100);
           },
         }),
-    };
-  })
-);
+      } as const;
+    }),
+  }
+) {}
+
+/** @deprecated Use ContextAnalyticsService.Default instead */
+export const ContextAnalyticsServiceLive = ContextAnalyticsService.Default;

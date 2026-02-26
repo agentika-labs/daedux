@@ -2,7 +2,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 
 import { eq } from "drizzle-orm";
-import { Context, Effect, Layer } from "effect";
+import { Effect } from "effect";
 
 import { DatabaseService, runInTransaction } from "./db";
 import * as schema from "./db/schema";
@@ -32,29 +32,6 @@ export interface SyncResult {
 export interface SyncOptions {
   readonly verbose?: boolean;
 }
-
-// ─── Service Interface ──────────────────────────────────────────────────────
-
-export class SyncService extends Context.Tag("SyncService")<
-  SyncService,
-  {
-    readonly discoverFiles: () => Effect.Effect<FileInfo[], FileSystemError>;
-    readonly syncIncremental: (
-      options?: SyncOptions
-    ) => Effect.Effect<
-      SyncResult,
-      FileSystemError | ParseError | DatabaseError,
-      DatabaseService
-    >;
-    readonly fullResync: (
-      options?: SyncOptions
-    ) => Effect.Effect<
-      SyncResult,
-      FileSystemError | ParseError | DatabaseError,
-      DatabaseService
-    >;
-  }
->() {}
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
@@ -530,9 +507,16 @@ const getCachedMtimes = (): Effect.Effect<
 
 // ─── Live Layer ─────────────────────────────────────────────────────────────
 
-export const SyncServiceLive = Layer.effect(
-  SyncService,
-  Effect.gen(function* SyncServiceLive() {
+// ─── Service Definition ──────────────────────────────────────────────────────
+
+/**
+ * SyncService handles JSONL file discovery and incremental sync to database.
+ *
+ * Uses Effect.Service pattern with DatabaseService dependency.
+ * Discovers Claude Code session files, parses them, and stores aggregated data.
+ */
+export class SyncService extends Effect.Service<SyncService>()("SyncService", {
+  effect: Effect.gen(function* () {
     return {
       discoverFiles: () => discoverFilesImpl(),
 
@@ -668,6 +652,9 @@ export const SyncServiceLive = Layer.effect(
             unchanged: currentFiles.length - toSync.length,
           };
         }).pipe(Effect.withSpan("sync.incrementalSync")),
-    };
-  })
-);
+    } as const;
+  }),
+}) {}
+
+/** @deprecated Use SyncService.Default instead */
+export const SyncServiceLive = SyncService.Default;

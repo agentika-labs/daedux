@@ -1,6 +1,6 @@
 import { sql, desc, eq, and, gte, count } from "drizzle-orm";
 import type { SQL } from "drizzle-orm";
-import { Context, Effect, Layer } from "effect";
+import { Effect } from "effect";
 
 import { DatabaseService } from "../db";
 import * as schema from "../db/schema";
@@ -144,59 +144,19 @@ export interface DashboardStats {
   };
 }
 
-// ─── Service Interface ───────────────────────────────────────────────────────
+// ─── Service Definition ──────────────────────────────────────────────────────
 
-export class SessionAnalyticsService extends Context.Tag(
-  "SessionAnalyticsService"
-)<
-  SessionAnalyticsService,
+/**
+ * SessionAnalyticsService provides session-level analytics and aggregations.
+ * Tracks totals, daily stats, session summaries, and project breakdowns.
+ */
+export class SessionAnalyticsService extends Effect.Service<SessionAnalyticsService>()(
+  "SessionAnalyticsService",
   {
-    readonly getTotals: (
-      dateFilter?: DateFilter
-    ) => Effect.Effect<Totals, DatabaseError>;
-    readonly getDailyStats: (
-      days?: number,
-      dateFilter?: DateFilter
-    ) => Effect.Effect<DailyStat[], DatabaseError>;
-    readonly getSessionSummaries: (options?: {
-      limit?: number;
-      projectPath?: string;
-      includeSubagents?: boolean;
-      dateFilter?: DateFilter;
-    }) => Effect.Effect<SessionSummary[], DatabaseError>;
-    readonly getProjectSummaries: (
-      dateFilter?: DateFilter
-    ) => Effect.Effect<ProjectSummary[], DatabaseError>;
-    readonly getRecentSessions: (
-      limit: number
-    ) => Effect.Effect<SessionSummary[], DatabaseError>;
-    readonly getSessionPrimaryModels: (
-      dateFilter?: DateFilter
-    ) => Effect.Effect<Map<string, string>, DatabaseError>;
-    readonly getExtendedTotals: (
-      dateFilter?: DateFilter
-    ) => Effect.Effect<ExtendedTotals, DatabaseError>;
-    readonly getDashboardStats: (
-      dateFilter?: DateFilter
-    ) => Effect.Effect<DashboardStats, DatabaseError>;
-    readonly getTopPrompts: (
-      limit: number,
-      dateFilter?: DateFilter
-    ) => Effect.Effect<TopPrompt[], DatabaseError>;
-    readonly getSessionAgentCounts: (
-      dateFilter?: DateFilter
-    ) => Effect.Effect<Map<string, number>, DatabaseError>;
-  }
->() {}
+    effect: Effect.gen(function* () {
+      const { db } = yield* DatabaseService;
 
-// ─── Live Implementation ─────────────────────────────────────────────────────
-
-export const SessionAnalyticsServiceLive = Layer.effect(
-  SessionAnalyticsService,
-  Effect.gen(function* SessionAnalyticsServiceLive() {
-    const { db } = yield* DatabaseService;
-
-    return {
+      return {
       getDailyStats: (days?: number, dateFilter: DateFilter = {}) =>
         Effect.tryPromise({
           catch: (error) =>
@@ -1194,6 +1154,10 @@ export const SessionAnalyticsServiceLive = Layer.effect(
             };
           },
         }),
-    };
-  })
-);
+      } as const;
+    }),
+  }
+) {}
+
+/** @deprecated Use SessionAnalyticsService.Default instead */
+export const SessionAnalyticsServiceLive = SessionAnalyticsService.Default;

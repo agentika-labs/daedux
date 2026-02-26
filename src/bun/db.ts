@@ -5,20 +5,10 @@ import { dirname, join } from "node:path";
 
 import { drizzle } from "drizzle-orm/bun-sqlite";
 import type { SQLiteBunDatabase } from "drizzle-orm/bun-sqlite";
-import { Context, Effect, Layer } from "effect";
+import { Effect } from "effect";
 
 import * as schema from "./db/schema";
 import { DatabaseError } from "./errors";
-
-// ─── Service Interface ──────────────────────────────────────────────────────
-
-export class DatabaseService extends Context.Tag("DatabaseService")<
-  DatabaseService,
-  {
-    readonly db: SQLiteBunDatabase<typeof schema>;
-    readonly sqlite: Database;
-  }
->() {}
 
 // ─── Database Path Resolution ───────────────────────────────────────────────
 
@@ -114,29 +104,43 @@ const migrateFromLegacyLocation = (): void => {
   }
 };
 
-export const DatabaseServiceLive = Layer.scoped(
-  DatabaseService,
-  Effect.acquireRelease(
-    Effect.sync(() => {
-      // Migrate from legacy location if needed
-      migrateFromLegacyLocation();
+// ─── Service Definition ──────────────────────────────────────────────────────
 
-      const sqlite = new Database(DB_PATH);
+/**
+ * DatabaseService provides SQLite database access via Drizzle ORM.
+ *
+ * Uses Effect.Service pattern with scoped lifecycle for automatic cleanup.
+ * The .Default layer handles connection setup, pragma configuration, and
+ * migration from legacy database locations.
+ */
+export class DatabaseService extends Effect.Service<DatabaseService>()(
+  "DatabaseService",
+  {
+    scoped: Effect.acquireRelease(
+      Effect.sync(() => {
+        // Migrate from legacy location if needed
+        migrateFromLegacyLocation();
 
-      // Optimize SQLite for our workload
-      sqlite.exec("PRAGMA journal_mode = WAL"); // Better concurrent reads
-      sqlite.exec("PRAGMA synchronous = NORMAL"); // Balanced durability/speed
-      sqlite.exec("PRAGMA cache_size = -64000"); // 64MB cache
-      sqlite.exec("PRAGMA foreign_keys = ON"); // Enforce FK constraints
-      sqlite.exec("PRAGMA temp_store = MEMORY"); // Temp tables in memory
+        const sqlite = new Database(DB_PATH);
 
-      const db = drizzle({ client: sqlite, schema });
+        // Optimize SQLite for our workload
+        sqlite.exec("PRAGMA journal_mode = WAL"); // Better concurrent reads
+        sqlite.exec("PRAGMA synchronous = NORMAL"); // Balanced durability/speed
+        sqlite.exec("PRAGMA cache_size = -64000"); // 64MB cache
+        sqlite.exec("PRAGMA foreign_keys = ON"); // Enforce FK constraints
+        sqlite.exec("PRAGMA temp_store = MEMORY"); // Temp tables in memory
 
-      return { db, sqlite };
-    }),
-    ({ sqlite }) => Effect.sync(() => sqlite.close())
-  )
-);
+        const db = drizzle({ client: sqlite, schema });
+
+        return { db, sqlite } as const;
+      }),
+      ({ sqlite }) => Effect.sync(() => sqlite.close())
+    ),
+  }
+) {}
+
+/** @deprecated Use DatabaseService.Default instead */
+export const DatabaseServiceLive = DatabaseService.Default;
 
 // ─── Helper: Execute SQL with Effect Error Handling ─────────────────────────
 

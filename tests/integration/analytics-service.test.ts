@@ -709,7 +709,7 @@ describe("AnalyticsService", () => {
               sessionId: "s1",
               startTime: now,
               totalCacheRead: 50_000,
-              totalInputTokens: 100_000, // 50% cache hit
+              totalInputTokens: 50_000, // 50% cache hit (cacheRead / (uncached + cacheRead))
             },
           ]);
         },

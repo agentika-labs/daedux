@@ -1,5 +1,5 @@
 import { sql, desc, eq, and, count, avg } from "drizzle-orm";
-import { Context, Effect, Layer } from "effect";
+import { Effect } from "effect";
 
 import { DatabaseService } from "../db";
 import * as schema from "../db/schema";
@@ -94,46 +94,19 @@ export interface SkillImpactComparison {
   };
 }
 
-// ─── Service Interface ───────────────────────────────────────────────────────
+// ─── Service Definition ──────────────────────────────────────────────────────
 
-export class AgentAnalyticsService extends Context.Tag("AgentAnalyticsService")<
-  AgentAnalyticsService,
+/**
+ * AgentAnalyticsService provides agent and skill usage analytics.
+ * Tracks agent spawns, skill ROI, hook stats, and automation metrics.
+ */
+export class AgentAnalyticsService extends Effect.Service<AgentAnalyticsService>()(
+  "AgentAnalyticsService",
   {
-    readonly getSkillROI: (
-      dateFilter?: DateFilter
-    ) => Effect.Effect<SkillROI[], DatabaseError>;
-    readonly getAgentStats: (
-      dateFilter?: DateFilter
-    ) => Effect.Effect<AgentStat[], DatabaseError>;
-    readonly getAgentROI: (
-      dateFilter?: DateFilter
-    ) => Effect.Effect<
-      { agents: AgentROI[]; summary: AgentUsageSummary },
-      DatabaseError
-    >;
-    readonly getSessionAgentCounts: (
-      dateFilter?: DateFilter
-    ) => Effect.Effect<Map<string, number>, DatabaseError>;
-    readonly getHookStats: (
-      dateFilter?: DateFilter
-    ) => Effect.Effect<HookStat[], DatabaseError>;
-    readonly getCommandStats: (
-      dateFilter?: DateFilter
-    ) => Effect.Effect<CommandStat[], DatabaseError>;
-    readonly getSkillImpactComparison: (
-      dateFilter?: DateFilter
-    ) => Effect.Effect<SkillImpactComparison | null, DatabaseError>;
-  }
->() {}
+    effect: Effect.gen(function* () {
+      const { db } = yield* DatabaseService;
 
-// ─── Live Implementation ─────────────────────────────────────────────────────
-
-export const AgentAnalyticsServiceLive = Layer.effect(
-  AgentAnalyticsService,
-  Effect.gen(function* AgentAnalyticsServiceLive() {
-    const { db } = yield* DatabaseService;
-
-    return {
+      return {
       getSkillROI: (dateFilter: DateFilter = {}) =>
         Effect.tryPromise({
           catch: (error) =>
@@ -1018,6 +991,10 @@ export const AgentAnalyticsServiceLive = Layer.effect(
             };
           },
         }),
-    };
-  })
-);
+      } as const;
+    }),
+  }
+) {}
+
+/** @deprecated Use AgentAnalyticsService.Default instead */
+export const AgentAnalyticsServiceLive = AgentAnalyticsService.Default;

@@ -207,19 +207,17 @@ CREATE TABLE IF NOT EXISTS pr_links (
 CREATE INDEX IF NOT EXISTS pr_links_session_idx ON pr_links(session_id);
 CREATE INDEX IF NOT EXISTS pr_links_repo_idx ON pr_links(pr_repository);
 
--- Session schedules (for warm-up CRON jobs)
+-- Session schedules (for warm-up scheduling)
 CREATE TABLE IF NOT EXISTS session_schedules (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
   enabled INTEGER DEFAULT 1,
-  cron_expression TEXT NOT NULL,
-  project_path TEXT NOT NULL,
-  warmup_prompt TEXT,
-  max_duration_minutes INTEGER DEFAULT 5,
-  created_at INTEGER NOT NULL,
-  updated_at INTEGER NOT NULL,
+  hour INTEGER NOT NULL,
+  minute INTEGER NOT NULL,
+  days_of_week TEXT NOT NULL,
   last_run_at INTEGER,
-  next_run_at INTEGER
+  next_run_at INTEGER,
+  created_at INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS session_schedules_enabled_idx ON session_schedules(enabled);
 CREATE INDEX IF NOT EXISTS session_schedules_next_run_idx ON session_schedules(next_run_at);

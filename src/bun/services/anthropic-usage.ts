@@ -1,7 +1,7 @@
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 
-import { Context, Duration, Effect, Layer, Schedule, Schema } from "effect";
+import { Duration, Effect, Schedule, Schema } from "effect";
 
 import type {
   AnthropicUsage,
@@ -455,7 +455,6 @@ const tryCliUsage = () =>
       let output = "";
       let resolved = false;
       let dataCallbackCount = 0; // DEBUG: track callback invocations
-      let trustPromptHandled = false; // Prevent re-handling after first confirmation
       const decoder = new TextDecoder();
 
       // Helper to clean up sandbox directory
@@ -504,8 +503,10 @@ const tryCliUsage = () =>
         }, 10_000);
 
         // Use Bun's native PTY API - this provides real terminal emulation
-        // that the Claude CLI's TUI requires to render properly
-        const proc = Bun.spawn(["claude"], {
+        // that the Claude CLI's TUI requires to render properly.
+        // --dangerously-skip-permissions bypasses the workspace trust prompt
+        // that would otherwise block the REPL from starting in the sandbox.
+        const proc = Bun.spawn(["claude", "--dangerously-skip-permissions"], {
           cwd: sandboxDir, // Sandboxed directory prevents project .mcp.json discovery
           env: { ...process.env, CLAUDECODE: "" },
           terminal: {
@@ -532,26 +533,6 @@ const tryCliUsage = () =>
                 .replaceAll(/\u001B[PX^_][^\u001B]*\u001B\\/g, "") // DCS/PM/APC
                 .replaceAll(/\u001B[()][AB012]/g, "") // Character set
                 .replaceAll(/\u001B[=>]/g, ""); // Keypad mode
-
-              // Detect workspace trust prompt and auto-confirm.
-              // This appears when entering an unfamiliar directory (like our temp sandbox).
-              // NOTE: TUI cursor positioning embeds spaces in ANSI sequences.
-              // After stripping ANSI codes, text appears without spaces:
-              // "trust this folder" → "trustthisfolder"
-              // "safety check" → "safetycheck"
-              if (
-                !trustPromptHandled &&
-                (clean.includes("trustthisfolder") ||
-                  clean.includes("safetycheck")) &&
-                (clean.includes("Yes") || clean.includes("1."))
-              ) {
-                console.log(
-                  "[anthropic-usage] Workspace trust prompt detected, confirming..."
-                );
-                trustPromptHandled = true;
-                terminal.write("1\r"); // Select "Yes, I trust this folder"
-                return; // Wait for next data callback
-              }
 
               // Safety net: Detect MCP server prompt and bypass it.
               // Even with sandbox cwd, global MCP servers from ~/.claude/ could prompt.
@@ -670,24 +651,64 @@ const tryCliUsageWithRetry = () =>
     })
   );
 
-// ─── Service Interface ──────────────────────────────────────────────────────
+// ─── Service Definition ──────────────────────────────────────────────────────
 
-export class AnthropicUsageService extends Context.Tag("AnthropicUsageService")<
-  AnthropicUsageService,
+/**
+ * AnthropicUsageService provides Anthropic API usage data.
+ * Uses OAuth API with CLI fallback, caches results for 30s.
+ */
+export class AnthropicUsageService extends Effect.Service<AnthropicUsageService>()(
+  "AnthropicUsageService",
   {
-    /** Get current Anthropic usage (cached for 30s) */
-    readonly getUsage: () => Effect.Effect<AnthropicUsage, AnthropicUsageError>;
+    succeed: {
+      clearCache: () =>
+        Effect.sync(() => {
+          usageCache = null;
+        }),
 
-    /** Force refresh usage data, bypassing cache */
-    readonly refreshUsage: () => Effect.Effect<
-      AnthropicUsage,
-      AnthropicUsageError
-    >;
+      getUsage: () =>
+        // Acquire permit - only one caller proceeds, others wait
+        cliProbeMutex.withPermits(1)(
+          Effect.gen(function* () {
+            // Check cache INSIDE mutex to avoid thundering herd
+            // (concurrent callers wait here, then get cached data)
+            const now = Date.now();
+            const cached: CachedUsage | null = usageCache;
+            if (cached && now - cached.cachedAt < CACHE_TTL_MS) {
+              return cached.data;
+            }
 
-    /** Clear the usage cache */
-    readonly clearCache: () => Effect.Effect<void, never>;
+            // Try OAuth API, fall back to unavailable on any error
+            const usage = yield* tryOAuthAPI().pipe(
+              Effect.catchAll(() => Effect.succeed(createUnavailableUsage()))
+            );
+
+            // Update cache (safe - we hold the mutex)
+            usageCache = { cachedAt: now, data: usage };
+
+            return usage;
+          })
+        ),
+
+      refreshUsage: () =>
+        // Acquire permit for refresh (serialized with getUsage)
+        cliProbeMutex.withPermits(1)(
+          Effect.gen(function* () {
+            // Clear cache and fetch fresh data
+            usageCache = null;
+
+            const usage = yield* tryOAuthAPI().pipe(
+              Effect.catchAll(() => Effect.succeed(createUnavailableUsage()))
+            );
+
+            usageCache = { cachedAt: Date.now(), data: usage };
+
+            return usage;
+          })
+        ),
+    },
   }
->() {}
+) {}
 
 // ─── Implementation ─────────────────────────────────────────────────────────
 
@@ -1062,51 +1083,5 @@ const tryOAuthAPI = () =>
     return createCredentialsOnlyUsage(credentials);
   });
 
-// ─── Live Implementation ────────────────────────────────────────────────────
-
-export const AnthropicUsageServiceLive = Layer.succeed(AnthropicUsageService, {
-  clearCache: () =>
-    Effect.sync(() => {
-      usageCache = null;
-    }),
-
-  getUsage: () =>
-    // Acquire permit - only one caller proceeds, others wait
-    cliProbeMutex.withPermits(1)(
-      Effect.gen(function* getUsage() {
-        // Check cache INSIDE mutex to avoid thundering herd
-        // (concurrent callers wait here, then get cached data)
-        const now = Date.now();
-        if (usageCache && now - usageCache.cachedAt < CACHE_TTL_MS) {
-          return usageCache.data;
-        }
-
-        // Try OAuth API, fall back to unavailable on any error
-        const usage = yield* tryOAuthAPI().pipe(
-          Effect.catchAll(() => Effect.succeed(createUnavailableUsage()))
-        );
-
-        // Update cache (safe - we hold the mutex)
-        usageCache = { cachedAt: now, data: usage };
-
-        return usage;
-      })
-    ),
-
-  refreshUsage: () =>
-    // Acquire permit for refresh (serialized with getUsage)
-    cliProbeMutex.withPermits(1)(
-      Effect.gen(function* refreshUsage() {
-        // Clear cache and fetch fresh data
-        usageCache = null;
-
-        const usage = yield* tryOAuthAPI().pipe(
-          Effect.catchAll(() => Effect.succeed(createUnavailableUsage()))
-        );
-
-        usageCache = { cachedAt: Date.now(), data: usage };
-
-        return usage;
-      })
-    ),
-});
+/** @deprecated Use AnthropicUsageService.Default instead */
+export const AnthropicUsageServiceLive = AnthropicUsageService.Default;

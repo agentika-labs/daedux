@@ -163,11 +163,11 @@ export {
  * through the facade.
  */
 export const AllAnalyticsServicesLive = Layer.mergeAll(
-  SessionAnalyticsServiceLive,
-  ModelAnalyticsServiceLive,
-  ToolAnalyticsServiceLive,
-  FileAnalyticsServiceLive,
-  AgentAnalyticsServiceLive,
-  ContextAnalyticsServiceLive,
-  InsightsAnalyticsServiceLive
+  SessionAnalyticsService.Default,
+  ModelAnalyticsService.Default,
+  ToolAnalyticsService.Default,
+  FileAnalyticsService.Default,
+  AgentAnalyticsService.Default,
+  ContextAnalyticsService.Default,
+  InsightsAnalyticsService.Default
 );

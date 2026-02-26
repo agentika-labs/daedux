@@ -1,5 +1,5 @@
 import { sql, desc, eq, and, count } from "drizzle-orm";
-import { Context, Effect, Layer } from "effect";
+import { Effect } from "effect";
 
 import {
   modelDisplayNameWithVersion,
@@ -30,25 +30,19 @@ export interface ModelBreakdown {
   readonly sessions: number;
 }
 
-// ─── Service Interface ───────────────────────────────────────────────────────
+// ─── Service Definition ──────────────────────────────────────────────────────
 
-export class ModelAnalyticsService extends Context.Tag("ModelAnalyticsService")<
-  ModelAnalyticsService,
+/**
+ * ModelAnalyticsService provides model usage breakdowns.
+ * Aggregates token/cost metrics by model with date filtering.
+ */
+export class ModelAnalyticsService extends Effect.Service<ModelAnalyticsService>()(
+  "ModelAnalyticsService",
   {
-    readonly getModelBreakdown: (
-      dateFilter?: DateFilter
-    ) => Effect.Effect<ModelBreakdown[], DatabaseError>;
-  }
->() {}
+    effect: Effect.gen(function* () {
+      const { db } = yield* DatabaseService;
 
-// ─── Live Implementation ─────────────────────────────────────────────────────
-
-export const ModelAnalyticsServiceLive = Layer.effect(
-  ModelAnalyticsService,
-  Effect.gen(function* ModelAnalyticsServiceLive() {
-    const { db } = yield* DatabaseService;
-
-    return {
+      return {
       getModelBreakdown: (dateFilter: DateFilter = {}) =>
         Effect.tryPromise({
           catch: (error) =>
@@ -174,6 +168,10 @@ export const ModelAnalyticsServiceLive = Layer.effect(
             return breakdowns.toSorted((a, b) => b.totalCost - a.totalCost);
           },
         }),
-    };
-  })
-);
+      } as const;
+    }),
+  }
+) {}
+
+/** @deprecated Use ModelAnalyticsService.Default instead */
+export const ModelAnalyticsServiceLive = ModelAnalyticsService.Default;

@@ -313,13 +313,14 @@ const loadDashboardData = (dateFilter: DateFilter = {}) =>
       sessionFileOperations,
       sessionAgentCounts,
       sessionToolErrorCounts,
-      efficiencyScore,
+      efficiencyScoreBase,
       weeklyComparison,
       agentROI,
       toolHealthReportCard,
       skillROI,
       hookStats,
       skillImpact,
+      outcomeMetrics,
     ] = yield* Effect.all([
       sessions.getTotals(dateFilter),
       sessions.getExtendedTotals(dateFilter),
@@ -343,7 +344,14 @@ const loadDashboardData = (dateFilter: DateFilter = {}) =>
       agents.getSkillROI(dateFilter),
       agents.getHookStats(dateFilter),
       agents.getSkillImpactComparison(dateFilter),
+      insightsService.getOutcomeMetrics(dateFilter),
     ]);
+
+    // Merge outcome metrics into efficiency score
+    const efficiencyScore = {
+      ...efficiencyScoreBase,
+      ...outcomeMetrics,
+    };
 
     // Transform data for dashboard
     const totalTokens = totals.totalInputTokens + totals.totalOutputTokens;
