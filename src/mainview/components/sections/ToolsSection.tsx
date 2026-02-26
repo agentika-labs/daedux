@@ -43,6 +43,9 @@ interface ToolsSectionProps {
 }
 
 export function ToolsSection({ data, loading }: ToolsSectionProps) {
+  const [expandedFrictionIndex, setExpandedFrictionIndex] = useState<number | null>(null);
+  const [expandedBashIndex, setExpandedBashIndex] = useState<number | null>(null);
+
   const toolHealthReport = data?.toolHealthReportCard;
 
   return (
@@ -155,6 +158,8 @@ export function ToolsSection({ data, loading }: ToolsSectionProps) {
                       errorRate={tool.errorRate}
                       topError={tool.topError}
                       errorCount={Math.round(tool.totalCalls * tool.errorRate)}
+                      expanded={expandedFrictionIndex === i}
+                      onToggle={() => setExpandedFrictionIndex(expandedFrictionIndex === i ? null : i)}
                     />
                   ))}
               </div>
@@ -183,7 +188,12 @@ export function ToolsSection({ data, loading }: ToolsSectionProps) {
             toolHealthReport.bashDeepDive.length > 0 ? (
             <div className="space-y-2">
               {toolHealthReport.bashDeepDive.map((category, i) => (
-                <BashCategoryAccordion key={i} category={category} />
+                <BashCategoryAccordion
+                  key={i}
+                  category={category}
+                  expanded={expandedBashIndex === i}
+                  onToggle={() => setExpandedBashIndex(expandedBashIndex === i ? null : i)}
+                />
               ))}
             </div>
           ) : (
@@ -218,6 +228,8 @@ interface FrictionPointCardProps {
   errorRate: number;
   topError: string;
   errorCount: number;
+  expanded: boolean;
+  onToggle: () => void;
 }
 
 function FrictionPointCard({
@@ -226,8 +238,9 @@ function FrictionPointCard({
   errorRate,
   topError,
   errorCount,
+  expanded,
+  onToggle,
 }: FrictionPointCardProps) {
-  const [isExpanded, setIsExpanded] = useState(false);
   const [copied, setCopied] = useState(false);
 
   const severity = getSeverityFromErrorRate(errorRate);
@@ -243,7 +256,7 @@ function FrictionPointCard({
   };
 
   return (
-    <Collapsible open={isExpanded} onOpenChange={setIsExpanded}>
+    <Collapsible open={expanded} onOpenChange={onToggle}>
       <div
         className={cn(
           "rounded-lg border",
@@ -278,7 +291,7 @@ function FrictionPointCard({
                   {formatPercent(errorRate)} errors
                 </Badge>
                 <HugeiconsIcon
-                  icon={isExpanded ? ArrowUp01Icon : ArrowDown01Icon}
+                  icon={expanded ? ArrowUp01Icon : ArrowDown01Icon}
                   className="text-muted-foreground h-4 w-4"
                 />
               </div>
@@ -434,12 +447,17 @@ interface BashCategory {
   fixSuggestions: string[];
 }
 
-function BashCategoryAccordion({ category }: { category: BashCategory }) {
-  const [isOpen, setIsOpen] = useState(false);
+interface BashCategoryAccordionProps {
+  category: BashCategory;
+  expanded: boolean;
+  onToggle: () => void;
+}
+
+function BashCategoryAccordion({ category, expanded, onToggle }: BashCategoryAccordionProps) {
   const hasErrors = category.errorCount > 0;
 
   return (
-    <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+    <Collapsible open={expanded} onOpenChange={onToggle}>
       <CollapsibleTrigger className="hover:bg-muted/50 flex w-full items-center justify-between rounded-lg px-4 py-3 transition-colors">
         <div className="flex items-center gap-3">
           <div
@@ -465,7 +483,7 @@ function BashCategoryAccordion({ category }: { category: BashCategory }) {
             </Badge>
           )}
           <HugeiconsIcon
-            icon={isOpen ? ArrowUp01Icon : ArrowDown01Icon}
+            icon={expanded ? ArrowUp01Icon : ArrowDown01Icon}
             className="text-muted-foreground h-4 w-4"
           />
         </div>

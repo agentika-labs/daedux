@@ -160,8 +160,8 @@ function PromptRow({
 
         {/* Expanded content */}
         <CollapsibleContent>
-          <div className="bg-muted/50 mt-3 ml-9 rounded-md p-3">
-            <p className="font-mono text-sm leading-relaxed break-all whitespace-pre-wrap">
+          <div className="mt-3 ml-9 rounded-md border-l-2 border-chart-1/40 bg-muted/30 py-3 pr-4 pl-4">
+            <p className="text-sm leading-relaxed break-words whitespace-pre-wrap text-foreground/90">
               {prompt.prompt}
             </p>
           </div>

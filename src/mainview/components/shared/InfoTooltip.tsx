@@ -47,14 +47,16 @@ export function InfoTooltip({
         <TooltipContent
           side={side}
           className={cn(
-            // Inverted colors for contrast
-            "bg-foreground text-background",
+            // Dark elevated surface (matches popover)
+            "bg-popover/95 backdrop-blur-xl",
+            // High-contrast text for readability
+            "text-foreground",
             // Size and spacing
             "max-w-[280px] p-4",
-            // Elevation
-            "shadow-xl shadow-black/20",
-            "border border-white/10",
-            // Reset base tooltip rounded
+            // Subtle glow + border for definition
+            "shadow-xl shadow-black/40",
+            "border border-white/[0.08]",
+            // Rounded corners
             "!rounded-xl"
           )}
         >
@@ -62,19 +64,19 @@ export function InfoTooltip({
           <p className="text-sm font-semibold tracking-tight">{title}</p>
 
           {/* Description - muted */}
-          <p className="text-background/70 mt-1.5 text-xs leading-relaxed">
+          <p className="text-muted-foreground mt-1.5 text-xs leading-relaxed">
             {description}
           </p>
 
           {/* Scale tiers - visual treatment */}
           {scale && scale.length > 0 && (
-            <div className="border-background/15 mt-3 space-y-1.5 border-t pt-3">
+            <div className="border-border mt-3 space-y-1.5 border-t pt-3">
               {scale.map((tier) => (
                 <div
                   key={tier.range}
                   className="flex items-center justify-between gap-3 text-xs"
                 >
-                  <span className="text-background/60 font-mono text-[11px]">
+                  <span className="text-muted-foreground font-mono text-[11px]">
                     {tier.range}
                   </span>
                   <span
@@ -89,7 +91,7 @@ export function InfoTooltip({
                         "bg-emerald-500/20 text-emerald-300",
                       // Fallback
                       !/Low|Good|Optimal/.test(tier.quality) &&
-                        "bg-background/10 text-background/80"
+                        "bg-muted text-muted-foreground"
                     )}
                   >
                     {tier.quality}
