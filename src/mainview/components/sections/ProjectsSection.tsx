@@ -29,6 +29,11 @@ interface ProjectsSectionProps {
   loading?: boolean;
 }
 
+// ─── Hoisted Formatters (stable references, no re-creation on render) ─────────
+
+/** Format currency for X-axis ticks */
+const formatCurrencyAxisTick = (value: number) => `$${value.toFixed(2)}`;
+
 // Hoisted outside component per rendering-hoist-jsx rule
 // This avoids recreating the function on every render
 function TruncatedYAxisTick({
@@ -68,9 +73,10 @@ const projectConfig = {
 export function ProjectsSection({ data, loading }: ProjectsSectionProps) {
   const projects = data?.projects ?? [];
 
-  // Sort by cost descending
-  const sortedProjects = [...projects].toSorted(
-    (a, b) => b.totalCost - a.totalCost
+  // Memoize sorted projects (only recalculates when projects changes)
+  const sortedProjects = useMemo(
+    () => [...projects].toSorted((a, b) => b.totalCost - a.totalCost),
+    [projects]
   );
 
   // Stats
@@ -96,18 +102,28 @@ export function ProjectsSection({ data, loading }: ProjectsSectionProps) {
     );
   }, [projects]);
 
-  // Prepare chart data with smart names
-  const chartData = sortedProjects.slice(0, 10).map((p) => {
-    const smartName = smartNames.get(p.projectPath)!;
-    return {
-      cost: p.totalCost,
-      name: smartName.secondary
-        ? `${smartName.primary} (${smartName.secondary})`
-        : smartName.primary,
-      sessions: p.sessionCount,
-      smartName, // Pass the full SmartProjectName object for tooltip
-    };
-  });
+  // Memoize chart data (depends on sortedProjects and smartNames)
+  const chartData = useMemo(
+    () =>
+      sortedProjects.slice(0, 10).map((p) => {
+        const smartName = smartNames.get(p.projectPath)!;
+        return {
+          cost: p.totalCost,
+          name: smartName.secondary
+            ? `${smartName.primary} (${smartName.secondary})`
+            : smartName.primary,
+          sessions: p.sessionCount,
+          smartName, // Pass the full SmartProjectName object for tooltip
+        };
+      }),
+    [sortedProjects, smartNames]
+  );
+
+  // Memoize activity data - O(28 × n) operation, expensive for many projects
+  const activityData = useMemo(
+    () => generateActivityData(projects),
+    [projects]
+  );
 
   return (
     <Section id="projects">
@@ -169,7 +185,7 @@ export function ProjectsSection({ data, loading }: ProjectsSectionProps) {
                   type="number"
                   tickLine={false}
                   axisLine={false}
-                  tickFormatter={(value) => `$${value.toFixed(2)}`}
+                  tickFormatter={formatCurrencyAxisTick}
                 />
                 <YAxis
                   type="category"
@@ -181,6 +197,8 @@ export function ProjectsSection({ data, loading }: ProjectsSectionProps) {
                   interval={0}
                 />
                 <ChartTooltip
+                  cursor={{ fill: "var(--muted)", opacity: 0.3 }}
+                  animationDuration={150}
                   content={
                     <ChartTooltipContent
                       hideLabel
@@ -265,7 +283,7 @@ export function ProjectsSection({ data, loading }: ProjectsSectionProps) {
           ) : (
             <div className="grid grid-cols-7 gap-1">
               {/* Simple activity visualization - last 28 days */}
-              {generateActivityData(projects).map((day, i) => (
+              {activityData.map((day, i) => (
                 <div
                   key={i}
                   className={cn(

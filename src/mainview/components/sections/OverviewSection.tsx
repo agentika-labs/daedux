@@ -22,6 +22,17 @@ interface OverviewSectionProps {
   onNavigateToSection?: (section: string) => void;
 }
 
+// Hoisted pure function - avoids recreation on every render
+const getTrendDirection = (change: number): "up" | "down" | "stable" => {
+  if (change > 0) {
+    return "up";
+  }
+  if (change < 0) {
+    return "down";
+  }
+  return "stable";
+};
+
 export function OverviewSection({
   data,
   loading,
@@ -30,17 +41,6 @@ export function OverviewSection({
   const totals = data?.totals;
   const efficiencyScore = data?.efficiencyScore;
   const weeklyComparison = data?.weeklyComparison;
-
-  // Calculate trend from weekly comparison
-  const getTrendDirection = (change: number): "up" | "down" | "stable" => {
-    if (change > 0) {
-      return "up";
-    }
-    if (change < 0) {
-      return "down";
-    }
-    return "stable";
-  };
 
   const costTrend = weeklyComparison?.changes?.cost
     ? {
@@ -197,6 +197,7 @@ export function OverviewSection({
                   <ScoreBar
                     label="Tool Success"
                     value={efficiencyScore.toolSuccess}
+                    emptyText="No tool calls"
                   />
                   <ScoreBar
                     label="Session"

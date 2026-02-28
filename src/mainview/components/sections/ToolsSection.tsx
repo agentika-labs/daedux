@@ -12,7 +12,7 @@ import {
   CodeIcon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import type { DashboardData } from "@shared/rpc-types";
+import type { ConfidenceLevel, DashboardData } from "@shared/rpc-types";
 import { useState } from "react";
 
 import { Section } from "@/components/layout/Section";
@@ -105,15 +105,17 @@ export function ToolsSection({ data, loading }: ToolsSectionProps) {
                     key={i}
                     className="bg-success/5 border-success/20 flex items-center justify-between rounded-lg border px-3 py-2"
                   >
-                    <div>
+                    <div className="flex items-center gap-2">
                       <span className="text-sm font-medium">{tool.name}</span>
-                      <span className="text-muted-foreground ml-2 text-xs">
+                      <span className="text-muted-foreground text-xs">
                         {tool.totalCalls} calls
                       </span>
+                      <ConfidenceBadge confidence={tool.confidence} />
                     </div>
                     <Badge
                       variant="outline"
                       className="bg-success/10 text-success border-success/30"
+                      title={`Wilson lower bound: ${tool.reliabilityScore?.toFixed(1)}%`}
                     >
                       {formatPercent(tool.successRate)} success
                     </Badge>
@@ -149,9 +151,9 @@ export function ToolsSection({ data, loading }: ToolsSectionProps) {
             ) : toolHealthReport?.frictionPoints &&
               toolHealthReport.frictionPoints.length > 0 ? (
               <div className="max-h-[400px] space-y-2 overflow-y-auto pr-3">
-                {/* Sort by error rate descending (worst first) */}
+                {/* Sort by friction score descending (worst first) */}
                 {[...toolHealthReport.frictionPoints]
-                  .toSorted((a, b) => b.errorRate - a.errorRate)
+                  .toSorted((a, b) => (b.frictionScore ?? b.errorRate) - (a.frictionScore ?? a.errorRate))
                   .map((tool, i) => (
                     <FrictionPointCard
                       key={i}
@@ -162,6 +164,8 @@ export function ToolsSection({ data, loading }: ToolsSectionProps) {
                       errorCount={Math.round(tool.totalCalls * tool.errorRate)}
                       expanded={frictionExpansion.isExpanded(i)}
                       onToggle={() => frictionExpansion.toggle(i)}
+                      confidence={tool.confidence}
+                      frictionScore={tool.frictionScore}
                     />
                   ))}
               </div>
@@ -211,6 +215,44 @@ export function ToolsSection({ data, loading }: ToolsSectionProps) {
 
 // ─── Helper Components ────────────────────────────────────────────────────────
 
+/** Confidence badge showing statistical confidence level */
+function ConfidenceBadge({ confidence }: { confidence?: ConfidenceLevel }) {
+  if (!confidence) return null;
+
+  const styles: Record<ConfidenceLevel, { bg: string; text: string; label: string }> = {
+    high: {
+      bg: "bg-success/10",
+      label: "high confidence",
+      text: "text-success",
+    },
+    medium: {
+      bg: "bg-warning/10",
+      label: "medium",
+      text: "text-warning",
+    },
+    low: {
+      bg: "bg-muted",
+      label: "low sample",
+      text: "text-muted-foreground",
+    },
+  };
+
+  const style = styles[confidence];
+
+  return (
+    <span
+      className={cn(
+        "rounded px-1 py-0.5 text-[10px] font-medium",
+        style.bg,
+        style.text
+      )}
+      title={`Statistical confidence: ${confidence} (based on sample size)`}
+    >
+      {style.label}
+    </span>
+  );
+}
+
 /** Icon mapping for error categories */
 const CATEGORY_ICONS: Record<ErrorCategory, typeof AlertCircleIcon> = {
   exit_code: AlertDiamondIcon,
@@ -240,6 +282,8 @@ interface FrictionPointCardProps {
   errorCount: number;
   expanded: boolean;
   onToggle: () => void;
+  confidence?: ConfidenceLevel;
+  frictionScore?: number;
 }
 
 function FrictionPointCard({
@@ -250,6 +294,8 @@ function FrictionPointCard({
   errorCount,
   expanded,
   onToggle,
+  confidence,
+  frictionScore,
 }: FrictionPointCardProps) {
   const severity = getSeverityFromErrorRate(errorRate);
   const parsed = parseError(topError);
@@ -280,6 +326,7 @@ function FrictionPointCard({
                 <span className="text-muted-foreground shrink-0 text-xs">
                   {totalCalls} calls
                 </span>
+                <ConfidenceBadge confidence={confidence} />
               </div>
               <div className="flex shrink-0 items-center gap-2">
                 <Badge
@@ -290,6 +337,11 @@ function FrictionPointCard({
                     severity.badgeTextClass,
                     SEVERITY_BADGE_BORDER[severity.tier]
                   )}
+                  title={
+                    frictionScore
+                      ? `Wilson upper bound: ${frictionScore.toFixed(1)}% (worst-case error rate)`
+                      : undefined
+                  }
                 >
                   {formatPercent(errorRate)} errors
                 </Badge>
@@ -453,16 +505,35 @@ interface BashCategoryAccordionProps {
 function BashCategoryAccordion({ category, expanded, onToggle }: BashCategoryAccordionProps) {
   const hasErrors = category.errorCount > 0;
 
+  // Success state: simple row, no accordion
+  if (!hasErrors) {
+    return (
+      <div className="flex items-center justify-between rounded-lg px-4 py-3 bg-success/5 border border-success/20">
+        <div className="flex items-center gap-3">
+          <div className="h-2 w-2 rounded-full bg-success" />
+          <span className="font-medium capitalize">
+            {category.category.replaceAll("_", " ")}
+          </span>
+          <span className="text-muted-foreground text-sm">
+            {category.totalCommands} commands
+          </span>
+        </div>
+        <Badge
+          variant="outline"
+          className="bg-success/10 text-success border-success/30"
+        >
+          All successful
+        </Badge>
+      </div>
+    );
+  }
+
+  // Error state: full accordion with expandable details
   return (
     <Collapsible open={expanded} onOpenChange={onToggle}>
       <CollapsibleTrigger className="hover:bg-muted/50 flex w-full items-center justify-between rounded-lg px-4 py-3 transition-colors">
         <div className="flex items-center gap-3">
-          <div
-            className={cn(
-              "h-2 w-2 rounded-full",
-              hasErrors ? "bg-destructive" : "bg-success"
-            )}
-          />
+          <div className="h-2 w-2 rounded-full bg-destructive" />
           <span className="font-medium capitalize">
             {category.category.replaceAll("_", " ")}
           </span>
@@ -471,14 +542,12 @@ function BashCategoryAccordion({ category, expanded, onToggle }: BashCategoryAcc
           </span>
         </div>
         <div className="flex items-center gap-2">
-          {hasErrors && (
-            <Badge
-              variant="outline"
-              className="bg-destructive/10 text-destructive border-destructive/30"
-            >
-              {category.errorCount} errors
-            </Badge>
-          )}
+          <Badge
+            variant="outline"
+            className="bg-destructive/10 text-destructive border-destructive/30"
+          >
+            {category.errorCount} errors
+          </Badge>
           <HugeiconsIcon
             icon={expanded ? ArrowUp01Icon : ArrowDown01Icon}
             className="text-muted-foreground h-4 w-4"
@@ -487,34 +556,26 @@ function BashCategoryAccordion({ category, expanded, onToggle }: BashCategoryAcc
       </CollapsibleTrigger>
       <CollapsibleContent>
         <div className="space-y-3 px-4 pb-4">
-          {category.topErrors.length > 0 && (
-            <div>
-              <p className="mb-2 text-sm font-medium">Top Errors</p>
-              <div className="space-y-2">
-                {category.topErrors.slice(0, 3).map((error, i) => {
-                  const parsed = parseError(error.message);
-                  const matchedSuggestion = matchSuggestionToError(
-                    parsed,
-                    category.fixSuggestions
-                  );
-                  return (
-                    <SmartErrorCard
-                      key={i}
-                      message={error.message}
-                      count={error.count}
-                      suggestion={matchedSuggestion}
-                    />
-                  );
-                })}
-              </div>
+          <div>
+            <p className="mb-2 text-sm font-medium">Top Errors</p>
+            <div className="space-y-2">
+              {category.topErrors.slice(0, 3).map((error, i) => {
+                const parsed = parseError(error.message);
+                const matchedSuggestion = matchSuggestionToError(
+                  parsed,
+                  category.fixSuggestions
+                );
+                return (
+                  <SmartErrorCard
+                    key={i}
+                    message={error.message}
+                    count={error.count}
+                    suggestion={matchedSuggestion}
+                  />
+                );
+              })}
             </div>
-          )}
-          {category.topErrors.length === 0 &&
-            category.fixSuggestions.length === 0 && (
-              <p className="text-muted-foreground text-sm">
-                All commands in this category executed successfully.
-              </p>
-            )}
+          </div>
         </div>
       </CollapsibleContent>
     </Collapsible>

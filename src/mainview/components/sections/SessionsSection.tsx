@@ -21,7 +21,7 @@ import type {
   PaginationState,
   FilterFn,
 } from "@tanstack/react-table";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useDeferredValue, useEffect } from "react";
 
 import { Section } from "@/components/layout/Section";
 import { SectionHeader } from "@/components/shared/SectionHeader";
@@ -100,7 +100,16 @@ export function SessionsSection({ data, loading }: SessionsSectionProps) {
     pageIndex: 0,
     pageSize: 25,
   });
+  // Debounced search - searchInput is the controlled value, deferredSearch
+  // is the debounced value that triggers table filtering
+  const [searchInput, setSearchInput] = useState("");
+  const deferredSearch = useDeferredValue(searchInput);
   const [globalFilter, setGlobalFilter] = useState("");
+
+  // Sync deferred value to table filter
+  useEffect(() => {
+    setGlobalFilter(deferredSearch);
+  }, [deferredSearch]);
 
   const sessions = data?.sessions ?? [];
 
@@ -310,9 +319,9 @@ export function SessionsSection({ data, loading }: SessionsSectionProps) {
             />
             <Input
               placeholder="Search sessions..."
-              value={globalFilter}
+              value={searchInput}
               onChange={(e) => {
-                setGlobalFilter(e.target.value);
+                setSearchInput(e.target.value);
                 // Reset to first page when searching
                 setPagination((prev) => ({ ...prev, pageIndex: 0 }));
               }}

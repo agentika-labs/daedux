@@ -1,4 +1,5 @@
 import * as React from "react";
+import { memo } from "react";
 import * as RechartsPrimitive from "recharts";
 
 import { cn } from "@/lib/utils";
@@ -60,7 +61,7 @@ function ChartContainer({
         {...props}
       >
         <ChartStyle id={chartId} config={config} />
-        <RechartsPrimitive.ResponsiveContainer>
+        <RechartsPrimitive.ResponsiveContainer debounce={100}>
           {children}
         </RechartsPrimitive.ResponsiveContainer>
       </div>
@@ -103,7 +104,13 @@ ${colorConfig
 
 const ChartTooltip = RechartsPrimitive.Tooltip;
 
-function ChartTooltipContent({
+/** Performance-optimized tooltip props for reduced animation overhead */
+const OPTIMIZED_TOOLTIP_PROPS = {
+  animationDuration: 150,
+  isAnimationActive: false,
+} as const;
+
+const ChartTooltipContent = memo(function ChartTooltipContent({
   active,
   payload,
   className,
@@ -247,7 +254,7 @@ function ChartTooltipContent({
       </div>
     </div>
   );
-}
+});
 
 const ChartLegend = RechartsPrimitive.Legend;
 
@@ -352,4 +359,5 @@ export {
   ChartLegend,
   ChartLegendContent,
   ChartStyle,
+  OPTIMIZED_TOOLTIP_PROPS,
 };

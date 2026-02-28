@@ -120,7 +120,7 @@ export interface ModelBreakdown {
 export interface EfficiencyScore {
   overall: number;
   cacheEfficiency: number;
-  toolSuccess: number;
+  toolSuccess: number | null; // null when no tool calls in period
   sessionEfficiency: number;
   trend: "improving" | "declining" | "stable";
   topOpportunity: string;
@@ -251,17 +251,26 @@ export interface ToolHealthEntry {
   topErrors: { message: string; count: number }[];
 }
 
+/** Confidence level based on sample size */
+export type ConfidenceLevel = "high" | "medium" | "low";
+
 export interface ToolHealthReportCard {
   reliableTools: {
     name: string;
     successRate: number;
     totalCalls: number;
+    /** Wilson lower bound of success rate × 100 */
+    reliabilityScore: number;
+    confidence: ConfidenceLevel;
   }[];
   frictionPoints: {
     name: string;
     errorRate: number;
     topError: string;
     totalCalls: number;
+    /** Wilson upper bound of error rate × 100 */
+    frictionScore: number;
+    confidence: ConfidenceLevel;
   }[];
   bashDeepDive: {
     category: string;
@@ -273,6 +282,12 @@ export interface ToolHealthReportCard {
   }[];
   headline: string;
   recommendation: string;
+  /** Population statistics for context */
+  populationStats?: {
+    totalTools: number;
+    reliableThreshold: number;
+    frictionThreshold: number;
+  };
 }
 
 // ─── Dashboard Payload ──────────────────────────────────────────────────────
@@ -400,6 +415,15 @@ export interface AuthStatus {
   subscriptionType?: string;
 }
 
+// ─── App Info ───────────────────────────────────────────────────────────────
+
+export interface AppInfo {
+  version: string;
+  updateAvailable: boolean;
+  updateVersion: string | null;
+  downloadUrl: string;
+}
+
 // ─── Sync Result ────────────────────────────────────────────────────────────
 
 export interface SyncResult {
@@ -490,6 +514,10 @@ export interface UsageMonitorRPC {
       getAnthropicUsage: {
         params: Record<string, never>;
         response: AnthropicUsage;
+      };
+      getAppInfo: {
+        params: Record<string, never>;
+        response: AppInfo;
       };
       updateDragExclusionZones: {
         params: {

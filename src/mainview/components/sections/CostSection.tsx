@@ -1,4 +1,5 @@
 import type { DashboardData, DailyStat } from "@shared/rpc-types";
+import { useMemo } from "react";
 import {
   Bar,
   BarChart,
@@ -29,6 +30,20 @@ interface CostSectionProps {
   data: DashboardData | null;
   loading?: boolean;
 }
+
+// ─── Hoisted Formatters (stable references, no re-creation on render) ─────────
+
+/** Format date for X-axis ticks */
+const formatDateTick = (value: string) => {
+  const date = new Date(value);
+  return date.toLocaleDateString("en-US", { day: "numeric", month: "short" });
+};
+
+/** Format currency for Y-axis ticks (2 decimal places) */
+const formatCurrencyAxisTick = (value: number) => `$${value.toFixed(2)}`;
+
+/** Format currency for Y-axis ticks (0 decimal places) */
+const formatCurrencyAxisTickRounded = (value: number) => `$${value.toFixed(0)}`;
 
 const dailyCostConfig = {
   cost: {
@@ -72,27 +87,40 @@ export function CostSection({ data, loading }: CostSectionProps) {
   const dailyUsage = data?.dailyUsage ?? [];
   const modelBreakdown = data?.modelBreakdown ?? [];
 
-  // Calculate cumulative cost for the chart
-  const dailyWithCumulative = dailyUsage.reduce<
-    (DailyStat & { cumulativeCost: number })[]
-  >((acc, day) => {
-    const lastItem = acc.at(-1);
-    const prev = lastItem?.cumulativeCost ?? 0;
-    return [...acc, { ...day, cumulativeCost: prev + day.totalCost }];
-  }, []);
+  // Memoize cumulative cost calculation (only recalculates when dailyUsage changes)
+  const dailyWithCumulative = useMemo(() => {
+    return dailyUsage.reduce<(DailyStat & { cumulativeCost: number })[]>(
+      (acc, day) => {
+        const lastItem = acc.at(-1);
+        const prev = lastItem?.cumulativeCost ?? 0;
+        return [...acc, { ...day, cumulativeCost: prev + day.totalCost }];
+      },
+      []
+    );
+  }, [dailyUsage]);
 
   // Token breakdown for stacked bar
-  const tokenBreakdown = totals
-    ? [
-        {
-          cacheCreation: totals.cacheCreation,
-          cacheRead: totals.cacheRead,
-          name: "Tokens",
-          output: totals.output,
-          uncachedInput: totals.uncachedInput,
-        },
-      ]
-    : [];
+  const tokenBreakdown = useMemo(
+    () =>
+      totals
+        ? [
+            {
+              cacheCreation: totals.cacheCreation,
+              cacheRead: totals.cacheRead,
+              name: "Tokens",
+              output: totals.output,
+              uncachedInput: totals.uncachedInput,
+            },
+          ]
+        : [],
+    [totals]
+  );
+
+  // Memoize sorted model breakdown - avoids .toSorted() on every render
+  const sortedModelBreakdown = useMemo(
+    () => modelBreakdown.toSorted((a, b) => b.totalCost - a.totalCost).slice(0, 6),
+    [modelBreakdown]
+  );
 
   return (
     <Section id="cost">
@@ -141,28 +169,24 @@ export function CostSection({ data, loading }: CostSectionProps) {
                   tickLine={false}
                   axisLine={false}
                   tickMargin={8}
-                  tickFormatter={(value) => {
-                    const date = new Date(value);
-                    return date.toLocaleDateString("en-US", {
-                      day: "numeric",
-                      month: "short",
-                    });
-                  }}
+                  tickFormatter={formatDateTick}
                 />
                 <YAxis
                   yAxisId="left"
                   tickLine={false}
                   axisLine={false}
-                  tickFormatter={(value) => `$${value.toFixed(2)}`}
+                  tickFormatter={formatCurrencyAxisTick}
                 />
                 <YAxis
                   yAxisId="right"
                   orientation="right"
                   tickLine={false}
                   axisLine={false}
-                  tickFormatter={(value) => `$${value.toFixed(0)}`}
+                  tickFormatter={formatCurrencyAxisTickRounded}
                 />
                 <ChartTooltip
+                  cursor={{ strokeDasharray: "3 3" }}
+                  animationDuration={150}
                   content={
                     <ChartTooltipContent
                       formatter={(value, name) => (
@@ -203,12 +227,10 @@ export function CostSection({ data, loading }: CostSectionProps) {
           subtitle="Which models are costing the most"
           loading={loading}
         >
-          {modelBreakdown.length > 0 ? (
+          {sortedModelBreakdown.length > 0 ? (
             <ChartContainer config={modelConfig} className="h-[250px] w-full">
               <BarChart
-                data={modelBreakdown
-                  .toSorted((a, b) => b.totalCost - a.totalCost)
-                  .slice(0, 6)}
+                data={sortedModelBreakdown}
                 layout="vertical"
                 accessibilityLayer
               >
@@ -217,7 +239,7 @@ export function CostSection({ data, loading }: CostSectionProps) {
                   type="number"
                   tickLine={false}
                   axisLine={false}
-                  tickFormatter={(value) => `$${value.toFixed(2)}`}
+                  tickFormatter={formatCurrencyAxisTick}
                 />
                 <YAxis
                   type="category"
@@ -227,6 +249,8 @@ export function CostSection({ data, loading }: CostSectionProps) {
                   width={100}
                 />
                 <ChartTooltip
+                  cursor={{ fill: "var(--muted)", opacity: 0.3 }}
+                  animationDuration={150}
                   content={
                     <ChartTooltipContent
                       formatter={(value) => formatCurrency(value as number)}
@@ -234,7 +258,7 @@ export function CostSection({ data, loading }: CostSectionProps) {
                   }
                 />
                 <Bar dataKey="totalCost" name="cost" radius={[0, 4, 4, 0]}>
-                  {modelBreakdown.map((_, index) => (
+                  {sortedModelBreakdown.map((_, index) => (
                     <Cell
                       key={`cell-${index}`}
                       fill={`var(--chart-${(index % 5) + 1})`}
@@ -266,6 +290,8 @@ export function CostSection({ data, loading }: CostSectionProps) {
                 <XAxis type="number" hide />
                 <YAxis type="category" dataKey="name" hide />
                 <ChartTooltip
+                  cursor={{ fill: "var(--muted)", opacity: 0.3 }}
+                  animationDuration={150}
                   content={
                     <ChartTooltipContent
                       formatter={(value) => formatTokens(value as number)}

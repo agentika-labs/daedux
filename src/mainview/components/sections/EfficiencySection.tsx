@@ -1,4 +1,5 @@
 import type { DashboardData } from "@shared/rpc-types";
+import { useMemo } from "react";
 import {
   Area,
   AreaChart,
@@ -30,6 +31,17 @@ interface EfficiencySectionProps {
   loading?: boolean;
 }
 
+// ─── Hoisted Formatters (stable references, no re-creation on render) ─────────
+
+/** Format date for X-axis ticks */
+const formatDateTick = (value: string) => {
+  const date = new Date(value);
+  return date.toLocaleDateString("en-US", { day: "numeric", month: "short" });
+};
+
+/** Format percentage for Y-axis ticks */
+const formatPercentAxisTick = (value: number) => `${value.toFixed(0)}%`;
+
 const cacheConfig = {
   cacheHitRate: {
     color: "var(--chart-2)",
@@ -48,22 +60,37 @@ export function EfficiencySection({ data, loading }: EfficiencySectionProps) {
   const dailyUsage = data?.dailyUsage ?? [];
   const sessions = data?.sessions ?? [];
 
-  // Calculate cache hit rate per day
-  // Total input context = uncachedInput + cacheRead + cacheCreation (cacheWrite)
-  const cacheEfficiencyData = dailyUsage.map((day) => {
-    const totalInput = day.uncachedInput + day.cacheRead + day.cacheCreation;
-    const hitRate = totalInput > 0 ? day.cacheRead / totalInput : 0;
-    return {
-      cacheHitRate: hitRate * 100,
-      date: day.date,
-    };
-  });
+  // Memoize cache efficiency calculation (only recalculates when dailyUsage changes)
+  const cacheEfficiencyData = useMemo(() => {
+    return dailyUsage.map((day) => {
+      const totalInput = day.uncachedInput + day.cacheRead + day.cacheCreation;
+      const hitRate = totalInput > 0 ? day.cacheRead / totalInput : 0;
+      return {
+        cacheHitRate: hitRate * 100,
+        date: day.date,
+      };
+    });
+  }, [dailyUsage]);
 
-  // Session length distribution (queries per session)
-  const sessionLengthBuckets = getSessionLengthDistribution(sessions);
+  // Memoize session length distribution
+  const sessionLengthBuckets = useMemo(
+    () => getSessionLengthDistribution(sessions),
+    [sessions]
+  );
+
+  // Memoize compaction stats - avoids 4 inline iterations on every render
+  const compactionStats = useMemo(() => {
+    const withCompactions = sessions.filter((s) => s.compactions > 0);
+    return {
+      avgQueriesBefore: calculateAvgQueriesBeforeCompaction(sessions),
+      hasAny: withCompactions.length > 0,
+      sessionsWithCompactions: withCompactions.length,
+      totalCompactions: sessions.reduce((acc, s) => acc + s.compactions, 0),
+    };
+  }, [sessions]);
 
   // Efficiency metrics from efficiencyScore (distinct from cache hit rate)
-  const toolSuccessRate = data?.efficiencyScore?.toolSuccess ?? 0;
+  const toolSuccessRate = data?.efficiencyScore?.toolSuccess ?? null;
   const vcsActivityCount = data?.efficiencyScore?.vcsActivityCount ?? 0;
   const prsCreated = data?.efficiencyScore?.prsCreated ?? 0;
   const prEfficiency = data?.efficiencyScore?.prEfficiency;
@@ -93,15 +120,23 @@ export function EfficiencySection({ data, loading }: EfficiencySectionProps) {
         />
         <StatCard
           label="Tool Success Rate"
-          value={`${Math.round(toolSuccessRate)}%`}
-          subtext="Tools completing without errors"
+          value={
+            toolSuccessRate !== null ? `${Math.round(toolSuccessRate)}%` : "—"
+          }
+          subtext={
+            toolSuccessRate !== null
+              ? "Tools completing without errors"
+              : "No tool calls yet"
+          }
           loading={loading}
           variant={
-            toolSuccessRate >= 95
-              ? "success"
-              : toolSuccessRate >= 85
-                ? "warning"
-                : "default"
+            toolSuccessRate !== null
+              ? toolSuccessRate >= 95
+                ? "success"
+                : toolSuccessRate >= 85
+                  ? "warning"
+                  : "default"
+              : "default"
           }
         />
         <StatCard
@@ -149,7 +184,7 @@ export function EfficiencySection({ data, loading }: EfficiencySectionProps) {
           tooltip={
             <InfoTooltip
               title="What does this measure?"
-              description="Total cost divided by PRs created. Lower is better — it shows how efficiently you're shipping work."
+              description="Cost of sessions where PRs were created, divided by PR count. Sessions without PRs aren't included."
               scale={[
                 { quality: "Excellent", range: "< $5/PR" },
                 { quality: "Good", range: "$5-15/PR" },
@@ -197,21 +232,17 @@ export function EfficiencySection({ data, loading }: EfficiencySectionProps) {
                   tickLine={false}
                   axisLine={false}
                   tickMargin={8}
-                  tickFormatter={(value) => {
-                    const date = new Date(value);
-                    return date.toLocaleDateString("en-US", {
-                      day: "numeric",
-                      month: "short",
-                    });
-                  }}
+                  tickFormatter={formatDateTick}
                 />
                 <YAxis
                   tickLine={false}
                   axisLine={false}
-                  tickFormatter={(value) => `${value.toFixed(0)}%`}
+                  tickFormatter={formatPercentAxisTick}
                   domain={[0, 100]}
                 />
                 <ChartTooltip
+                  cursor={{ strokeDasharray: "3 3" }}
+                  animationDuration={150}
                   content={
                     <ChartTooltipContent
                       formatter={(value) => `${(value as number).toFixed(1)}%`}
@@ -250,6 +281,8 @@ export function EfficiencySection({ data, loading }: EfficiencySectionProps) {
                 />
                 <YAxis tickLine={false} axisLine={false} />
                 <ChartTooltip
+                  cursor={{ fill: "var(--muted)", opacity: 0.3 }}
+                  animationDuration={150}
                   content={
                     <ChartTooltipContent
                       formatter={(value) => `${value} sessions`}
@@ -285,23 +318,23 @@ export function EfficiencySection({ data, loading }: EfficiencySectionProps) {
             <div className="grid grid-cols-3 gap-6">
               <CompactionStat
                 label="Sessions with Compactions"
-                value={sessions.filter((s) => s.compactions > 0).length}
+                value={compactionStats.sessionsWithCompactions}
                 total={sessions.length}
                 description="Hit context limit"
               />
               <CompactionStat
                 label="Total Compactions"
-                value={sessions.reduce((acc, s) => acc + s.compactions, 0)}
+                value={compactionStats.totalCompactions}
                 description="Context overflow events"
               />
               <CompactionStat
                 label="Avg Queries Before Compaction"
-                value={calculateAvgQueriesBeforeCompaction(sessions)}
+                value={compactionStats.avgQueriesBefore}
                 description="How long until limit"
               />
             </div>
           )}
-          {!loading && sessions.some((s) => s.compactions > 0) && (
+          {!loading && compactionStats.hasAny && (
             <p className="text-muted-foreground border-border mt-4 border-t pt-4 text-xs">
               Tip: Sessions with compactions indicate the context window was
               exceeded. Consider breaking large tasks into smaller sessions.

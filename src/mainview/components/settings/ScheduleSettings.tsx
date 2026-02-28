@@ -1,3 +1,9 @@
+/**
+ * Schedule settings component for session warm-up configuration.
+ *
+ * Uses TanStack Query hooks - data is already cached from the
+ * route loader, so this renders instantly without a loading state.
+ */
 import {
   PlayIcon,
   PencilEdit02Icon,
@@ -8,13 +14,9 @@ import {
   Loading03Icon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import type {
-  SessionSchedule,
-  AuthStatus,
-  ExecutionResult,
-  AppSettings,
-} from "@shared/rpc-types";
-import { useState, useEffect, useCallback } from "react";
+import type { SessionSchedule, ExecutionResult } from "@shared/rpc-types";
+import { useState } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import {
   AlertDialog,
@@ -50,6 +52,12 @@ import {
   TooltipContent,
 } from "@/components/ui/tooltip";
 import { rpcRequest } from "@/hooks/useRPC";
+import {
+  useSchedulesQuery,
+  useAuthStatusQuery,
+  useSettingsQuery,
+  useUpdateSettingsMutation,
+} from "@/queries/settings";
 
 import { ScheduleForm } from "./ScheduleForm";
 
@@ -76,135 +84,133 @@ const formatDays = (days: number[]): string => {
 };
 
 export const ScheduleSettings = () => {
-  const [schedules, setSchedules] = useState<SessionSchedule[]>([]);
-  const [authStatus, setAuthStatus] = useState<AuthStatus | null>(null);
-  const [settings, setSettings] = useState<AppSettings | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [runningScheduleId, setRunningScheduleId] = useState<string | null>(
-    null
-  );
+  const queryClient = useQueryClient();
+
+  // Use TanStack Query hooks - data is already cached from route loader
+  const { data: schedules = [], isLoading: isLoadingSchedules } = useSchedulesQuery();
+  const { data: authStatus } = useAuthStatusQuery();
+  const { data: settings } = useSettingsQuery();
+
+  const updateSettingsMutation = useUpdateSettingsMutation();
+
+  const [runningScheduleId, setRunningScheduleId] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
-  const [editingSchedule, setEditingSchedule] =
-    useState<SessionSchedule | null>(null);
+  const [editingSchedule, setEditingSchedule] = useState<SessionSchedule | null>(null);
   const [deleteScheduleId, setDeleteScheduleId] = useState<string | null>(null);
 
-  // Load data
-  const loadData = useCallback(async () => {
-    try {
-      setIsLoading(true);
-      const [schedulesData, authData, settingsData] = await Promise.all([
-        rpcRequest("getSchedules", {}),
-        rpcRequest("getAuthStatus", {}),
-        rpcRequest("getSettings", {}),
-      ]);
-      setSchedules(schedulesData);
-      setAuthStatus(authData);
-      setSettings(settingsData);
-    } catch (error) {
-      console.error("Failed to load schedule settings:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
+  // Mutations for schedule operations
+  const toggleScheduleMutation = useMutation({
+    mutationFn: async ({ id, enabled }: { id: string; enabled: boolean }) => {
+      await rpcRequest("updateSchedule", { id, patch: { enabled } });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["schedules"] });
+    },
+  });
 
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
+  const deleteScheduleMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await rpcRequest("deleteSchedule", { id });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["schedules"] });
+      setDeleteScheduleId(null);
+    },
+  });
+
+  const saveScheduleMutation = useMutation({
+    mutationFn: async ({
+      scheduleId,
+      input,
+    }: {
+      scheduleId: string | null;
+      input: {
+        name: string;
+        hour: number;
+        minute: number;
+        daysOfWeek: number[];
+        enabled?: boolean;
+      };
+    }) => {
+      if (scheduleId) {
+        await rpcRequest("updateSchedule", { id: scheduleId, patch: input });
+      } else {
+        await rpcRequest("createSchedule", input);
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["schedules"] });
+      setShowForm(false);
+      setEditingSchedule(null);
+    },
+  });
+
+  const runNowMutation = useMutation({
+    mutationFn: async (scheduleId: string) => {
+      setRunningScheduleId(scheduleId);
+      const result: ExecutionResult = await rpcRequest("runScheduleNow", { id: scheduleId });
+      return result;
+    },
+    onSuccess: (result) => {
+      if (result.status === "success") {
+        queryClient.invalidateQueries({ queryKey: ["schedules"] });
+      } else if (result.status === "error" || result.status === "skipped") {
+        console.warn("Schedule run failed:", result.error);
+      }
+    },
+    onSettled: () => {
+      setRunningScheduleId(null);
+    },
+  });
 
   // Toggle scheduler enabled
   const handleToggleScheduler = async () => {
-    if (!settings) {
-      return;
-    }
+    if (!settings) return;
     const newEnabled = !settings.schedulerEnabled;
     try {
       await rpcRequest("updateSettings", { schedulerEnabled: newEnabled });
-      setSettings({ ...settings, schedulerEnabled: newEnabled });
+      updateSettingsMutation.mutate({ schedulerEnabled: newEnabled });
     } catch (error) {
       console.error("Failed to toggle scheduler:", error);
     }
   };
 
   // Toggle individual schedule
-  const handleToggleSchedule = async (schedule: SessionSchedule) => {
-    try {
-      await rpcRequest("updateSchedule", {
-        id: schedule.id,
-        patch: { enabled: !schedule.enabled },
-      });
-      setSchedules((prev) =>
-        prev.map((s) =>
-          s.id === schedule.id ? { ...s, enabled: !s.enabled } : s
-        )
-      );
-    } catch (error) {
-      console.error("Failed to toggle schedule:", error);
-    }
+  const handleToggleSchedule = (schedule: SessionSchedule) => {
+    toggleScheduleMutation.mutate({
+      id: schedule.id,
+      enabled: !schedule.enabled,
+    });
   };
 
   // Run schedule now
-  const handleRunNow = async (scheduleId: string) => {
-    try {
-      setRunningScheduleId(scheduleId);
-      const result: ExecutionResult = await rpcRequest("runScheduleNow", {
-        id: scheduleId,
-      });
-      if (result.status === "success") {
-        // Refresh schedules to update lastRunAt
-        const updated = await rpcRequest("getSchedules", {});
-        setSchedules(updated);
-      } else if (result.status === "error" || result.status === "skipped") {
-        console.warn("Schedule run failed:", result.error);
-      }
-    } catch (error) {
-      console.error("Failed to run schedule:", error);
-    } finally {
-      setRunningScheduleId(null);
-    }
+  const handleRunNow = (scheduleId: string) => {
+    runNowMutation.mutate(scheduleId);
   };
 
   // Delete schedule
-  const handleDelete = async () => {
-    if (!deleteScheduleId) {
-      return;
-    }
-    try {
-      await rpcRequest("deleteSchedule", { id: deleteScheduleId });
-      setSchedules((prev) => prev.filter((s) => s.id !== deleteScheduleId));
-    } catch (error) {
-      console.error("Failed to delete schedule:", error);
-    } finally {
-      setDeleteScheduleId(null);
+  const handleDelete = () => {
+    if (deleteScheduleId) {
+      deleteScheduleMutation.mutate(deleteScheduleId);
     }
   };
 
   // Create/update schedule
-  const handleSaveSchedule = async (input: {
+  const handleSaveSchedule = (input: {
     name: string;
     hour: number;
     minute: number;
     daysOfWeek: number[];
     enabled?: boolean;
   }) => {
-    try {
-      if (editingSchedule) {
-        await rpcRequest("updateSchedule", {
-          id: editingSchedule.id,
-          patch: input,
-        });
-      } else {
-        await rpcRequest("createSchedule", input);
-      }
-      const updated = await rpcRequest("getSchedules", {});
-      setSchedules(updated);
-      setShowForm(false);
-      setEditingSchedule(null);
-    } catch (error) {
-      console.error("Failed to save schedule:", error);
-    }
+    saveScheduleMutation.mutate({
+      scheduleId: editingSchedule?.id ?? null,
+      input,
+    });
   };
 
-  if (isLoading) {
+  // Show loading state only on initial load (not when data is cached)
+  if (isLoadingSchedules && schedules.length === 0) {
     return (
       <Card>
         <CardContent>
@@ -233,14 +239,10 @@ export const ScheduleSettings = () => {
               <TooltipTrigger
                 render={
                   <Button
-                    variant={
-                      settings?.schedulerEnabled ? "success" : "destructive"
-                    }
+                    variant={settings?.schedulerEnabled ? "success" : "destructive"}
                     size="sm"
                     onClick={handleToggleScheduler}
-                    disabled={
-                      schedules.length === 0 && !settings?.schedulerEnabled
-                    }
+                    disabled={schedules.length === 0 && !settings?.schedulerEnabled}
                   >
                     {settings?.schedulerEnabled ? "Enabled" : "Disabled"}
                   </Button>
@@ -260,10 +262,7 @@ export const ScheduleSettings = () => {
               <span className="text-muted-foreground">Auth Status</span>
               {authStatus?.loggedIn ? (
                 <Badge variant="success" className="gap-1.5">
-                  <HugeiconsIcon
-                    icon={CheckmarkCircle02Icon}
-                    className="size-3"
-                  />
+                  <HugeiconsIcon icon={CheckmarkCircle02Icon} className="size-3" />
                   Logged in
                 </Badge>
               ) : (
