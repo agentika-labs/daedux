@@ -13,6 +13,7 @@ export default {
     copy: {
       "dist/assets": "views/mainview/assets",
       "dist/index.html": "views/mainview/index.html",
+      "package.json": "../package.json",
       "public/tray-icon.png": "views/mainview/tray-icon.png",
       "public/tray-icon@2x.png": "views/mainview/tray-icon@2x.png",
       "src/bun/libMacWindowEffects.dylib": "bun/libMacWindowEffects.dylib",
