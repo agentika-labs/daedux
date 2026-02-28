@@ -454,6 +454,7 @@ const tryCliUsage = () =>
 
       let output = "";
       let resolved = false;
+      let usageCommandSent = false; // Track if we've sent /usage to the REPL
       let dataCallbackCount = 0; // DEBUG: track callback invocations
       const decoder = new TextDecoder();
 
@@ -550,6 +551,105 @@ const tryCliUsage = () =>
                 return; // Wait for next data callback
               }
 
+              // Detect workspace trust prompt and bypass it.
+              // Pattern: "Is this a project you created" with options "Yes, I trust this folder"
+              // The TUI shows "❯ 1. Yes, I trust" where ❯ is the selection cursor (not input prompt).
+              // Option 1 is pre-selected, so we just press Enter to confirm.
+              //
+              // IMPORTANT: Wait for the FULL dialog to render (indicated by "Entertoconfirm")
+              // before pressing Enter. Note that ANSI stripping removes spaces, so we check for
+              // text without spaces. Pressing too early while the dialog is still rendering
+              // can cause unexpected behavior.
+              //
+              // Handler is idempotent - clearing output buffer prevents re-detection.
+              if (
+                clean.includes("trust") &&
+                clean.includes("folder") &&
+                clean.includes("Itrustthisfolder") && // "Yes, I trust this folder" without spaces
+                clean.includes("Entertoconfirm") // "Enter to confirm" without spaces
+              ) {
+                console.log(
+                  "[anthropic-usage] Trust prompt detected, pressing Enter..."
+                );
+                output = ""; // Clear output buffer to prevent re-detection
+                terminal.write("\r"); // Press Enter to confirm pre-selected option 1
+                return; // Wait for next data callback
+              }
+
+              // Detect permissions warning that may appear after accepting trust.
+              // Shows "Bypass Permissions mode" with link to security docs.
+              // This dialog may auto-dismiss or require Enter/Esc.
+              //
+              // Guard: Don't match if we see "Claude Code v" header (indicates REPL is ready).
+              // Handler is idempotent - clearing output buffer prevents re-detection.
+              if (
+                (clean.includes("Bypasspermissions") ||
+                  clean.includes("BypassPermissions") ||
+                  clean.includes("code.claude.com/docs") ||
+                  clean.includes("security")) &&
+                !clean.includes("Claude Code v") // Not yet at REPL (no header)
+              ) {
+                console.log(
+                  "[anthropic-usage] Permissions warning detected, selecting 'Yes, I accept'..."
+                );
+                output = ""; // Clear buffer to prevent re-detection
+                // Use DOWN ARROW to select "Yes, I accept" (option 1 "No, exit" is pre-selected)
+                // The menu uses arrow-key navigation, not numbered input
+                // Send DOWN ARROW first, then Enter after a short delay to allow the menu to update
+                terminal.write("\x1b[B"); // DOWN ARROW
+                setTimeout(() => {
+                  if (!resolved && proc.terminal) {
+                    console.log(
+                      "[anthropic-usage] Confirming permissions selection..."
+                    );
+                    proc.terminal.write("\r"); // Enter to confirm
+                  }
+                }, 100); // 100ms delay for menu to register selection
+                return;
+              }
+
+              // Wait for REPL prompt before sending /usage command.
+              // The REPL shows "❯" when ready for input, but several dialogs use "❯"
+              // as a selection cursor or contain the character in ANSI sequences.
+              //
+              // Use NEGATIVE detection: check that we're NOT in any known dialog state.
+              // This works whether dialogs appear or not (vs flags which require dialogs to appear).
+              const inTrustDialog =
+                clean.includes("Itrustthisfolder") ||
+                clean.includes("trust this folder");
+              const inPermissionsDialog =
+                clean.includes("Bypasspermissions") ||
+                clean.includes("BypassPermissions");
+              const inMcpPrompt =
+                clean.includes("MCP server") && clean.includes("found");
+              const inMenu =
+                clean.includes("❯ 1.") || clean.includes("❯1.");
+
+              if (
+                !usageCommandSent &&
+                clean.includes("❯") &&
+                !inTrustDialog &&
+                !inPermissionsDialog &&
+                !inMcpPrompt &&
+                !inMenu
+              ) {
+                console.log(
+                  "[anthropic-usage] REPL prompt detected, sending /usage..."
+                );
+                usageCommandSent = true;
+                terminal.write("/usage\r");
+                // After a short delay, press Enter to select the menu item
+                setTimeout(() => {
+                  if (!resolved && proc.terminal) {
+                    console.log(
+                      "[anthropic-usage] Pressing Enter to select menu item..."
+                    );
+                    proc.terminal.write("\r");
+                  }
+                }, 300);
+                return; // Wait for usage data
+              }
+
               // Check if we have the usage output panel
               // The usage panel shows "Current session" and ends with "Esc" (to cancel)
               // We also look for "$X.XX" spending pattern or "Resets" text as confirmation
@@ -609,29 +709,9 @@ const tryCliUsage = () =>
           !!proc.terminal
         );
 
-        // Wait for prompt, then send /usage command (use \r for PTY)
-        // NOTE: /usage opens a command palette menu, so we need to:
-        // 1. Send "/usage\r" to type the command and open the menu
-        // 2. Wait for menu to render
-        // 3. Send "\r" again to select the first menu item
-        setTimeout(() => {
-          if (!resolved && proc.terminal) {
-            console.log("[anthropic-usage] Sending /usage command...");
-            proc.terminal.write("/usage\r");
-
-            // After a short delay, press Enter to select the menu item
-            setTimeout(() => {
-              if (!resolved && proc.terminal) {
-                console.log(
-                  "[anthropic-usage] Pressing Enter to select menu item..."
-                );
-                proc.terminal.write("\r");
-              }
-            }, 300);
-          } else if (!proc.terminal) {
-            console.log("[anthropic-usage] ERROR: proc.terminal is undefined!");
-          }
-        }, 500);
+        // NOTE: We no longer use a fixed timeout here. Instead, we detect
+        // the REPL prompt (❯) in the data callback and send /usage then.
+        // This handles trust prompts and MCP prompts that may appear first.
       });
     },
   });
