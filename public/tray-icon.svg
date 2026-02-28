@@ -1,4 +1,3 @@
-<svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg">
-  <circle cx="9" cy="9" r="8" fill="#8B5CF6" stroke="#A78BFA" stroke-width="1"/>
-  <text x="9" y="13" text-anchor="middle" fill="white" font-size="10" font-family="system-ui">C</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 336 336" width="336" height="336">
+  <path d="M 252,0 L 0,0 L 0,336 L 336,336 L 336,0 L 294,0 L 294,294 L 42,294 L 42,42 L 252,42 L 252,252 L 84,252 L 84,84 L 210,84 L 210,210 L 126,210 L 126,126 L 168,126" fill="none" stroke="#ffffff" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>
