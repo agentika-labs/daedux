@@ -8,13 +8,17 @@ export function cn(...inputs: ClassValue[]) {
 
 // ─── Number Formatting ───────────────────────────────────────────────────────
 
+// Hoisted formatter - Intl.NumberFormat constructor is expensive (~0.1ms per call)
+// Creating once avoids repeated allocation when formatCurrency is called in loops
+const currencyFormatter = new Intl.NumberFormat("en-US", {
+  currency: "USD",
+  maximumFractionDigits: 2,
+  minimumFractionDigits: 2,
+  style: "currency",
+});
+
 export function formatCurrency(value: number): string {
-  return new Intl.NumberFormat("en-US", {
-    currency: "USD",
-    maximumFractionDigits: 2,
-    minimumFractionDigits: 2,
-    style: "currency",
-  }).format(value);
+  return currencyFormatter.format(value);
 }
 
 export function formatTokens(value: number): string {

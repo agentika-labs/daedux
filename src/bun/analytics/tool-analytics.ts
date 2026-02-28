@@ -46,22 +46,101 @@ export interface ToolHealthReportCard {
     name: string;
     successRate: number;
     totalCalls: number;
+    /** Wilson lower bound of success rate × 100 */
+    reliabilityScore: number;
+    confidence: ConfidenceLevel;
   }[];
   readonly frictionPoints: {
     name: string;
     errorRate: number;
     topError: string;
     totalCalls: number;
+    /** Wilson upper bound of error rate × 100 */
+    frictionScore: number;
+    confidence: ConfidenceLevel;
   }[];
   readonly bashDeepDive: BashCategoryHealth[];
   readonly headline: string;
   readonly recommendation: string;
+  /** Population statistics for context */
+  readonly populationStats?: {
+    totalTools: number;
+    reliableThreshold: number;
+    frictionThreshold: number;
+  };
 }
 
 export interface ApiErrorStat {
   readonly errorType: string;
   readonly count: number;
   readonly lastOccurred: number;
+}
+
+// ─── Statistical Utilities ───────────────────────────────────────────────────
+
+/**
+ * Wilson Score Interval - provides confidence bounds for proportions.
+ * Unlike naive p = successes/n, Wilson intervals handle small samples gracefully:
+ * - 5/5 successes (100%) gets lower bound ~0.57, not 1.0
+ * - 1000/1000 successes gets lower bound ~0.996
+ *
+ * @param successes - Number of successful outcomes
+ * @param total - Total number of trials
+ * @param confidence - Z-score (default 1.96 for 95% CI)
+ * @returns Lower and upper bounds of the confidence interval
+ */
+export function wilsonScoreInterval(
+  successes: number,
+  total: number,
+  z = 1.96
+): { lower: number; upper: number } {
+  if (total === 0) return { lower: 0, upper: 1 };
+
+  const p = successes / total;
+  const z2 = z * z;
+  const n = total;
+
+  const denom = 1 + z2 / n;
+  const center = p + z2 / (2 * n);
+  const spread = z * Math.sqrt((p * (1 - p) + z2 / (4 * n)) / n);
+
+  return {
+    lower: Math.max(0, (center - spread) / denom),
+    upper: Math.min(1, (center + spread) / denom),
+  };
+}
+
+/**
+ * Calculate percentile of a numeric array using linear interpolation.
+ * @param values - Array of numbers
+ * @param p - Percentile (0-100)
+ * @returns The value at the given percentile
+ */
+export function percentile(values: number[], p: number): number {
+  if (values.length === 0) return 0;
+  if (values.length === 1) return values[0]!;
+
+  const sorted = [...values].sort((a, b) => a - b);
+  const idx = (p / 100) * (sorted.length - 1);
+  const lo = Math.floor(idx);
+  const hi = Math.ceil(idx);
+
+  if (lo === hi) return sorted[lo]!;
+  return sorted[lo]! + (sorted[hi]! - sorted[lo]!) * (idx - lo);
+}
+
+/**
+ * Confidence level based on sample size.
+ * - high: ≥100 calls - statistically robust
+ * - medium: ≥20 calls - reasonable confidence
+ * - low: <20 calls - interpret with caution
+ */
+export type ConfidenceLevel = "high" | "medium" | "low";
+
+export function getConfidenceLevel(totalCalls: number): ConfidenceLevel {
+  if (totalCalls >= 100) return "high";
+  if (totalCalls >= 20) return "medium";
+  return "low";
 }
 
 // ─── Fix Suggestions Pattern Matching ────────────────────────────────────────
@@ -756,38 +835,75 @@ export class ToolAnalyticsService extends Effect.Service<ToolAnalyticsService>()
               errorsByTool.set(err.toolName, toolErrors);
             }
 
-            // Calculate metrics for each tool
-            const toolMetrics = toolHealthData.map((tool) => ({
-              errorCount: tool.errorCount ?? 0,
-              errorRate:
-                tool.totalUses > 0
-                  ? (tool.errorCount ?? 0) / tool.totalUses
-                  : 0,
-              name: tool.toolName,
-              successRate:
-                tool.totalUses > 0
-                  ? 1 - (tool.errorCount ?? 0) / tool.totalUses
-                  : 1,
-              topError: errorsByTool.get(tool.toolName)?.[0]?.message ?? "",
-              totalCalls: tool.totalUses,
-            }));
+            // Calculate metrics for each tool using Wilson score intervals
+            const toolMetrics = toolHealthData.map((tool) => {
+              const errorCount = tool.errorCount ?? 0;
+              const successes = tool.totalUses - errorCount;
 
-            // Separate reliable tools from friction points
+              // Wilson score intervals provide confidence bounds
+              const successInterval = wilsonScoreInterval(
+                successes,
+                tool.totalUses
+              );
+              const errorInterval = wilsonScoreInterval(
+                errorCount,
+                tool.totalUses
+              );
+
+              return {
+                confidence: getConfidenceLevel(tool.totalUses),
+                errorCount,
+                errorRate:
+                  tool.totalUses > 0 ? errorCount / tool.totalUses : 0,
+                // frictionScore: Wilson upper bound of error rate (worst-case error rate)
+                frictionScore: errorInterval.upper * 100,
+                name: tool.toolName,
+                // reliabilityScore: Wilson lower bound of success rate (conservative estimate)
+                reliabilityScore: successInterval.lower * 100,
+                successRate: tool.totalUses > 0 ? successes / tool.totalUses : 1,
+                topError: errorsByTool.get(tool.toolName)?.[0]?.message ?? "",
+                totalCalls: tool.totalUses,
+              };
+            });
+
+            // Percentile-based thresholds adapt to actual data distribution
+            const reliabilityScores = toolMetrics.map((t) => t.reliabilityScore);
+            const frictionScores = toolMetrics.map((t) => t.frictionScore);
+
+            // Top 20% reliability score = 80th percentile threshold
+            const reliableThreshold = percentile(reliabilityScores, 80);
+            // Top 20% friction score (worst errors) = 80th percentile
+            const frictionThreshold = percentile(frictionScores, 80);
+
+            // Reliable tools: high reliability score, minimum sample size for credibility
             const reliableTools = toolMetrics
-              .filter((t) => t.successRate >= 0.98 && t.totalCalls >= 100)
+              .filter(
+                (t) =>
+                  t.reliabilityScore >= reliableThreshold && t.totalCalls >= 10
+              )
+              .toSorted((a, b) => b.reliabilityScore - a.reliabilityScore)
               .slice(0, 5)
               .map((t) => ({
+                confidence: t.confidence,
                 name: t.name,
+                reliabilityScore: t.reliabilityScore,
                 successRate: t.successRate,
                 totalCalls: t.totalCalls,
               }));
 
+            // Friction points: high friction score OR any errors with small samples
             const frictionPoints = toolMetrics
-              .filter((t) => t.errorRate >= 0.03 && t.totalCalls >= 10)
-              .toSorted((a, b) => b.errorCount - a.errorCount)
+              .filter(
+                (t) =>
+                  (t.frictionScore >= frictionThreshold || t.errorCount > 0) &&
+                  t.totalCalls >= 3
+              )
+              .toSorted((a, b) => b.frictionScore - a.frictionScore)
               .slice(0, 5)
               .map((t) => ({
+                confidence: t.confidence,
                 errorRate: t.errorRate,
+                frictionScore: t.frictionScore,
                 name: t.name,
                 topError: t.topError.slice(0, 100),
                 totalCalls: t.totalCalls,
@@ -837,6 +953,11 @@ export class ToolAnalyticsService extends Effect.Service<ToolAnalyticsService>()
               bashDeepDive: bashCategoryData,
               frictionPoints,
               headline,
+              populationStats: {
+                frictionThreshold,
+                reliableThreshold,
+                totalTools: toolMetrics.length,
+              },
               recommendation,
               reliableTools,
             };

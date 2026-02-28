@@ -10,6 +10,8 @@ import type {
   SyncResult,
   SessionSummary,
   AppSettings,
+  AppInfo,
+  AnthropicUsage,
 } from "@shared/rpc-types";
 
 // ─── Environment Detection ───────────────────────────────────────────────────
@@ -43,6 +45,10 @@ interface ApiClient {
   }) => Promise<SessionSummary | null>;
 
   getSettings: () => Promise<AppSettings>;
+
+  getAppInfo: () => Promise<AppInfo>;
+
+  getAnthropicUsage: () => Promise<AnthropicUsage>;
 }
 
 /**
@@ -108,6 +114,26 @@ const createHttpClient = (): ApiClient => ({
 
     return response.json();
   },
+
+  getAppInfo: async () => {
+    const response = await fetch("/api/app-info");
+
+    if (!response.ok) {
+      throw new Error(`App info error: ${response.status}`);
+    }
+
+    return response.json();
+  },
+
+  getAnthropicUsage: async () => {
+    const response = await fetch("/api/anthropic-usage");
+
+    if (!response.ok) {
+      throw new Error(`Usage error: ${response.status}`);
+    }
+
+    return response.json();
+  },
 });
 
 // ─── Electrobun RPC Client ───────────────────────────────────────────────────
@@ -147,6 +173,14 @@ const createRpcClient = (): ApiClient => {
     getSettings: async () => {
       const { electroview } = await getElectroview();
       return electroview.request.getSettings({});
+    },
+    getAppInfo: async () => {
+      const { electroview } = await getElectroview();
+      return electroview.request.getAppInfo({});
+    },
+    getAnthropicUsage: async () => {
+      const { electroview } = await getElectroview();
+      return electroview.request.getAnthropicUsage({});
     },
   };
 };

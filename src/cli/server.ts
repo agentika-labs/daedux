@@ -21,6 +21,7 @@ import {
   InsightsAnalyticsService,
 } from "../bun/analytics/index";
 import { SyncService } from "../bun/sync";
+import { AnthropicUsageService } from "../bun/services/anthropic-usage";
 import { AppLive } from "../bun/main";
 import { toDateString } from "../bun/utils/formatting";
 
@@ -89,13 +90,14 @@ const loadDashboardData = (dateFilter: DateFilter = {}) =>
       sessionFileOperations,
       sessionAgentCounts,
       sessionToolErrorCounts,
-      efficiencyScore,
+      efficiencyScoreBase,
       weeklyComparison,
       agentROI,
       toolHealthReportCard,
       skillROI,
       hookStats,
       skillImpact,
+      outcomeMetrics,
     ] = yield* Effect.all([
       sessions.getTotals(dateFilter),
       sessions.getExtendedTotals(dateFilter),
@@ -119,7 +121,14 @@ const loadDashboardData = (dateFilter: DateFilter = {}) =>
       agents.getSkillROI(dateFilter),
       agents.getHookStats(dateFilter),
       agents.getSkillImpactComparison(dateFilter),
+      insightsService.getOutcomeMetrics(dateFilter),
     ]);
+
+    // Merge outcome metrics into efficiency score
+    const efficiencyScore = {
+      ...efficiencyScoreBase,
+      ...outcomeMetrics,
+    };
 
     // Transform data for dashboard
     const totalTokens = totals.totalInputTokens + totals.totalOutputTokens;
@@ -464,6 +473,49 @@ export async function startServer(options: ServerOptions): Promise<void> {
               { status: 500 }
             );
           }
+        }
+      }
+
+      if (pathname === "/api/app-info") {
+        try {
+          // Read version from package.json
+          const packageJsonPath = join(import.meta.dir, "../../package.json");
+          const packageJson = await Bun.file(packageJsonPath).json();
+          const version = packageJson.version ?? "0.0.0";
+
+          // Construct ARM64 DMG download URL for macOS
+          const downloadUrl = `https://github.com/adamferguson/daedux/releases/download/v${version}/daedux-${version}-darwin-arm64.dmg`;
+
+          return Response.json({
+            version,
+            updateAvailable: false,
+            updateVersion: null,
+            downloadUrl,
+          });
+        } catch (error) {
+          console.error("App info error:", error);
+          return Response.json(
+            { error: "Failed to get app info" },
+            { status: 500 }
+          );
+        }
+      }
+
+      if (pathname === "/api/anthropic-usage") {
+        try {
+          const usage = await runEffect(
+            Effect.gen(function* () {
+              const anthropicService = yield* AnthropicUsageService;
+              return yield* anthropicService.getUsage();
+            })
+          );
+          return Response.json(usage);
+        } catch (error) {
+          console.error("Anthropic usage error:", error);
+          return Response.json(
+            { error: "Failed to get usage" },
+            { status: 500 }
+          );
         }
       }
 

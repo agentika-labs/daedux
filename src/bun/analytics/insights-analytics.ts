@@ -7,8 +7,6 @@ import {
   desc,
   gte,
   lte,
-  or,
-  like,
 } from "drizzle-orm";
 import { Effect } from "effect";
 
@@ -872,11 +870,11 @@ export class InsightsAnalyticsService extends Effect.Service<InsightsAnalyticsSe
             });
             const cacheEfficiency = Math.min(100, cacheRatio * 200); // 50% = 100
 
-            const errorRate =
+            // Tool success is null when no tool calls - avoids "vacuous truth" of 100% success
+            const toolSuccess =
               toolStats.total > 0
-                ? (toolStats.errors ?? 0) / toolStats.total
-                : 0;
-            const toolSuccess = (1 - errorRate) * 100;
+                ? (1 - (toolStats.errors ?? 0) / toolStats.total) * 100
+                : null;
 
             const queriesPerSession =
               thisWeek.totalSessions > 0
@@ -884,12 +882,15 @@ export class InsightsAnalyticsService extends Effect.Service<InsightsAnalyticsSe
                 : 0;
             const sessionEfficiency = Math.min(100, queriesPerSession * 10); // 10 queries = 100
 
-            // Composite score
-            const overall = Math.round(
-              cacheEfficiency * 0.4 +
-                toolSuccess * 0.35 +
-                sessionEfficiency * 0.25
-            );
+            // Composite score - redistribute weights if no tool data
+            const overall =
+              toolSuccess !== null
+                ? Math.round(
+                    cacheEfficiency * 0.4 +
+                      toolSuccess * 0.35 +
+                      sessionEfficiency * 0.25
+                  )
+                : Math.round(cacheEfficiency * 0.6 + sessionEfficiency * 0.4);
 
             // Trend calculation
             const thisWeekCostPerSession =
@@ -923,7 +924,7 @@ export class InsightsAnalyticsService extends Effect.Service<InsightsAnalyticsSe
             if (cacheEfficiency < 40) {
               topOpportunity =
                 "Extend session length to 10+ queries to improve cache hit rates by ~25%.";
-            } else if (toolSuccess < 95) {
+            } else if (toolSuccess !== null && toolSuccess < 95) {
               topOpportunity =
                 "Fix tool errors (especially Bash commands) to reduce workflow friction.";
             } else if (sessionEfficiency < 50) {
@@ -938,7 +939,8 @@ export class InsightsAnalyticsService extends Effect.Service<InsightsAnalyticsSe
               cacheEfficiency: Math.round(cacheEfficiency),
               overall,
               sessionEfficiency: Math.round(sessionEfficiency),
-              toolSuccess: Math.round(toolSuccess),
+              toolSuccess:
+                toolSuccess !== null ? Math.round(toolSuccess) : null,
               topOpportunity,
               trend,
             };
@@ -1189,24 +1191,14 @@ export class InsightsAnalyticsService extends Effect.Service<InsightsAnalyticsSe
             const { currentStart, currentEnd } =
               buildComparisonWindows(dateFilter);
 
-            // Meaningful VCS command patterns
-            const meaningfulPatterns = [
-              "git commit",
-              "git push",
-              "git merge",
-              "git rebase",
-              "git cherry-pick",
-              "jj new",
-              "jj commit",
-              "jj squash",
-              "jj git push",
-              "jj rebase",
-              "jj describe",
-              "gh pr create",
-              "gh pr merge",
-            ];
+            // DEBUG: Log the actual date range being queried
+            console.log("[getOutcomeMetrics] dateFilter:", JSON.stringify(dateFilter));
+            console.log("[getOutcomeMetrics] currentStart:", currentStart, new Date(currentStart).toISOString());
+            console.log("[getOutcomeMetrics] currentEnd:", currentEnd, new Date(currentEnd).toISOString());
 
             // VCS activity: count meaningful git/jj/gh commands
+            // Using raw SQL for the OR clause because Drizzle's or() with spread arrays
+            // can behave unexpectedly (may not generate correct SQL)
             const vcsResult = await db
               .select({ count: count() })
               .from(schema.bashCommands)
@@ -1217,11 +1209,21 @@ export class InsightsAnalyticsService extends Effect.Service<InsightsAnalyticsSe
               .where(
                 and(
                   eq(schema.bashCommands.category, "git"),
-                  or(
-                    ...meaningfulPatterns.map((p) =>
-                      like(schema.bashCommands.command, `${p}%`)
-                    )
-                  ),
+                  sql`(
+                    ${schema.bashCommands.command} LIKE 'git commit%'
+                    OR ${schema.bashCommands.command} LIKE 'git push%'
+                    OR ${schema.bashCommands.command} LIKE 'git merge%'
+                    OR ${schema.bashCommands.command} LIKE 'git rebase%'
+                    OR ${schema.bashCommands.command} LIKE 'git cherry-pick%'
+                    OR ${schema.bashCommands.command} LIKE 'jj new%'
+                    OR ${schema.bashCommands.command} LIKE 'jj commit%'
+                    OR ${schema.bashCommands.command} LIKE 'jj squash%'
+                    OR ${schema.bashCommands.command} LIKE 'jj git push%'
+                    OR ${schema.bashCommands.command} LIKE 'jj rebase%'
+                    OR ${schema.bashCommands.command} LIKE 'jj describe%'
+                    OR ${schema.bashCommands.command} LIKE 'gh pr create%'
+                    OR ${schema.bashCommands.command} LIKE 'gh pr merge%'
+                  )`,
                   gte(schema.sessions.startTime, currentStart),
                   lte(schema.sessions.startTime, currentEnd)
                 )
@@ -1242,14 +1244,19 @@ export class InsightsAnalyticsService extends Effect.Service<InsightsAnalyticsSe
                 )
               );
 
-            // Get total cost for PR efficiency calculation
-            const costResult = await db
+            // Get total cost ONLY from sessions that created PRs
+            // This provides accurate "cost to ship a PR" metric
+            const prCostResult = await db
               .select({
-                totalCost: sql<number>`SUM(${schema.sessions.totalCost})`.as(
+                totalCost: sql<number>`SUM(DISTINCT ${schema.sessions.totalCost})`.as(
                   "total_cost"
                 ),
               })
               .from(schema.sessions)
+              .innerJoin(
+                schema.prLinks,
+                eq(schema.prLinks.sessionId, schema.sessions.sessionId)
+              )
               .where(
                 and(
                   gte(schema.sessions.startTime, currentStart),
@@ -1259,11 +1266,11 @@ export class InsightsAnalyticsService extends Effect.Service<InsightsAnalyticsSe
 
             const vcsActivityCount = vcsResult[0]?.count ?? 0;
             const prsCreated = prResult[0]?.count ?? 0;
-            const totalCost = costResult[0]?.totalCost ?? 0;
+            const prSessionsCost = prCostResult[0]?.totalCost ?? 0;
 
-            // PR efficiency: cost per PR (lower is better)
+            // PR efficiency: cost per PR (lower is better) - only includes PR-related sessions
             const prEfficiency =
-              prsCreated > 0 ? totalCost / prsCreated : null;
+              prsCreated > 0 ? prSessionsCost / prsCreated : null;
 
             return {
               prsCreated,

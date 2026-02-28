@@ -566,6 +566,173 @@ describe("AnalyticsService", () => {
     });
   });
 
+  describe("getToolHealthReportCard", () => {
+    it("uses Wilson scores to identify reliable tools with small samples", async () => {
+      const result = await runWithAnalytics(
+        async (db) => {
+          await db
+            .insert(schema.sessions)
+            .values([{ projectPath: "/p", sessionId: "s1", startTime: now }]);
+          await db
+            .insert(schema.queries)
+            .values([
+              { id: "s1:0", queryIndex: 0, sessionId: "s1", timestamp: now },
+            ]);
+          // Read: 15 calls, 0 errors - should be reliable with low confidence
+          // Bash: 200 calls, 2 errors - should be reliable with high confidence
+          // Edit: 5 calls, 2 errors - should be friction point with low confidence
+          const toolUses: (typeof schema.toolUses.$inferInsert)[] = [];
+          for (let i = 0; i < 15; i++) {
+            toolUses.push({
+              hasError: false,
+              id: `read-${i}`,
+              queryId: "s1:0",
+              sessionId: "s1",
+              toolName: "Read",
+            });
+          }
+          for (let i = 0; i < 200; i++) {
+            toolUses.push({
+              hasError: i < 2,
+              id: `bash-${i}`,
+              queryId: "s1:0",
+              sessionId: "s1",
+              toolName: "Bash",
+            });
+          }
+          for (let i = 0; i < 5; i++) {
+            toolUses.push({
+              hasError: i < 2,
+              id: `edit-${i}`,
+              queryId: "s1:0",
+              sessionId: "s1",
+              toolName: "Edit",
+            });
+          }
+          await db.insert(schema.toolUses).values(toolUses);
+        },
+        Effect.gen(function* result() {
+          const analytics = yield* ToolAnalyticsService;
+          return yield* analytics.getToolHealthReportCard();
+        })
+      );
+
+      // All tools should be processed with Wilson scores
+      expect(result.populationStats).toBeDefined();
+      expect(result.populationStats!.totalTools).toBe(3);
+
+      // Bash (200 calls, 1% error) should be in reliable tools with high confidence
+      const bashReliable = result.reliableTools.find((t) => t.name === "Bash");
+      expect(bashReliable).toBeDefined();
+      expect(bashReliable!.confidence).toBe("high");
+      expect(bashReliable!.reliabilityScore).toBeGreaterThan(95);
+
+      // Read (15 calls, 0% error) - may or may not be in reliable depending on threshold
+      // The important thing is that if present, it should have low confidence
+      const readReliable = result.reliableTools.find((t) => t.name === "Read");
+      if (readReliable) {
+        expect(readReliable.confidence).toBe("low");
+      }
+
+      // Edit (5 calls, 40% error) should be in friction points
+      const editFriction = result.frictionPoints.find((t) => t.name === "Edit");
+      expect(editFriction).toBeDefined();
+      expect(editFriction!.confidence).toBe("low");
+      expect(editFriction!.frictionScore).toBeGreaterThan(30);
+    });
+
+    it("handles single-call tools correctly", async () => {
+      const result = await runWithAnalytics(
+        async (db) => {
+          await db
+            .insert(schema.sessions)
+            .values([{ projectPath: "/p", sessionId: "s1", startTime: now }]);
+          await db
+            .insert(schema.queries)
+            .values([
+              { id: "s1:0", queryIndex: 0, sessionId: "s1", timestamp: now },
+            ]);
+          // Single call with error should have high friction score (Wilson upper bound)
+          await db.insert(schema.toolUses).values([
+            {
+              hasError: true,
+              id: "t1",
+              queryId: "s1:0",
+              sessionId: "s1",
+              toolName: "SingleError",
+            },
+            {
+              hasError: false,
+              id: "t2",
+              queryId: "s1:0",
+              sessionId: "s1",
+              toolName: "SingleSuccess",
+            },
+          ]);
+        },
+        Effect.gen(function* result() {
+          const analytics = yield* ToolAnalyticsService;
+          return yield* analytics.getToolHealthReportCard();
+        })
+      );
+
+      // Single error tool should have very high friction score (Wilson upper bound ~0.975)
+      const singleError = result.frictionPoints.find(
+        (t) => t.name === "SingleError"
+      );
+      // Only 1 call, so filtered out by minCallsForFriction (3)
+      expect(singleError).toBeUndefined();
+
+      // Population stats should be included
+      expect(result.populationStats).toBeDefined();
+      expect(result.populationStats!.totalTools).toBe(2);
+    });
+
+    it("provides percentile-based thresholds in populationStats", async () => {
+      const result = await runWithAnalytics(
+        async (db) => {
+          await db
+            .insert(schema.sessions)
+            .values([{ projectPath: "/p", sessionId: "s1", startTime: now }]);
+          await db
+            .insert(schema.queries)
+            .values([
+              { id: "s1:0", queryIndex: 0, sessionId: "s1", timestamp: now },
+            ]);
+          // Create 5 tools with varying error rates
+          const toolUses: (typeof schema.toolUses.$inferInsert)[] = [];
+          const tools = ["Read", "Write", "Edit", "Bash", "Glob"];
+          for (const toolName of tools) {
+            for (let i = 0; i < 50; i++) {
+              toolUses.push({
+                hasError: toolName === "Bash" && i < 25, // 50% error rate for Bash
+                id: `${toolName}-${i}`,
+                queryId: "s1:0",
+                sessionId: "s1",
+                toolName,
+              });
+            }
+          }
+          await db.insert(schema.toolUses).values(toolUses);
+        },
+        Effect.gen(function* result() {
+          const analytics = yield* ToolAnalyticsService;
+          return yield* analytics.getToolHealthReportCard();
+        })
+      );
+
+      expect(result.populationStats).toBeDefined();
+      expect(result.populationStats!.totalTools).toBe(5);
+      expect(result.populationStats!.reliableThreshold).toBeGreaterThan(0);
+      expect(result.populationStats!.frictionThreshold).toBeGreaterThan(0);
+
+      // Bash should be in friction points due to high error rate
+      const bashFriction = result.frictionPoints.find((t) => t.name === "Bash");
+      expect(bashFriction).toBeDefined();
+      expect(bashFriction!.errorRate).toBeCloseTo(0.5, 1);
+    });
+  });
+
   describe("getApiErrors", () => {
     it("counts errors by type", async () => {
       const result = await runWithAnalytics(
@@ -1433,6 +1600,95 @@ describe("AnalyticsService", () => {
 
       expect(result).toHaveLength(1);
       expect(result[0]!.model).toBe("claude-sonnet-4-5-20251022");
+    });
+  });
+
+  describe("getEfficiencyScore", () => {
+    it("returns null toolSuccess when no tool calls exist", async () => {
+      const result = await runWithAnalytics(
+        async (db) => {
+          // Session with queries but no tool uses
+          await db.insert(schema.sessions).values([
+            {
+              projectPath: "/p",
+              sessionId: "s1",
+              startTime: now,
+              totalCacheRead: 5000,
+              totalInputTokens: 10000,
+              totalQueries: 5,
+            },
+          ]);
+        },
+        Effect.gen(function* result() {
+          const insights = yield* InsightsAnalyticsService;
+          return yield* insights.getEfficiencyScore();
+        })
+      );
+
+      // toolSuccess should be null when no tool calls
+      expect(result.toolSuccess).toBeNull();
+      // But overall score should still be calculated (from cache + session only)
+      expect(result.overall).toBeGreaterThanOrEqual(0);
+      expect(result.overall).toBeLessThanOrEqual(100);
+    });
+
+    it("returns numeric toolSuccess when tool calls exist", async () => {
+      const result = await runWithAnalytics(
+        async (db) => {
+          await db.insert(schema.sessions).values([
+            {
+              projectPath: "/p",
+              sessionId: "s1",
+              startTime: now,
+              totalCacheRead: 5000,
+              totalInputTokens: 10000,
+              totalQueries: 5,
+            },
+          ]);
+          await db.insert(schema.queries).values([
+            { id: "s1:0", queryIndex: 0, sessionId: "s1", timestamp: now },
+          ]);
+          // Add some tool uses - 1 error out of 4 = 75% success
+          await db.insert(schema.toolUses).values([
+            {
+              hasError: true,
+              id: "t1",
+              queryId: "s1:0",
+              sessionId: "s1",
+              toolName: "Bash",
+            },
+            {
+              hasError: false,
+              id: "t2",
+              queryId: "s1:0",
+              sessionId: "s1",
+              toolName: "Read",
+            },
+            {
+              hasError: false,
+              id: "t3",
+              queryId: "s1:0",
+              sessionId: "s1",
+              toolName: "Write",
+            },
+            {
+              hasError: false,
+              id: "t4",
+              queryId: "s1:0",
+              sessionId: "s1",
+              toolName: "Edit",
+            },
+          ]);
+        },
+        Effect.gen(function* result() {
+          const insights = yield* InsightsAnalyticsService;
+          return yield* insights.getEfficiencyScore();
+        })
+      );
+
+      // toolSuccess should be 75% (3/4 successful)
+      expect(result.toolSuccess).not.toBeNull();
+      expect(result.toolSuccess).toBe(75);
     });
   });
 });

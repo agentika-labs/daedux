@@ -2,7 +2,7 @@ import { dlopen, FFIType } from "bun:ffi";
 import { existsSync } from "node:fs";
 import { dirname, join } from "node:path";
 
-import { Effect, ManagedRuntime } from "effect";
+import { Duration, Effect, ManagedRuntime } from "effect";
 import type { Layer } from "effect";
 import Electrobun, {
   ApplicationMenu,
@@ -25,6 +25,7 @@ import type {
   SessionSummary,
   SessionSchedule,
   AnthropicUsage,
+  AppInfo,
 } from "../shared/rpc-types";
 import {
   SessionAnalyticsService,
@@ -281,15 +282,28 @@ const getRuntime = () => {
 /**
  * Run an Effect with the shared ManagedRuntime.
  * Using a single runtime ensures semaphores work correctly across all calls.
+ * Includes a 30-second timeout to prevent indefinite hangs from blocking the UI.
  */
-const runEffect = <A, E>(effect: Effect.Effect<A, E, AppContext>): Promise<A> =>
-  getRuntime().runPromise(effect);
+const runEffect = <A, E>(
+  effect: Effect.Effect<A, E, AppContext>,
+  timeoutMs = 30_000
+): Promise<A> =>
+  getRuntime().runPromise(
+    effect.pipe(
+      Effect.timeoutFail({
+        duration: Duration.millis(timeoutMs),
+        onTimeout: () => new Error(`Operation timed out after ${timeoutMs}ms`),
+      })
+    )
+  );
 
 // ─── Dashboard Data Loading ─────────────────────────────────────────────────
 
 const loadDashboardData = (dateFilter: DateFilter = {}) =>
   Effect.gen(function* loadDashboardData() {
     yield* Effect.logDebug("Loading dashboard data");
+    // DEBUG: Log incoming dateFilter
+    console.log("[dashboard] dateFilter input:", JSON.stringify(dateFilter));
     const sessions = yield* SessionAnalyticsService;
     const models = yield* ModelAnalyticsService;
     const tools = yield* ToolAnalyticsService;
@@ -352,6 +366,11 @@ const loadDashboardData = (dateFilter: DateFilter = {}) =>
       ...efficiencyScoreBase,
       ...outcomeMetrics,
     };
+
+    // DEBUG: Log outcome metrics to diagnose zero values
+    console.log("[dashboard] outcomeMetrics:", JSON.stringify(outcomeMetrics));
+    console.log("[dashboard] efficiencyScore.vcsActivityCount:", efficiencyScore.vcsActivityCount);
+    console.log("[dashboard] efficiencyScore.prsCreated:", efficiencyScore.prsCreated);
 
     // Transform data for dashboard
     const totalTokens = totals.totalInputTokens + totals.totalOutputTokens;
@@ -1349,6 +1368,24 @@ const rpc = BrowserView.defineRPC<UsageMonitorRPC>({
             return yield* anthropicService.getUsage();
           })
         ),
+
+      getAppInfo: async (): Promise<AppInfo> => {
+        // Read version from package.json
+        const packageJson = await Bun.file(
+          join(import.meta.dir, "../../package.json")
+        ).json();
+        const version = packageJson.version ?? "0.0.0";
+
+        // Construct ARM64 DMG download URL for macOS
+        const downloadUrl = `https://github.com/adamferguson/daedux/releases/download/v${version}/daedux-${version}-darwin-arm64.dmg`;
+
+        return {
+          downloadUrl,
+          updateAvailable,
+          updateVersion,
+          version,
+        };
+      },
 
       updateDragExclusionZones: async ({ zones }) => {
         const success = updateDragExclusionZones(zones);
