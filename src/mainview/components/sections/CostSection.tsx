@@ -305,7 +305,76 @@ export function CostSection({ data, loading }: CostSectionProps) {
                   animationDuration={150}
                   content={
                     <ChartTooltipContent
-                      formatter={(value) => formatTokens(value as number)}
+                      hideLabel
+                      formatter={(_value, _name, item, index) => {
+                        if (index !== 0) {
+                          return null;
+                        }
+
+                        const data = item.payload as {
+                          uncachedInput: number;
+                          cacheRead: number;
+                          cacheCreation: number;
+                          output: number;
+                        };
+                        const total =
+                          data.uncachedInput +
+                          data.cacheRead +
+                          data.cacheCreation +
+                          data.output;
+
+                        const items = [
+                          {
+                            key: "uncachedInput",
+                            label: "Uncached Input",
+                            color: "var(--chart-1)",
+                            value: data.uncachedInput,
+                          },
+                          {
+                            key: "cacheRead",
+                            label: "Cache Read",
+                            color: "var(--chart-2)",
+                            value: data.cacheRead,
+                          },
+                          {
+                            key: "cacheCreation",
+                            label: "Cache Creation",
+                            color: "var(--chart-3)",
+                            value: data.cacheCreation,
+                          },
+                          {
+                            key: "output",
+                            label: "Output",
+                            color: "var(--chart-4)",
+                            value: data.output,
+                          },
+                        ];
+
+                        return (
+                          <div className="space-y-1.5">
+                            {items.map((item) => (
+                              <div
+                                key={item.key}
+                                className="flex items-center gap-2"
+                              >
+                                <div
+                                  className="h-2.5 w-2.5 shrink-0 rounded-[2px]"
+                                  style={{ backgroundColor: item.color }}
+                                />
+                                <span className="text-muted-foreground flex-1">
+                                  {item.label}
+                                </span>
+                                <span className="font-mono font-medium tabular-nums">
+                                  {formatTokens(item.value)}
+                                </span>
+                                <span className="text-muted-foreground text-xs">
+                                  ({((item.value / total) * 100).toFixed(1)}%)
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        );
+                      }}
                     />
                   }
                 />
