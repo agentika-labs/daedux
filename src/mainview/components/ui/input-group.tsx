@@ -48,7 +48,9 @@ function InputGroupAddon({
   ...props
 }: React.ComponentProps<"div"> & VariantProps<typeof inputGroupAddonVariants>) {
   const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
-    if ((e.target as HTMLElement).closest("button")) {return;}
+    if ((e.target as HTMLElement).closest("button")) {
+      return;
+    }
     if (e.key === "Enter" || e.key === " ") {
       e.preventDefault();
       e.currentTarget.parentElement?.querySelector("input")?.focus();

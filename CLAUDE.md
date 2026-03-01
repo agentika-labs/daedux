@@ -41,18 +41,21 @@ src/
 ```
 
 **Dual Mode:**
+
 - Desktop: Electrobun RPC (WebSocket) between main process and renderer
 - CLI/Web: HTTP fetch to local server on port 3456
 
 ## Code Rules
 
 ### DO: Use Bun ecosystem
+
 - `bun` / `bun run` over node/npm/pnpm/yarn
 - `bun test` over jest/vitest
 - `Bun.file()` over node:fs
 - Bun auto-loads .env (no dotenv)
 
 ### DON'T: Create barrel exports
+
 ```typescript
 // BAD: index.ts with re-exports
 export * from "./UserRepository";
@@ -63,23 +66,26 @@ import { UserRepository } from "@/services/UserRepository";
 ```
 
 ### DON'T: Add Redux/Zustand for server state
+
 All API data goes through TanStack Query. No client-side stores for server state.
 
 ### DON'T: Throw exceptions in Effect code
+
 Use typed errors via Effect.fail() - exceptions break Effect's error channel.
 
 ### DON'T: Over-engineer
+
 Keep solutions simple. Don't create abstractions for one-time operations.
 
 ## Key Files
 
-| File | Purpose |
-|------|---------|
-| `src/shared/rpc-types.ts` | Frontend-backend contract (source of truth) |
-| `src/bun/db/schema.ts` | Drizzle database schema |
-| `src/bun/errors.ts` | Domain error definitions |
-| `src/bun/main.ts` | Effect Layer composition |
-| `src/mainview/hooks/useApi.ts` | Environment-aware API client |
+| File                           | Purpose                                     |
+| ------------------------------ | ------------------------------------------- |
+| `src/shared/rpc-types.ts`      | Frontend-backend contract (source of truth) |
+| `src/bun/db/schema.ts`         | Drizzle database schema                     |
+| `src/bun/errors.ts`            | Domain error definitions                    |
+| `src/bun/main.ts`              | Effect Layer composition                    |
+| `src/mainview/hooks/useApi.ts` | Environment-aware API client                |
 
 ## Testing
 
