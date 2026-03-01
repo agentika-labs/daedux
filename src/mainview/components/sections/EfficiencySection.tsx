@@ -20,6 +20,7 @@ import {
 
 import { Section } from "@/components/layout/Section";
 import { ChartCard } from "@/components/shared/ChartCard";
+import { ChartSkeletonGrid } from "@/components/shared/ChartSkeletonGrid";
 import { EmptyChartState } from "@/components/shared/EmptyChartState";
 import { InfoTooltip } from "@/components/shared/InfoTooltip";
 import { SectionHeader } from "@/components/shared/SectionHeader";
@@ -31,7 +32,6 @@ import {
   ChartTooltipContent,
 } from "@/components/ui/chart";
 import type { ChartConfig } from "@/components/ui/chart";
-import { Skeleton } from "@/components/ui/skeleton";
 import {
   calculateDailyRate,
   formatRate,
@@ -330,11 +330,7 @@ export function EfficiencySection({
         </CardHeader>
         <CardContent>
           {loading ? (
-            <div className="grid grid-cols-3 gap-4">
-              <Skeleton className="h-20" />
-              <Skeleton className="h-20" />
-              <Skeleton className="h-20" />
-            </div>
+            <ChartSkeletonGrid columns={3} rows={1} />
           ) : (
             <div className="grid grid-cols-3 gap-6">
               <CompactionStat
