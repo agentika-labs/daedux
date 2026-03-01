@@ -6,11 +6,12 @@
  */
 
 import { describe, test, expect, beforeEach, afterEach } from "bun:test";
+
 import { Effect } from "effect";
 
+import * as schema from "../../src/bun/db/schema";
 import { SchedulerService } from "../../src/bun/services/scheduler";
 import { createRpcTestHarness } from "../helpers/rpc-test-harness";
-import * as schema from "../../src/bun/db/schema";
 
 // ─── Test Setup ──────────────────────────────────────────────────────────────
 
@@ -56,7 +57,7 @@ describe("SchedulerService.getSchedules", () => {
         minute: 0,
         daysOfWeek: "[1,2,3,4,5]",
         createdAt: now - 2000,
-        nextRunAt: now + 3600000,
+        nextRunAt: now + 3_600_000,
       },
       {
         id: "sched-2",
@@ -66,7 +67,7 @@ describe("SchedulerService.getSchedules", () => {
         minute: 30,
         daysOfWeek: "[1,2,3,4,5]",
         createdAt: now - 1000, // More recent
-        nextRunAt: now + 7200000,
+        nextRunAt: now + 7_200_000,
       },
     ]);
 
@@ -108,7 +109,7 @@ describe("SchedulerService.getSchedule", () => {
       minute: 30,
       daysOfWeek: "[1,3,5]",
       createdAt: now,
-      nextRunAt: now + 3600000,
+      nextRunAt: now + 3_600_000,
     });
 
     const schedule = await runEffect(
@@ -509,14 +510,14 @@ describe("SchedulerService.getScheduleHistory", () => {
       {
         id: 1,
         scheduleId: schedule.id,
-        executedAt: now - 3600000, // 1 hour ago
+        executedAt: now - 3_600_000, // 1 hour ago
         status: "success",
         durationMs: 1200,
       },
       {
         id: 2,
         scheduleId: schedule.id,
-        executedAt: now - 1800000, // 30 min ago (more recent)
+        executedAt: now - 1_800_000, // 30 min ago (more recent)
         status: "error",
         errorMessage: "Connection failed",
         durationMs: 500,
@@ -524,7 +525,7 @@ describe("SchedulerService.getScheduleHistory", () => {
       {
         id: 3,
         scheduleId: schedule.id,
-        executedAt: now - 7200000, // 2 hours ago (oldest)
+        executedAt: now - 7_200_000, // 2 hours ago (oldest)
         status: "skipped",
       },
     ]);

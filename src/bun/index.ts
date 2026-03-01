@@ -369,8 +369,14 @@ const loadDashboardData = (dateFilter: DateFilter = {}) =>
 
     // DEBUG: Log outcome metrics to diagnose zero values
     console.log("[dashboard] outcomeMetrics:", JSON.stringify(outcomeMetrics));
-    console.log("[dashboard] efficiencyScore.vcsActivityCount:", efficiencyScore.vcsActivityCount);
-    console.log("[dashboard] efficiencyScore.prsCreated:", efficiencyScore.prsCreated);
+    console.log(
+      "[dashboard] efficiencyScore.vcsActivityCount:",
+      efficiencyScore.vcsActivityCount
+    );
+    console.log(
+      "[dashboard] efficiencyScore.prsCreated:",
+      efficiencyScore.prsCreated
+    );
 
     // Transform data for dashboard
     const totalTokens = totals.totalInputTokens + totals.totalOutputTokens;

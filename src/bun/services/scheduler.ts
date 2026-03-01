@@ -158,522 +158,528 @@ export class SchedulerService extends Effect.Service<SchedulerService>()(
   "SchedulerService",
   {
     effect: Effect.gen(function* () {
-    const { db } = yield* DatabaseService;
+      const { db } = yield* DatabaseService;
 
-    /**
-     * Record an execution in the database.
-     */
-    const recordExecution = (
-      scheduleId: string,
-      result: ExecutionResult,
-      executedAt: number
-    ): Effect.Effect<void, DatabaseError> =>
-      Effect.tryPromise({
-        catch: (cause) =>
-          new DatabaseError({ cause, operation: "recordExecution" }),
-        try: async () => {
-          await db.insert(schema.scheduleExecutions).values({
-            durationMs: result.durationMs ?? null,
-            errorMessage: result.error ?? null,
-            executedAt,
-            scheduleId,
-            sessionId: result.sessionId ?? null,
-            status: result.status,
-          });
-        },
-      });
-
-    /**
-     * Update schedule tracking fields after a run.
-     */
-    const updateScheduleAfterRun = (
-      schedule: schema.SessionSchedule,
-      now: number
-    ): Effect.Effect<void, DatabaseError> =>
-      Effect.tryPromise({
-        catch: (cause) =>
-          new DatabaseError({ cause, operation: "updateScheduleAfterRun" }),
-        try: async () => {
-          const daysOfWeek = parseDaysOfWeek(schedule.daysOfWeek);
-          const nextRunAt = calculateNextRunTime(
-            schedule.hour,
-            schedule.minute,
-            daysOfWeek,
-            now
-          );
-
-          await db
-            .update(schema.sessionSchedules)
-            .set({
-              lastRunAt: now,
-              nextRunAt,
-            })
-            .where(eq(schema.sessionSchedules.id, schedule.id));
-        },
-      });
-
-    /**
-     * Execute the warm-up CLI command.
-     */
-    const executeWarmup = (): Effect.Effect<ExecutionResult, SchedulerError> =>
-      Effect.tryPromise({
-        catch: (cause) => new SchedulerError("executeWarmup", cause),
-        try: async () => {
-          const startTime = Date.now();
-
-          const proc = Bun.spawn(WARMUP_COMMAND, {
-            stderr: "pipe",
-            stdout: "pipe",
-          });
-
-          const exitCode = await proc.exited;
-          const durationMs = Date.now() - startTime;
-          const stdout = await new Response(proc.stdout).text();
-          const stderr = await new Response(proc.stderr).text();
-
-          if (exitCode !== 0) {
-            return {
-              durationMs,
-              error: stderr || `Exit code: ${exitCode}`,
-              status: "error" as const,
-            };
-          }
-
-          // Try to extract session ID from output (if available)
-          const sessionIdMatch = stdout.match(
-            /session[_-]?id[:\s]+([a-f0-9-]+)/i
-          );
-          const sessionId = sessionIdMatch?.[1];
-
-          return {
-            durationMs,
-            sessionId,
-            status: "success" as const,
-          };
-        },
-      });
-
-    /**
-     * Check Claude CLI auth status using Schema parsing.
-     * Returns { loggedIn: false } on any error or parse failure.
-     */
-    const checkAuth = (): Effect.Effect<{ loggedIn: boolean }, never> =>
-      Effect.gen(function* checkAuth() {
-        const proc = Bun.spawn(["claude", "auth", "status", "--json"], {
-          stderr: "pipe",
-          stdout: "pipe",
+      /**
+       * Record an execution in the database.
+       */
+      const recordExecution = (
+        scheduleId: string,
+        result: ExecutionResult,
+        executedAt: number
+      ): Effect.Effect<void, DatabaseError> =>
+        Effect.tryPromise({
+          catch: (cause) =>
+            new DatabaseError({ cause, operation: "recordExecution" }),
+          try: async () => {
+            await db.insert(schema.scheduleExecutions).values({
+              durationMs: result.durationMs ?? null,
+              errorMessage: result.error ?? null,
+              executedAt,
+              scheduleId,
+              sessionId: result.sessionId ?? null,
+              status: result.status,
+            });
+          },
         });
 
-        const exitCode = yield* Effect.promise(() => proc.exited);
+      /**
+       * Update schedule tracking fields after a run.
+       */
+      const updateScheduleAfterRun = (
+        schedule: schema.SessionSchedule,
+        now: number
+      ): Effect.Effect<void, DatabaseError> =>
+        Effect.tryPromise({
+          catch: (cause) =>
+            new DatabaseError({ cause, operation: "updateScheduleAfterRun" }),
+          try: async () => {
+            const daysOfWeek = parseDaysOfWeek(schedule.daysOfWeek);
+            const nextRunAt = calculateNextRunTime(
+              schedule.hour,
+              schedule.minute,
+              daysOfWeek,
+              now
+            );
 
-        if (exitCode !== 0) {
-          return { loggedIn: false };
-        }
+            await db
+              .update(schema.sessionSchedules)
+              .set({
+                lastRunAt: now,
+                nextRunAt,
+              })
+              .where(eq(schema.sessionSchedules.id, schedule.id));
+          },
+        });
 
-        const stdout = yield* Effect.promise(() =>
-          new Response(proc.stdout).text()
-        );
+      /**
+       * Execute the warm-up CLI command.
+       */
+      const executeWarmup = (): Effect.Effect<
+        ExecutionResult,
+        SchedulerError
+      > =>
+        Effect.tryPromise({
+          catch: (cause) => new SchedulerError("executeWarmup", cause),
+          try: async () => {
+            const startTime = Date.now();
 
-        // Parse with Schema - returns null on failure
-        const parseResult = yield* Schema.decodeUnknown(
-          Schema.parseJson(ClaudeAuthStatusResponse)
-        )(stdout).pipe(Effect.catchAll(() => Effect.succeed(null)));
+            const proc = Bun.spawn(WARMUP_COMMAND, {
+              stderr: "pipe",
+              stdout: "pipe",
+            });
 
-        return { loggedIn: parseResult?.loggedIn ?? false };
-      }).pipe(Effect.catchAll(() => Effect.succeed({ loggedIn: false })));
+            const exitCode = await proc.exited;
+            const durationMs = Date.now() - startTime;
+            const stdout = await new Response(proc.stdout).text();
+            const stderr = await new Response(proc.stderr).text();
 
-    return {
-      checkAuthStatus: () =>
-        Effect.gen(function* checkAuthStatus() {
+            if (exitCode !== 0) {
+              return {
+                durationMs,
+                error: stderr || `Exit code: ${exitCode}`,
+                status: "error" as const,
+              };
+            }
+
+            // Try to extract session ID from output (if available)
+            const sessionIdMatch = stdout.match(
+              /session[_-]?id[:\s]+([a-f0-9-]+)/i
+            );
+            const sessionId = sessionIdMatch?.[1];
+
+            return {
+              durationMs,
+              sessionId,
+              status: "success" as const,
+            };
+          },
+        });
+
+      /**
+       * Check Claude CLI auth status using Schema parsing.
+       * Returns { loggedIn: false } on any error or parse failure.
+       */
+      const checkAuth = (): Effect.Effect<{ loggedIn: boolean }, never> =>
+        Effect.gen(function* checkAuth() {
           const proc = Bun.spawn(["claude", "auth", "status", "--json"], {
             stderr: "pipe",
             stdout: "pipe",
           });
 
-          const exitCode = yield* Effect.tryPromise({
-            catch: (cause) =>
-              new SchedulerError("checkAuthStatus:spawn", cause),
-            try: () => proc.exited,
-          });
+          const exitCode = yield* Effect.promise(() => proc.exited);
 
           if (exitCode !== 0) {
             return { loggedIn: false };
           }
 
-          const stdout = yield* Effect.tryPromise({
-            catch: (cause) =>
-              new SchedulerError("checkAuthStatus:readStdout", cause),
-            try: () => new Response(proc.stdout).text(),
-          });
+          const stdout = yield* Effect.promise(() =>
+            new Response(proc.stdout).text()
+          );
 
-          // Parse and validate with Schema
+          // Parse with Schema - returns null on failure
           const parseResult = yield* Schema.decodeUnknown(
             Schema.parseJson(ClaudeAuthStatusResponse)
           )(stdout).pipe(Effect.catchAll(() => Effect.succeed(null)));
 
-          if (!parseResult) {
-            return { loggedIn: false };
-          }
+          return { loggedIn: parseResult?.loggedIn ?? false };
+        }).pipe(Effect.catchAll(() => Effect.succeed({ loggedIn: false })));
 
-          return {
-            email: parseResult.email,
-            loggedIn: parseResult.loggedIn,
-            subscriptionType: parseResult.subscriptionType,
-          };
-        }),
-
-      checkMissedSchedules: (windowMs: number = 60 * 60 * 1000) =>
-        Effect.gen(function* checkMissedSchedules() {
-          const now = Date.now();
-          const windowStart = now - windowMs;
-          const results: ExecutionResult[] = [];
-
-          // Get all enabled schedules
-          const schedules = yield* Effect.tryPromise({
-            catch: (cause) =>
-              new DatabaseError({
-                cause,
-                operation: "checkMissedSchedules:getSchedules",
-              }),
-            try: async () =>
-              db
-                .select()
-                .from(schema.sessionSchedules)
-                .where(eq(schema.sessionSchedules.enabled, true)),
-          });
-
-          // Check each schedule for missed runs
-          for (const schedule of schedules) {
-            // Skip if nextRunAt is in the future or null
-            if (!schedule.nextRunAt || schedule.nextRunAt > now) {
-              continue;
-            }
-
-            // Skip if nextRunAt is too old (outside our window)
-            if (schedule.nextRunAt < windowStart) {
-              // Just update the nextRunAt to skip past old times
-              yield* updateScheduleAfterRun(schedule, now);
-              continue;
-            }
-
-            // This schedule was missed - run it now
-            const result = yield* Effect.gen(function* result() {
-              // Check auth
-              const authStatus = yield* checkAuth();
-
-              if (!authStatus.loggedIn) {
-                const result: ExecutionResult = {
-                  error: "Not logged in to Claude CLI",
-                  status: "skipped",
-                };
-                yield* recordExecution(schedule.id, result, now);
-                yield* updateScheduleAfterRun(schedule, now);
-                return result;
-              }
-
-              // Execute warm-up
-              const execResult = yield* executeWarmup();
-
-              // Record execution and update schedule
-              yield* recordExecution(schedule.id, execResult, now);
-              yield* updateScheduleAfterRun(schedule, now);
-
-              return execResult;
+      return {
+        checkAuthStatus: () =>
+          Effect.gen(function* checkAuthStatus() {
+            const proc = Bun.spawn(["claude", "auth", "status", "--json"], {
+              stderr: "pipe",
+              stdout: "pipe",
             });
 
-            results.push(result);
-          }
+            const exitCode = yield* Effect.tryPromise({
+              catch: (cause) =>
+                new SchedulerError("checkAuthStatus:spawn", cause),
+              try: () => proc.exited,
+            });
 
-          return results;
-        }),
-
-      checkSchedules: () =>
-        Effect.gen(function* checkSchedules() {
-          const now = Date.now();
-
-          // Get all enabled schedules
-          const schedules = yield* Effect.tryPromise({
-            catch: (cause) =>
-              new DatabaseError({
-                cause,
-                operation: "checkSchedules:getSchedules",
-              }),
-            try: async () =>
-              db
-                .select()
-                .from(schema.sessionSchedules)
-                .where(eq(schema.sessionSchedules.enabled, true)),
-          });
-
-          // Check each schedule
-          for (const schedule of schedules) {
-            if (!isScheduleDue(schedule.nextRunAt, now)) {
-              continue;
+            if (exitCode !== 0) {
+              return { loggedIn: false };
             }
 
-            // Rate limiting check
+            const stdout = yield* Effect.tryPromise({
+              catch: (cause) =>
+                new SchedulerError("checkAuthStatus:readStdout", cause),
+              try: () => new Response(proc.stdout).text(),
+            });
+
+            // Parse and validate with Schema
+            const parseResult = yield* Schema.decodeUnknown(
+              Schema.parseJson(ClaudeAuthStatusResponse)
+            )(stdout).pipe(Effect.catchAll(() => Effect.succeed(null)));
+
+            if (!parseResult) {
+              return { loggedIn: false };
+            }
+
+            return {
+              email: parseResult.email,
+              loggedIn: parseResult.loggedIn,
+              subscriptionType: parseResult.subscriptionType,
+            };
+          }),
+
+        checkMissedSchedules: (windowMs: number = 60 * 60 * 1000) =>
+          Effect.gen(function* checkMissedSchedules() {
+            const now = Date.now();
+            const windowStart = now - windowMs;
+            const results: ExecutionResult[] = [];
+
+            // Get all enabled schedules
+            const schedules = yield* Effect.tryPromise({
+              catch: (cause) =>
+                new DatabaseError({
+                  cause,
+                  operation: "checkMissedSchedules:getSchedules",
+                }),
+              try: async () =>
+                db
+                  .select()
+                  .from(schema.sessionSchedules)
+                  .where(eq(schema.sessionSchedules.enabled, true)),
+            });
+
+            // Check each schedule for missed runs
+            for (const schedule of schedules) {
+              // Skip if nextRunAt is in the future or null
+              if (!schedule.nextRunAt || schedule.nextRunAt > now) {
+                continue;
+              }
+
+              // Skip if nextRunAt is too old (outside our window)
+              if (schedule.nextRunAt < windowStart) {
+                // Just update the nextRunAt to skip past old times
+                yield* updateScheduleAfterRun(schedule, now);
+                continue;
+              }
+
+              // This schedule was missed - run it now
+              const result = yield* Effect.gen(function* result() {
+                // Check auth
+                const authStatus = yield* checkAuth();
+
+                if (!authStatus.loggedIn) {
+                  const result: ExecutionResult = {
+                    error: "Not logged in to Claude CLI",
+                    status: "skipped",
+                  };
+                  yield* recordExecution(schedule.id, result, now);
+                  yield* updateScheduleAfterRun(schedule, now);
+                  return result;
+                }
+
+                // Execute warm-up
+                const execResult = yield* executeWarmup();
+
+                // Record execution and update schedule
+                yield* recordExecution(schedule.id, execResult, now);
+                yield* updateScheduleAfterRun(schedule, now);
+
+                return execResult;
+              });
+
+              results.push(result);
+            }
+
+            return results;
+          }),
+
+        checkSchedules: () =>
+          Effect.gen(function* checkSchedules() {
+            const now = Date.now();
+
+            // Get all enabled schedules
+            const schedules = yield* Effect.tryPromise({
+              catch: (cause) =>
+                new DatabaseError({
+                  cause,
+                  operation: "checkSchedules:getSchedules",
+                }),
+              try: async () =>
+                db
+                  .select()
+                  .from(schema.sessionSchedules)
+                  .where(eq(schema.sessionSchedules.enabled, true)),
+            });
+
+            // Check each schedule
+            for (const schedule of schedules) {
+              if (!isScheduleDue(schedule.nextRunAt, now)) {
+                continue;
+              }
+
+              // Rate limiting check
+              if (
+                schedule.lastRunAt &&
+                now - schedule.lastRunAt < MIN_RUN_GAP_MS
+              ) {
+                continue;
+              }
+
+              // Execute the schedule
+              yield* Effect.gen(function* checkSchedules() {
+                // Check auth
+                const authStatus = yield* checkAuth();
+
+                if (!authStatus.loggedIn) {
+                  const result: ExecutionResult = {
+                    error: "Not logged in to Claude CLI",
+                    status: "skipped",
+                  };
+                  yield* recordExecution(schedule.id, result, now);
+                  yield* updateScheduleAfterRun(schedule, now);
+                  return;
+                }
+
+                // Execute warm-up
+                const result = yield* executeWarmup();
+
+                // Record execution and update schedule
+                yield* recordExecution(schedule.id, result, now);
+                yield* updateScheduleAfterRun(schedule, now);
+              });
+            }
+          }),
+
+        createSchedule: (input: ScheduleInput) =>
+          Effect.tryPromise({
+            catch: (cause) =>
+              new DatabaseError({ cause, operation: "createSchedule" }),
+            try: async () => {
+              const id = crypto.randomUUID();
+              const now = Date.now();
+              const daysOfWeekJson = JSON.stringify(input.daysOfWeek);
+              const nextRunAt = calculateNextRunTime(
+                input.hour,
+                input.minute,
+                input.daysOfWeek,
+                now
+              );
+
+              const newSchedule: schema.NewSessionSchedule = {
+                createdAt: now,
+                daysOfWeek: daysOfWeekJson,
+                enabled: input.enabled ?? true,
+                hour: input.hour,
+                id,
+                minute: input.minute,
+                name: input.name,
+                nextRunAt,
+              };
+
+              await db.insert(schema.sessionSchedules).values(newSchedule);
+
+              // Return the created schedule
+              const results = await db
+                .select()
+                .from(schema.sessionSchedules)
+                .where(eq(schema.sessionSchedules.id, id))
+                .limit(1);
+
+              return results[0]!;
+            },
+          }),
+
+        deleteSchedule: (id: string) =>
+          Effect.tryPromise({
+            catch: (cause) =>
+              new DatabaseError({ cause, operation: "deleteSchedule" }),
+            try: async () => {
+              // Check if schedule exists first
+              const existing = await db
+                .select()
+                .from(schema.sessionSchedules)
+                .where(eq(schema.sessionSchedules.id, id))
+                .limit(1);
+
+              if (!existing[0]) {
+                return false;
+              }
+
+              await db
+                .delete(schema.sessionSchedules)
+                .where(eq(schema.sessionSchedules.id, id));
+              return true;
+            },
+          }),
+
+        getSchedule: (id: string) =>
+          Effect.tryPromise({
+            catch: (cause) =>
+              new DatabaseError({ cause, operation: "getSchedule" }),
+            try: async () => {
+              const results = await db
+                .select()
+                .from(schema.sessionSchedules)
+                .where(eq(schema.sessionSchedules.id, id))
+                .limit(1);
+              return results[0] ?? null;
+            },
+          }),
+
+        getScheduleHistory: (scheduleId: string, limit: number = 20) =>
+          Effect.tryPromise({
+            catch: (cause) =>
+              new DatabaseError({ cause, operation: "getScheduleHistory" }),
+            try: async () =>
+              await db
+                .select()
+                .from(schema.scheduleExecutions)
+                .where(eq(schema.scheduleExecutions.scheduleId, scheduleId))
+                .orderBy(desc(schema.scheduleExecutions.executedAt))
+                .limit(limit),
+          }),
+
+        getSchedules: () =>
+          Effect.tryPromise({
+            catch: (cause) =>
+              new DatabaseError({ cause, operation: "getSchedules" }),
+            try: async () =>
+              await db
+                .select()
+                .from(schema.sessionSchedules)
+                .orderBy(desc(schema.sessionSchedules.createdAt)),
+          }),
+
+        runScheduleNow: (scheduleId: string) =>
+          Effect.gen(function* runScheduleNow() {
+            const now = Date.now();
+
+            // Get the schedule
+            const schedules = yield* Effect.tryPromise({
+              catch: (cause) =>
+                new DatabaseError({
+                  cause,
+                  operation: "runScheduleNow:getSchedule",
+                }),
+              try: async () =>
+                db
+                  .select()
+                  .from(schema.sessionSchedules)
+                  .where(eq(schema.sessionSchedules.id, scheduleId))
+                  .limit(1),
+            });
+
+            const schedule = schedules[0];
+            if (!schedule) {
+              const result: ExecutionResult = {
+                error: "Schedule not found",
+                status: "error",
+              };
+              return result;
+            }
+
+            // Check rate limiting (minimum gap between runs)
             if (
               schedule.lastRunAt &&
               now - schedule.lastRunAt < MIN_RUN_GAP_MS
             ) {
-              continue;
+              const result: ExecutionResult = {
+                error: "Rate limited - minimum 5 minute gap between runs",
+                status: "skipped",
+              };
+              yield* recordExecution(scheduleId, result, now);
+              return result;
             }
 
-            // Execute the schedule
-            yield* Effect.gen(function* checkSchedules() {
-              // Check auth
-              const authStatus = yield* checkAuth();
+            // Check auth status
+            const authStatus = yield* checkAuth();
 
-              if (!authStatus.loggedIn) {
-                const result: ExecutionResult = {
-                  error: "Not logged in to Claude CLI",
-                  status: "skipped",
-                };
-                yield* recordExecution(schedule.id, result, now);
-                yield* updateScheduleAfterRun(schedule, now);
-                return;
-              }
-
-              // Execute warm-up
-              const result = yield* executeWarmup();
-
-              // Record execution and update schedule
-              yield* recordExecution(schedule.id, result, now);
+            if (!authStatus.loggedIn) {
+              const result: ExecutionResult = {
+                error: "Not logged in to Claude CLI",
+                status: "skipped",
+              };
+              yield* recordExecution(scheduleId, result, now);
               yield* updateScheduleAfterRun(schedule, now);
-            });
-          }
-        }),
-
-      createSchedule: (input: ScheduleInput) =>
-        Effect.tryPromise({
-          catch: (cause) =>
-            new DatabaseError({ cause, operation: "createSchedule" }),
-          try: async () => {
-            const id = crypto.randomUUID();
-            const now = Date.now();
-            const daysOfWeekJson = JSON.stringify(input.daysOfWeek);
-            const nextRunAt = calculateNextRunTime(
-              input.hour,
-              input.minute,
-              input.daysOfWeek,
-              now
-            );
-
-            const newSchedule: schema.NewSessionSchedule = {
-              createdAt: now,
-              daysOfWeek: daysOfWeekJson,
-              enabled: input.enabled ?? true,
-              hour: input.hour,
-              id,
-              minute: input.minute,
-              name: input.name,
-              nextRunAt,
-            };
-
-            await db.insert(schema.sessionSchedules).values(newSchedule);
-
-            // Return the created schedule
-            const results = await db
-              .select()
-              .from(schema.sessionSchedules)
-              .where(eq(schema.sessionSchedules.id, id))
-              .limit(1);
-
-            return results[0]!;
-          },
-        }),
-
-      deleteSchedule: (id: string) =>
-        Effect.tryPromise({
-          catch: (cause) =>
-            new DatabaseError({ cause, operation: "deleteSchedule" }),
-          try: async () => {
-            // Check if schedule exists first
-            const existing = await db
-              .select()
-              .from(schema.sessionSchedules)
-              .where(eq(schema.sessionSchedules.id, id))
-              .limit(1);
-
-            if (!existing[0]) {
-              return false;
+              return result;
             }
 
-            await db
-              .delete(schema.sessionSchedules)
-              .where(eq(schema.sessionSchedules.id, id));
-            return true;
-          },
-        }),
+            // Execute warm-up
+            const result = yield* executeWarmup();
 
-      getSchedule: (id: string) =>
-        Effect.tryPromise({
-          catch: (cause) =>
-            new DatabaseError({ cause, operation: "getSchedule" }),
-          try: async () => {
-            const results = await db
-              .select()
-              .from(schema.sessionSchedules)
-              .where(eq(schema.sessionSchedules.id, id))
-              .limit(1);
-            return results[0] ?? null;
-          },
-        }),
-
-      getScheduleHistory: (scheduleId: string, limit: number = 20) =>
-        Effect.tryPromise({
-          catch: (cause) =>
-            new DatabaseError({ cause, operation: "getScheduleHistory" }),
-          try: async () =>
-            await db
-              .select()
-              .from(schema.scheduleExecutions)
-              .where(eq(schema.scheduleExecutions.scheduleId, scheduleId))
-              .orderBy(desc(schema.scheduleExecutions.executedAt))
-              .limit(limit),
-        }),
-
-      getSchedules: () =>
-        Effect.tryPromise({
-          catch: (cause) =>
-            new DatabaseError({ cause, operation: "getSchedules" }),
-          try: async () =>
-            await db
-              .select()
-              .from(schema.sessionSchedules)
-              .orderBy(desc(schema.sessionSchedules.createdAt)),
-        }),
-
-      runScheduleNow: (scheduleId: string) =>
-        Effect.gen(function* runScheduleNow() {
-          const now = Date.now();
-
-          // Get the schedule
-          const schedules = yield* Effect.tryPromise({
-            catch: (cause) =>
-              new DatabaseError({
-                cause,
-                operation: "runScheduleNow:getSchedule",
-              }),
-            try: async () =>
-              db
-                .select()
-                .from(schema.sessionSchedules)
-                .where(eq(schema.sessionSchedules.id, scheduleId))
-                .limit(1),
-          });
-
-          const schedule = schedules[0];
-          if (!schedule) {
-            const result: ExecutionResult = {
-              error: "Schedule not found",
-              status: "error",
-            };
-            return result;
-          }
-
-          // Check rate limiting (minimum gap between runs)
-          if (schedule.lastRunAt && now - schedule.lastRunAt < MIN_RUN_GAP_MS) {
-            const result: ExecutionResult = {
-              error: "Rate limited - minimum 5 minute gap between runs",
-              status: "skipped",
-            };
-            yield* recordExecution(scheduleId, result, now);
-            return result;
-          }
-
-          // Check auth status
-          const authStatus = yield* checkAuth();
-
-          if (!authStatus.loggedIn) {
-            const result: ExecutionResult = {
-              error: "Not logged in to Claude CLI",
-              status: "skipped",
-            };
+            // Record execution and update schedule
             yield* recordExecution(scheduleId, result, now);
             yield* updateScheduleAfterRun(schedule, now);
+
             return result;
-          }
+          }),
 
-          // Execute warm-up
-          const result = yield* executeWarmup();
+        updateSchedule: (id: string, patch: Partial<ScheduleInput>) =>
+          Effect.tryPromise({
+            catch: (cause) =>
+              new DatabaseError({ cause, operation: "updateSchedule" }),
+            try: async () => {
+              // Get current schedule to compute new nextRunAt if time changed
+              const current = await db
+                .select()
+                .from(schema.sessionSchedules)
+                .where(eq(schema.sessionSchedules.id, id))
+                .limit(1);
 
-          // Record execution and update schedule
-          yield* recordExecution(scheduleId, result, now);
-          yield* updateScheduleAfterRun(schedule, now);
+              if (!current[0]) {
+                return false;
+              }
 
-          return result;
-        }),
+              const schedule = current[0];
+              const now = Date.now();
 
-      updateSchedule: (id: string, patch: Partial<ScheduleInput>) =>
-        Effect.tryPromise({
-          catch: (cause) =>
-            new DatabaseError({ cause, operation: "updateSchedule" }),
-          try: async () => {
-            // Get current schedule to compute new nextRunAt if time changed
-            const current = await db
-              .select()
-              .from(schema.sessionSchedules)
-              .where(eq(schema.sessionSchedules.id, id))
-              .limit(1);
+              // Compute updated fields
+              const hour = patch.hour ?? schedule.hour;
+              const minute = patch.minute ?? schedule.minute;
+              const daysOfWeek =
+                patch.daysOfWeek ?? parseDaysOfWeek(schedule.daysOfWeek);
 
-            if (!current[0]) {
-              return false;
-            }
+              const updates: Partial<schema.NewSessionSchedule> = {};
 
-            const schedule = current[0];
-            const now = Date.now();
+              if (patch.name !== undefined) {
+                updates.name = patch.name;
+              }
+              if (patch.enabled !== undefined) {
+                updates.enabled = patch.enabled;
+              }
+              if (patch.hour !== undefined) {
+                updates.hour = patch.hour;
+              }
+              if (patch.minute !== undefined) {
+                updates.minute = patch.minute;
+              }
+              if (patch.daysOfWeek !== undefined) {
+                updates.daysOfWeek = JSON.stringify(patch.daysOfWeek);
+              }
 
-            // Compute updated fields
-            const hour = patch.hour ?? schedule.hour;
-            const minute = patch.minute ?? schedule.minute;
-            const daysOfWeek =
-              patch.daysOfWeek ?? parseDaysOfWeek(schedule.daysOfWeek);
+              // Recalculate nextRunAt if time settings changed
+              if (
+                patch.hour !== undefined ||
+                patch.minute !== undefined ||
+                patch.daysOfWeek !== undefined
+              ) {
+                updates.nextRunAt = calculateNextRunTime(
+                  hour,
+                  minute,
+                  daysOfWeek,
+                  now
+                );
+              }
 
-            const updates: Partial<schema.NewSessionSchedule> = {};
+              if (Object.keys(updates).length === 0) {
+                return true;
+              }
 
-            if (patch.name !== undefined) {
-              updates.name = patch.name;
-            }
-            if (patch.enabled !== undefined) {
-              updates.enabled = patch.enabled;
-            }
-            if (patch.hour !== undefined) {
-              updates.hour = patch.hour;
-            }
-            if (patch.minute !== undefined) {
-              updates.minute = patch.minute;
-            }
-            if (patch.daysOfWeek !== undefined) {
-              updates.daysOfWeek = JSON.stringify(patch.daysOfWeek);
-            }
+              await db
+                .update(schema.sessionSchedules)
+                .set(updates)
+                .where(eq(schema.sessionSchedules.id, id));
 
-            // Recalculate nextRunAt if time settings changed
-            if (
-              patch.hour !== undefined ||
-              patch.minute !== undefined ||
-              patch.daysOfWeek !== undefined
-            ) {
-              updates.nextRunAt = calculateNextRunTime(
-                hour,
-                minute,
-                daysOfWeek,
-                now
-              );
-            }
-
-            if (Object.keys(updates).length === 0) {
               return true;
-            }
-
-            await db
-              .update(schema.sessionSchedules)
-              .set(updates)
-              .where(eq(schema.sessionSchedules.id, id));
-
-            return true;
-          },
-        }),
+            },
+          }),
       } as const;
     }),
   }

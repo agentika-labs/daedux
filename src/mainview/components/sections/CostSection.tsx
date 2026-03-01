@@ -88,16 +88,14 @@ export function CostSection({ data, loading }: CostSectionProps) {
   const modelBreakdown = data?.modelBreakdown ?? [];
 
   // Memoize cumulative cost calculation (only recalculates when dailyUsage changes)
-  const dailyWithCumulative = useMemo(() => {
-    return dailyUsage.reduce<(DailyStat & { cumulativeCost: number })[]>(
+  const dailyWithCumulative = useMemo(() => dailyUsage.reduce<(DailyStat & { cumulativeCost: number })[]>(
       (acc, day) => {
         const lastItem = acc.at(-1);
         const prev = lastItem?.cumulativeCost ?? 0;
         return [...acc, { ...day, cumulativeCost: prev + day.totalCost }];
       },
       []
-    );
-  }, [dailyUsage]);
+    ), [dailyUsage]);
 
   // Token breakdown for stacked bar
   const tokenBreakdown = useMemo(
@@ -118,7 +116,8 @@ export function CostSection({ data, loading }: CostSectionProps) {
 
   // Memoize sorted model breakdown - avoids .toSorted() on every render
   const sortedModelBreakdown = useMemo(
-    () => modelBreakdown.toSorted((a, b) => b.totalCost - a.totalCost).slice(0, 6),
+    () =>
+      modelBreakdown.toSorted((a, b) => b.totalCost - a.totalCost).slice(0, 6),
     [modelBreakdown]
   );
 

@@ -26,14 +26,11 @@ export class FileSystemError extends Schema.TaggedError<FileSystemError>()(
 ) {}
 
 /** JSONL parsing failed */
-export class ParseError extends Schema.TaggedError<ParseError>()(
-  "ParseError",
-  {
-    filePath: Schema.String,
-    line: Schema.optional(Schema.Number),
-    cause: Schema.Defect,
-  }
-) {}
+export class ParseError extends Schema.TaggedError<ParseError>()("ParseError", {
+  filePath: Schema.String,
+  line: Schema.optional(Schema.Number),
+  cause: Schema.Defect,
+}) {}
 
 /** Session not found */
 export class SessionNotFoundError extends Schema.TaggedError<SessionNotFoundError>()(

@@ -596,7 +596,7 @@ const tryCliUsage = () =>
                 // Use DOWN ARROW to select "Yes, I accept" (option 1 "No, exit" is pre-selected)
                 // The menu uses arrow-key navigation, not numbered input
                 // Send DOWN ARROW first, then Enter after a short delay to allow the menu to update
-                terminal.write("\x1b[B"); // DOWN ARROW
+                terminal.write("\x1B[B"); // DOWN ARROW
                 setTimeout(() => {
                   if (!resolved && proc.terminal) {
                     console.log(
@@ -622,8 +622,7 @@ const tryCliUsage = () =>
                 clean.includes("BypassPermissions");
               const inMcpPrompt =
                 clean.includes("MCP server") && clean.includes("found");
-              const inMenu =
-                clean.includes("❯ 1.") || clean.includes("❯1.");
+              const inMenu = clean.includes("❯ 1.") || clean.includes("❯1.");
 
               if (
                 !usageCommandSent &&

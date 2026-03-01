@@ -6,6 +6,7 @@
  */
 import { ArrowLeft01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import type { AppSettings } from "@shared/rpc-types";
 import { Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useRef } from "react";
 
@@ -24,7 +25,6 @@ import {
   useAnthropicUsageQuery,
   useUpdateSettingsMutation,
 } from "@/queries/settings";
-import type { AppSettings } from "@shared/rpc-types";
 
 import { AboutCard } from "./AboutCard";
 import { ScheduleSettings } from "./ScheduleSettings";
@@ -44,7 +44,11 @@ export const SettingsScreen = () => {
   // Use TanStack Query hooks - data is already cached from route loader
   const { data: settings, isLoading: isLoadingSettings } = useSettingsQuery();
   const { data: appInfo, isLoading: isLoadingAppInfo } = useAppInfoQuery();
-  const { data: usage, refetch: refetchUsage, isFetching: isRefreshingUsage } = useAnthropicUsageQuery();
+  const {
+    data: usage,
+    refetch: refetchUsage,
+    isFetching: isRefreshingUsage,
+  } = useAnthropicUsageQuery();
 
   const updateSettingsMutation = useUpdateSettingsMutation();
 

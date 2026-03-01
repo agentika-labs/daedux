@@ -1,17 +1,12 @@
+import { existsSync } from "node:fs";
+import { dirname, join, extname } from "node:path";
+
 /**
  * HTTP server for CLI mode - serves the dashboard via Bun.serve()
  */
-import { Effect, ManagedRuntime, type Layer } from "effect";
-import { dirname, join, extname } from "node:path";
-import { existsSync } from "node:fs";
+import { Duration, Effect, ManagedRuntime } from 'effect';
+import type { Layer } from 'effect';
 
-import type {
-  DashboardData,
-  DateFilter,
-  SyncResult,
-  SessionSummary,
-} from "../shared/rpc-types";
-import { modelDisplayNameWithVersion } from "../shared/model-utils";
 import {
   SessionAnalyticsService,
   ModelAnalyticsService,
@@ -20,10 +15,17 @@ import {
   AgentAnalyticsService,
   InsightsAnalyticsService,
 } from "../bun/analytics/index";
-import { SyncService } from "../bun/sync";
-import { AnthropicUsageService } from "../bun/services/anthropic-usage";
 import { AppLive } from "../bun/main";
+import { AnthropicUsageService } from "../bun/services/anthropic-usage";
+import { SyncService } from "../bun/sync";
 import { toDateString } from "../bun/utils/formatting";
+import { modelDisplayNameWithVersion } from "../shared/model-utils";
+import type {
+  DashboardData,
+  DateFilter,
+  SyncResult,
+  SessionSummary,
+} from "../shared/rpc-types";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -36,9 +38,21 @@ export interface ServerOptions {
 
 const runtime = ManagedRuntime.make(AppLive);
 
+// Default timeout for backend operations (30 seconds)
+const DEFAULT_TIMEOUT_MS = 30_000;
+
 const runEffect = <A, E>(
-  effect: Effect.Effect<A, E, Layer.Layer.Success<typeof AppLive>>
-): Promise<A> => runtime.runPromise(effect);
+  effect: Effect.Effect<A, E, Layer.Layer.Success<typeof AppLive>>,
+  timeoutMs = DEFAULT_TIMEOUT_MS
+): Promise<A> =>
+  runtime.runPromise(
+    effect.pipe(
+      Effect.timeoutFail({
+        duration: Duration.millis(timeoutMs),
+        onTimeout: () => new Error(`Operation timed out after ${timeoutMs}ms`),
+      })
+    )
+  );
 
 // ─── Date Filter Parsing ─────────────────────────────────────────────────────
 
@@ -366,7 +380,8 @@ export async function startServer(options: ServerOptions): Promise<void> {
       if (pathname === "/api/sync" && req.method === "POST") {
         try {
           const body = await req.json().catch(() => ({}));
-          const fullResync = (body as { fullResync?: boolean }).fullResync ?? false;
+          const fullResync =
+            (body as { fullResync?: boolean }).fullResync ?? false;
           const result = await runEffect(runSync(fullResync));
           return Response.json(result satisfies SyncResult);
         } catch (error) {
@@ -420,13 +435,19 @@ export async function startServer(options: ServerOptions): Promise<void> {
 
                 // Get additional data for the session
                 const sessionToolCounts = yield* tools.getSessionToolCounts({});
-                const sessionFileOps = yield* files.getSessionFileOperations({});
-                const sessionPrimaryModels = yield* sessions.getSessionPrimaryModels({});
-                const sessionAgentCounts = yield* sessions.getSessionAgentCounts({});
-                const sessionToolErrors = yield* tools.getSessionToolErrorCounts({});
+                const sessionFileOps = yield* files.getSessionFileOperations(
+                  {}
+                );
+                const sessionPrimaryModels =
+                  yield* sessions.getSessionPrimaryModels({});
+                const sessionAgentCounts =
+                  yield* sessions.getSessionAgentCounts({});
+                const sessionToolErrors =
+                  yield* tools.getSessionToolErrorCounts({});
 
                 const sessionModel =
-                  sessionPrimaryModels.get(sessionId) ?? "claude-sonnet-4-5-20251022";
+                  sessionPrimaryModels.get(sessionId) ??
+                  "claude-sonnet-4-5-20251022";
                 const sessionTools = sessionToolCounts.get(sessionId) ?? {};
                 const fileOps = sessionFileOps.get(sessionId) ?? [];
 
@@ -439,9 +460,12 @@ export async function startServer(options: ServerOptions): Promise<void> {
                   displayName: session.displayName,
                   durationMs: session.durationMs ?? 0,
                   fileActivityDetails: fileOps,
-                  fileEditCount: fileOps.filter((op) => op.tool === "Edit").length,
-                  fileReadCount: fileOps.filter((op) => op.tool === "Read").length,
-                  fileWriteCount: fileOps.filter((op) => op.tool === "Write").length,
+                  fileEditCount: fileOps.filter((op) => op.tool === "Edit")
+                    .length,
+                  fileReadCount: fileOps.filter((op) => op.tool === "Read")
+                    .length,
+                  fileWriteCount: fileOps.filter((op) => op.tool === "Write")
+                    .length,
                   firstPrompt: session.displayName ?? "Session",
                   isSubagent: session.isSubagent ?? false,
                   model: sessionModel,
@@ -459,7 +483,8 @@ export async function startServer(options: ServerOptions): Promise<void> {
                   toolUseCount: session.toolUseCount ?? 0,
                   totalCost: session.totalCost ?? 0,
                   totalTokens:
-                    (session.totalInputTokens ?? 0) + (session.totalOutputTokens ?? 0),
+                    (session.totalInputTokens ?? 0) +
+                    (session.totalOutputTokens ?? 0),
                   turnCount: session.turnCount ?? 0,
                   uncachedInput: session.totalInputTokens ?? 0,
                 } satisfies SessionSummary;

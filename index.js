@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-const { execFileSync } = require("child_process");
-const path = require("path");
+const { execFileSync } = require("node:child_process");
+const path = require("node:path");
 
 const PLATFORMS = {
   "darwin-arm64": "@agentika/daedux-darwin-arm64",
@@ -34,10 +34,10 @@ try {
   execFileSync("bun", ["run", binPath, ...process.argv.slice(2)], {
     stdio: "inherit",
   });
-} catch (e) {
-  if (e.code === "ENOENT") {
+} catch (error) {
+  if (error.code === "ENOENT") {
     console.error("Bun is required. Install: https://bun.sh");
     process.exit(1);
   }
-  process.exit(e.status ?? 1);
+  process.exit(error.status ?? 1);
 }

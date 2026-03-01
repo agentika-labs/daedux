@@ -50,7 +50,7 @@ import {
   formatTokens,
   formatDuration,
   cn,
-  getSmartProjectName,
+  computeSmartProjectNames,
   shortenPath,
 } from "@/lib/utils";
 import type { SmartProjectName } from "@/lib/utils";
@@ -113,6 +113,12 @@ export function SessionsSection({ data, loading }: SessionsSectionProps) {
 
   const sessions = data?.sessions ?? [];
 
+  // Reset pagination when underlying data changes (e.g., filter change)
+  // This prevents trying to access non-existent pages when data shrinks
+  useEffect(() => {
+    setPagination((prev) => ({ ...prev, pageIndex: 0 }));
+  }, [sessions]);
+
   const tableData = useMemo(() => {
     // Filter subagents first
     const filtered = showSubagents
@@ -130,14 +136,18 @@ export function SessionsSection({ data, loading }: SessionsSectionProps) {
       projectPath: s.project,
     }));
 
+    // Pre-compute ALL smart names in O(n) instead of O(n²)
+    const smartNameMap = computeSmartProjectNames(allItems);
+
     // Attach smart names to each session
     return filtered.map(
       (s): SessionRow => ({
         ...s,
-        smartName: getSmartProjectName(
-          { cwd: projectCwdMap.get(s.project), projectPath: s.project },
-          allItems
-        ),
+        smartName: smartNameMap.get(s.project) ?? {
+          full: s.project,
+          primary: s.project,
+          secondary: "",
+        },
       })
     );
   }, [sessions, showSubagents, data?.projects]);

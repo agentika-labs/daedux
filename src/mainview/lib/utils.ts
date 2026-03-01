@@ -218,6 +218,52 @@ export interface SmartProjectNameOptions {
   cwd?: string;
 }
 
+/**
+ * Pre-compute smart project names for all items in O(n) total time.
+ * Returns a Map keyed by projectPath for O(1) lookup.
+ *
+ * This replaces the O(n²) approach where getSmartProjectName was called
+ * for each item and internally looped through all items to detect duplicates.
+ */
+export function computeSmartProjectNames(
+  items: (SmartProjectNameOptions | string)[]
+): Map<string, SmartProjectName> {
+  // Step 1: O(n) - extract path info and count occurrences of each last segment
+  const segmentCounts = new Map<string, number>();
+  const itemData: {
+    key: string;
+    fullPath: string;
+    lastSegment: string;
+    parentSegment: string;
+  }[] = [];
+
+  for (const item of items) {
+    const opts =
+      typeof item === "string" ? { cwd: undefined, projectPath: item } : item;
+    const fullPath = opts.cwd ?? decodeProjectPath(opts.projectPath);
+    const parts = fullPath.split("/").filter(Boolean);
+    const lastSegment = parts.at(-1) || opts.projectPath;
+    const parentSegment = parts.at(-2) || "";
+
+    const key = opts.projectPath; // unique identifier
+    itemData.push({ fullPath, key, lastSegment, parentSegment });
+    segmentCounts.set(lastSegment, (segmentCounts.get(lastSegment) || 0) + 1);
+  }
+
+  // Step 2: O(n) - build results using pre-computed counts
+  const results = new Map<string, SmartProjectName>();
+  for (const { fullPath, key, lastSegment, parentSegment } of itemData) {
+    const needsDisambiguation = (segmentCounts.get(lastSegment) || 0) > 1;
+    results.set(key, {
+      full: fullPath,
+      primary: lastSegment,
+      secondary: needsDisambiguation ? parentSegment : "",
+    });
+  }
+
+  return results;
+}
+
 export function getSmartProjectName(
   opts: SmartProjectNameOptions | string,
   allItems: (SmartProjectNameOptions | string)[]

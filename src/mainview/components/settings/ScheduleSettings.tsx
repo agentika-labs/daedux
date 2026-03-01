@@ -15,8 +15,8 @@ import {
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import type { SessionSchedule, ExecutionResult } from "@shared/rpc-types";
-import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
 
 import {
   AlertDialog,
@@ -87,15 +87,19 @@ export const ScheduleSettings = () => {
   const queryClient = useQueryClient();
 
   // Use TanStack Query hooks - data is already cached from route loader
-  const { data: schedules = [], isLoading: isLoadingSchedules } = useSchedulesQuery();
+  const { data: schedules = [], isLoading: isLoadingSchedules } =
+    useSchedulesQuery();
   const { data: authStatus } = useAuthStatusQuery();
   const { data: settings } = useSettingsQuery();
 
   const updateSettingsMutation = useUpdateSettingsMutation();
 
-  const [runningScheduleId, setRunningScheduleId] = useState<string | null>(null);
+  const [runningScheduleId, setRunningScheduleId] = useState<string | null>(
+    null
+  );
   const [showForm, setShowForm] = useState(false);
-  const [editingSchedule, setEditingSchedule] = useState<SessionSchedule | null>(null);
+  const [editingSchedule, setEditingSchedule] =
+    useState<SessionSchedule | null>(null);
   const [deleteScheduleId, setDeleteScheduleId] = useState<string | null>(null);
 
   // Mutations for schedule operations
@@ -148,7 +152,9 @@ export const ScheduleSettings = () => {
   const runNowMutation = useMutation({
     mutationFn: async (scheduleId: string) => {
       setRunningScheduleId(scheduleId);
-      const result: ExecutionResult = await rpcRequest("runScheduleNow", { id: scheduleId });
+      const result: ExecutionResult = await rpcRequest("runScheduleNow", {
+        id: scheduleId,
+      });
       return result;
     },
     onSuccess: (result) => {
@@ -165,7 +171,7 @@ export const ScheduleSettings = () => {
 
   // Toggle scheduler enabled
   const handleToggleScheduler = async () => {
-    if (!settings) return;
+    if (!settings) {return;}
     const newEnabled = !settings.schedulerEnabled;
     try {
       await rpcRequest("updateSettings", { schedulerEnabled: newEnabled });
@@ -239,10 +245,14 @@ export const ScheduleSettings = () => {
               <TooltipTrigger
                 render={
                   <Button
-                    variant={settings?.schedulerEnabled ? "success" : "destructive"}
+                    variant={
+                      settings?.schedulerEnabled ? "success" : "destructive"
+                    }
                     size="sm"
                     onClick={handleToggleScheduler}
-                    disabled={schedules.length === 0 && !settings?.schedulerEnabled}
+                    disabled={
+                      schedules.length === 0 && !settings?.schedulerEnabled
+                    }
                   >
                     {settings?.schedulerEnabled ? "Enabled" : "Disabled"}
                   </Button>
@@ -262,7 +272,10 @@ export const ScheduleSettings = () => {
               <span className="text-muted-foreground">Auth Status</span>
               {authStatus?.loggedIn ? (
                 <Badge variant="success" className="gap-1.5">
-                  <HugeiconsIcon icon={CheckmarkCircle02Icon} className="size-3" />
+                  <HugeiconsIcon
+                    icon={CheckmarkCircle02Icon}
+                    className="size-3"
+                  />
                   Logged in
                 </Badge>
               ) : (

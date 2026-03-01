@@ -88,10 +88,7 @@ export const AboutCard = ({
                 onClick={handleDownload}
                 className="gap-2"
               >
-                <HugeiconsIcon
-                  icon={Download04Icon}
-                  data-icon="inline-start"
-                />
+                <HugeiconsIcon icon={Download04Icon} data-icon="inline-start" />
                 Download Desktop App
               </Button>
             )}

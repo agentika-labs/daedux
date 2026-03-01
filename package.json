@@ -2,19 +2,19 @@
   "name": "@agentika/daedux",
   "version": "0.1.0",
   "description": "Claude Code analytics dashboard",
+  "keywords": [
+    "anthropic",
+    "claude",
+    "cli",
+    "dashboard",
+    "token",
+    "usage"
+  ],
   "license": "MIT",
   "repository": {
     "type": "git",
     "url": "https://github.com/agentika-labs/daedux.git"
   },
-  "keywords": [
-    "claude",
-    "anthropic",
-    "token",
-    "usage",
-    "dashboard",
-    "cli"
-  ],
   "bin": {
     "daedux": "index.js"
   },
@@ -22,14 +22,11 @@
     "index.js",
     "README.md"
   ],
-  "optionalDependencies": {
-    "@agentika/daedux-darwin-arm64": "0.1.0"
-  },
   "type": "module",
   "scripts": {
     "prepack": "bun run build:frontend",
-    "dev": "concurrently -n cli,web -c blue,green \"bun src/cli.ts\" \"vite\"",
-    "dev:cli": "bun src/cli.ts",
+    "dev": "concurrently -n cli,web -c blue,green \"bun bin/cli.ts\" \"vite\"",
+    "dev:cli": "bun bin/cli.ts",
     "dev:frontend": "vite",
     "dev:app": "bun run build:native-effects && bun run build:frontend && electrobun dev --console",
     "dev:hmr": "bun run build:native-effects && concurrently \"vite --port 5173\" \"sleep 2 && VITE_DEV_SERVER_URL=http://localhost:5173 electrobun dev --console\"",
@@ -39,8 +36,6 @@
     "build:prod": "bun run build:native-effects && vite build && electrobun build --env=stable",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
-    "typecheck:app": "tsc -p tsconfig.app.json --noEmit",
-    "typecheck:bun": "tsc -p tsconfig.bun.json --noEmit",
     "test": "bun test",
     "test:watch": "bun test --watch",
     "test:coverage": "bun test --coverage",
@@ -91,5 +86,8 @@
     "typescript": "^5",
     "ultracite": "7.2.3",
     "vite": "^7"
+  },
+  "optionalDependencies": {
+    "@agentika/daedux-darwin-arm64": "0.1.0"
   }
 }

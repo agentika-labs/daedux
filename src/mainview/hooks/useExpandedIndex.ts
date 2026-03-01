@@ -5,7 +5,9 @@ import { useCallback, useState } from "react";
  * can be expanded at a time.
  */
 export function useExpandedIndex(initialIndex: number | null = null) {
-  const [expandedIndex, setExpandedIndex] = useState<number | null>(initialIndex);
+  const [expandedIndex, setExpandedIndex] = useState<number | null>(
+    initialIndex
+  );
 
   const isExpanded = useCallback(
     (index: number) => expandedIndex === index,

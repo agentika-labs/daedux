@@ -43,131 +43,131 @@ export class ModelAnalyticsService extends Effect.Service<ModelAnalyticsService>
       const { db } = yield* DatabaseService;
 
       return {
-      getModelBreakdown: (dateFilter: DateFilter = {}) =>
-        Effect.tryPromise({
-          catch: (error) =>
-            new DatabaseError({
-              cause: error,
-              operation: "getModelBreakdown",
-            }),
-          try: async () => {
-            const dateConditions = buildDateConditions(dateFilter);
+        getModelBreakdown: (dateFilter: DateFilter = {}) =>
+          Effect.tryPromise({
+            catch: (error) =>
+              new DatabaseError({
+                cause: error,
+                operation: "getModelBreakdown",
+              }),
+            try: async () => {
+              const dateConditions = buildDateConditions(dateFilter);
 
-            let result;
-            if (dateConditions.length === 0) {
-              // Original query without date filter - no join needed
-              result = await db
-                .select({
-                  model: schema.queries.model,
-                  queryCount: count(),
-                  sessionCount:
-                    sql<number>`COUNT(DISTINCT ${schema.queries.sessionId})`.as(
-                      "session_count"
+              let result;
+              if (dateConditions.length === 0) {
+                // Original query without date filter - no join needed
+                result = await db
+                  .select({
+                    model: schema.queries.model,
+                    queryCount: count(),
+                    sessionCount:
+                      sql<number>`COUNT(DISTINCT ${schema.queries.sessionId})`.as(
+                        "session_count"
+                      ),
+                    totalCost: sql<number>`SUM(${schema.queries.cost})`.as(
+                      "total_cost"
                     ),
-                  totalCost: sql<number>`SUM(${schema.queries.cost})`.as(
-                    "total_cost"
-                  ),
-                  totalTokens: sql<number>`SUM(
+                    totalTokens: sql<number>`SUM(
                     COALESCE(${schema.queries.inputTokens}, 0) +
                     COALESCE(${schema.queries.outputTokens}, 0) +
                     COALESCE(${schema.queries.cacheRead}, 0) +
                     COALESCE(${schema.queries.cacheWrite}, 0)
                   )`.as("total_tokens"),
-                })
-                .from(schema.queries)
-                .where(
-                  sql`${schema.queries.model} IS NOT NULL AND ${schema.queries.model} != '<synthetic>'`
-                )
-                .groupBy(schema.queries.model)
-                .orderBy(desc(sql`SUM(${schema.queries.cost})`));
-            } else {
-              // Filtered query - join with sessions for date range
-              const conditions = [
-                sql`${schema.queries.model} IS NOT NULL AND ${schema.queries.model} != '<synthetic>'`,
-                ...dateConditions,
-              ];
-
-              result = await db
-                .select({
-                  model: schema.queries.model,
-                  queryCount: count(),
-                  sessionCount:
-                    sql<number>`COUNT(DISTINCT ${schema.queries.sessionId})`.as(
-                      "session_count"
-                    ),
-                  totalCost: sql<number>`SUM(${schema.queries.cost})`.as(
-                    "total_cost"
-                  ),
-                  totalTokens: sql<number>`SUM(
-                    COALESCE(${schema.queries.inputTokens}, 0) +
-                    COALESCE(${schema.queries.outputTokens}, 0) +
-                    COALESCE(${schema.queries.cacheRead}, 0) +
-                    COALESCE(${schema.queries.cacheWrite}, 0)
-                  )`.as("total_tokens"),
-                })
-                .from(schema.queries)
-                .innerJoin(
-                  schema.sessions,
-                  eq(schema.queries.sessionId, schema.sessions.sessionId)
-                )
-                .where(and(...conditions))
-                .groupBy(schema.queries.model)
-                .orderBy(desc(sql`SUM(${schema.queries.cost})`));
-            }
-
-            // Group by normalized model name (e.g., all Opus 4.6 variants together)
-            const modelMap = new Map<
-              string,
-              {
-                rawModelIds: string[];
-                totalTokens: number;
-                totalCost: number;
-                queries: number;
-                sessions: number;
-              }
-            >();
-
-            for (const row of result) {
-              const rawModel = row.model ?? "unknown";
-              const shortName = modelDisplayNameWithVersion(rawModel);
-
-              const existing = modelMap.get(shortName);
-              if (existing) {
-                existing.rawModelIds.push(rawModel);
-                existing.totalTokens += row.totalTokens ?? 0;
-                existing.totalCost += row.totalCost ?? 0;
-                existing.queries += row.queryCount;
-                existing.sessions += row.sessionCount ?? 0;
+                  })
+                  .from(schema.queries)
+                  .where(
+                    sql`${schema.queries.model} IS NOT NULL AND ${schema.queries.model} != '<synthetic>'`
+                  )
+                  .groupBy(schema.queries.model)
+                  .orderBy(desc(sql`SUM(${schema.queries.cost})`));
               } else {
-                modelMap.set(shortName, {
-                  queries: row.queryCount,
-                  rawModelIds: [rawModel],
-                  sessions: row.sessionCount ?? 0,
-                  totalCost: row.totalCost ?? 0,
-                  totalTokens: row.totalTokens ?? 0,
+                // Filtered query - join with sessions for date range
+                const conditions = [
+                  sql`${schema.queries.model} IS NOT NULL AND ${schema.queries.model} != '<synthetic>'`,
+                  ...dateConditions,
+                ];
+
+                result = await db
+                  .select({
+                    model: schema.queries.model,
+                    queryCount: count(),
+                    sessionCount:
+                      sql<number>`COUNT(DISTINCT ${schema.queries.sessionId})`.as(
+                        "session_count"
+                      ),
+                    totalCost: sql<number>`SUM(${schema.queries.cost})`.as(
+                      "total_cost"
+                    ),
+                    totalTokens: sql<number>`SUM(
+                    COALESCE(${schema.queries.inputTokens}, 0) +
+                    COALESCE(${schema.queries.outputTokens}, 0) +
+                    COALESCE(${schema.queries.cacheRead}, 0) +
+                    COALESCE(${schema.queries.cacheWrite}, 0)
+                  )`.as("total_tokens"),
+                  })
+                  .from(schema.queries)
+                  .innerJoin(
+                    schema.sessions,
+                    eq(schema.queries.sessionId, schema.sessions.sessionId)
+                  )
+                  .where(and(...conditions))
+                  .groupBy(schema.queries.model)
+                  .orderBy(desc(sql`SUM(${schema.queries.cost})`));
+              }
+
+              // Group by normalized model name (e.g., all Opus 4.6 variants together)
+              const modelMap = new Map<
+                string,
+                {
+                  rawModelIds: string[];
+                  totalTokens: number;
+                  totalCost: number;
+                  queries: number;
+                  sessions: number;
+                }
+              >();
+
+              for (const row of result) {
+                const rawModel = row.model ?? "unknown";
+                const shortName = modelDisplayNameWithVersion(rawModel);
+
+                const existing = modelMap.get(shortName);
+                if (existing) {
+                  existing.rawModelIds.push(rawModel);
+                  existing.totalTokens += row.totalTokens ?? 0;
+                  existing.totalCost += row.totalCost ?? 0;
+                  existing.queries += row.queryCount;
+                  existing.sessions += row.sessionCount ?? 0;
+                } else {
+                  modelMap.set(shortName, {
+                    queries: row.queryCount,
+                    rawModelIds: [rawModel],
+                    sessions: row.sessionCount ?? 0,
+                    totalCost: row.totalCost ?? 0,
+                    totalTokens: row.totalTokens ?? 0,
+                  });
+                }
+              }
+
+              // Convert to array and sort by cost descending
+              const breakdowns: ModelBreakdown[] = [];
+              for (const [shortName, data] of modelMap) {
+                const primaryModelId = data.rawModelIds[0]!;
+                breakdowns.push({
+                  model: primaryModelId,
+                  modelFamily: modelFamily(primaryModelId),
+                  modelShort: shortName,
+                  queries: data.queries,
+                  rawModelIds: data.rawModelIds,
+                  sessions: data.sessions,
+                  totalCost: data.totalCost,
+                  totalTokens: data.totalTokens,
                 });
               }
-            }
 
-            // Convert to array and sort by cost descending
-            const breakdowns: ModelBreakdown[] = [];
-            for (const [shortName, data] of modelMap) {
-              const primaryModelId = data.rawModelIds[0]!;
-              breakdowns.push({
-                model: primaryModelId,
-                modelFamily: modelFamily(primaryModelId),
-                modelShort: shortName,
-                queries: data.queries,
-                rawModelIds: data.rawModelIds,
-                sessions: data.sessions,
-                totalCost: data.totalCost,
-                totalTokens: data.totalTokens,
-              });
-            }
-
-            return breakdowns.toSorted((a, b) => b.totalCost - a.totalCost);
-          },
-        }),
+              return breakdowns.toSorted((a, b) => b.totalCost - a.totalCost);
+            },
+          }),
       } as const;
     }),
   }

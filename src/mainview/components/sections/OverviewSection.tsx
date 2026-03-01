@@ -96,7 +96,9 @@ export function OverviewSection({
               : "Track your shipped work"
           }
           loading={loading}
-          variant={(efficiencyScore?.prsCreated ?? 0) > 0 ? "success" : "default"}
+          variant={
+            (efficiencyScore?.prsCreated ?? 0) > 0 ? "success" : "default"
+          }
         />
         <StatCard
           label="Cache Savings"

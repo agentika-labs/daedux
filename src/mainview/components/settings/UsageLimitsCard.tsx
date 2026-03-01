@@ -171,9 +171,7 @@ export const UsageLimitsCard = ({
               {usage.sonnet && (
                 <UsageProgress label="Sonnet" window={usage.sonnet} />
               )}
-              {usage.opus && (
-                <UsageProgress label="Opus" window={usage.opus} />
-              )}
+              {usage.opus && <UsageProgress label="Opus" window={usage.opus} />}
             </div>
 
             {/* Extra Usage (Max overage) */}

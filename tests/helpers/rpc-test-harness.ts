@@ -6,10 +6,10 @@
  */
 import { Effect, Layer, ManagedRuntime } from "effect";
 
-import { DatabaseService } from "../../src/bun/db";
 import { AllAnalyticsServicesLive } from "../../src/bun/analytics/index";
-import { SyncService } from "../../src/bun/sync";
+import { DatabaseService } from "../../src/bun/db";
 import { SchedulerService } from "../../src/bun/services/scheduler";
+import { SyncService } from "../../src/bun/sync";
 import { createTestDatabaseLayer } from "./test-db";
 
 // ─── Types ───────────────────────────────────────────────────────────────────

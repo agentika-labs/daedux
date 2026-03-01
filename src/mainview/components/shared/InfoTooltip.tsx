@@ -18,8 +18,10 @@ export interface ScaleTier {
 
 // ─── Styled Tooltip Content ───────────────────────────────────────────────────
 
-export interface StyledTooltipContentProps
-  extends Omit<ComponentPropsWithoutRef<typeof TooltipContent>, "children"> {
+export interface StyledTooltipContentProps extends Omit<
+  ComponentPropsWithoutRef<typeof TooltipContent>,
+  "children"
+> {
   title: string;
   description: string;
   scale?: ScaleTier[];

@@ -6,17 +6,18 @@
  */
 
 import { describe, test, expect, beforeEach, afterEach } from "bun:test";
+
 import { Effect } from "effect";
 
-import { SessionAnalyticsService } from "../../src/bun/analytics/session-analytics";
-import { ModelAnalyticsService } from "../../src/bun/analytics/model-analytics";
-import { ToolAnalyticsService } from "../../src/bun/analytics/tool-analytics";
-import { FileAnalyticsService } from "../../src/bun/analytics/file-analytics";
 import { ContextAnalyticsService } from "../../src/bun/analytics/context-analytics";
+import { FileAnalyticsService } from "../../src/bun/analytics/file-analytics";
 import { InsightsAnalyticsService } from "../../src/bun/analytics/insights-analytics";
+import { ModelAnalyticsService } from "../../src/bun/analytics/model-analytics";
+import { SessionAnalyticsService } from "../../src/bun/analytics/session-analytics";
+import { ToolAnalyticsService } from "../../src/bun/analytics/tool-analytics";
+import * as schema from "../../src/bun/db/schema";
 import { SchedulerService } from "../../src/bun/services/scheduler";
 import { createRpcTestHarness } from "../helpers/rpc-test-harness";
-import * as schema from "../../src/bun/db/schema";
 
 // ─── Test Setup ──────────────────────────────────────────────────────────────
 
@@ -38,7 +39,9 @@ const runEffect = <A, E>(effect: Effect.Effect<A, E, any>): Promise<A> =>
 
 // ─── Helper to create test session data ──────────────────────────────────────
 
-const createSession = (overrides: Partial<schema.NewSession> = {}): schema.NewSession => ({
+const createSession = (
+  overrides: Partial<schema.NewSession> = {}
+): schema.NewSession => ({
   projectPath: "/project",
   queryCount: 5,
   sessionId: `session-${crypto.randomUUID()}`,
@@ -47,12 +50,15 @@ const createSession = (overrides: Partial<schema.NewSession> = {}): schema.NewSe
   totalCacheRead: 5000,
   totalCacheWrite: 1000,
   totalCost: 1.5,
-  totalInputTokens: 10000,
+  totalInputTokens: 10_000,
   totalOutputTokens: 2000,
   ...overrides,
 });
 
-const createQuery = (sessionId: string, overrides: Partial<schema.NewQuery> = {}): schema.NewQuery => ({
+const createQuery = (
+  sessionId: string,
+  overrides: Partial<schema.NewQuery> = {}
+): schema.NewQuery => ({
   id: crypto.randomUUID(),
   sessionId,
   queryIndex: 0,
@@ -108,7 +114,7 @@ describe("getDashboardData flow", () => {
     // Insert old session
     const oldSession = createSession({
       startTime: oneWeekAgo,
-      totalCost: 0.50,
+      totalCost: 0.5,
     });
     await harness.db.insert(schema.sessions).values(oldSession);
 
@@ -122,7 +128,9 @@ describe("getDashboardData flow", () => {
     const totals = await runEffect(
       Effect.gen(function* () {
         const sessions = yield* SessionAnalyticsService;
-        return yield* sessions.getTotals({ startTime: now - 7 * 24 * 60 * 60 * 1000 });
+        return yield* sessions.getTotals({
+          startTime: now - 7 * 24 * 60 * 60 * 1000,
+        });
       })
     );
 
@@ -286,7 +294,7 @@ describe("getAnalytics context flow", () => {
       {
         sessionId: session.sessionId,
         queryIndex: 0,
-        cacheHitRatio: 0.0,
+        cacheHitRatio: 0,
         cumulativeTokens: 1000,
       },
       {
@@ -392,7 +400,7 @@ describe("Insights RPC flows", () => {
     // Insert sessions with very high variance (100x difference triggers insight)
     const sessions = [
       createSession({ totalCost: 0.01 }),
-      createSession({ totalCost: 10.00 }),
+      createSession({ totalCost: 10 }),
       createSession({ totalCost: 0.02 }),
     ];
     await harness.db.insert(schema.sessions).values(sessions);
@@ -411,9 +419,9 @@ describe("Insights RPC flows", () => {
   test("efficiency score calculation", async () => {
     // Insert sessions with some high cache usage
     const session = createSession({
-      totalCacheRead: 100000,
-      totalCacheWrite: 50000,
-      totalInputTokens: 10000,
+      totalCacheRead: 100_000,
+      totalCacheWrite: 50_000,
+      totalInputTokens: 10_000,
     });
     await harness.db.insert(schema.sessions).values(session);
 

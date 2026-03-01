@@ -1614,7 +1614,7 @@ describe("AnalyticsService", () => {
               sessionId: "s1",
               startTime: now,
               totalCacheRead: 5000,
-              totalInputTokens: 10000,
+              totalInputTokens: 10_000,
               totalQueries: 5,
             },
           ]);
@@ -1641,13 +1641,15 @@ describe("AnalyticsService", () => {
               sessionId: "s1",
               startTime: now,
               totalCacheRead: 5000,
-              totalInputTokens: 10000,
+              totalInputTokens: 10_000,
               totalQueries: 5,
             },
           ]);
-          await db.insert(schema.queries).values([
-            { id: "s1:0", queryIndex: 0, sessionId: "s1", timestamp: now },
-          ]);
+          await db
+            .insert(schema.queries)
+            .values([
+              { id: "s1:0", queryIndex: 0, sessionId: "s1", timestamp: now },
+            ]);
           // Add some tool uses - 1 error out of 4 = 75% success
           await db.insert(schema.toolUses).values([
             {

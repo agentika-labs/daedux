@@ -32,7 +32,12 @@ const jsonOption = Options.boolean("json").pipe(
   Options.withDescription("Output JSON to stdout and exit (no server)")
 );
 
-const filterOption = Options.choice("filter", ["today", "7d", "30d", "all"]).pipe(
+const filterOption = Options.choice("filter", [
+  "today",
+  "7d",
+  "30d",
+  "all",
+]).pipe(
   Options.withAlias("f"),
   Options.withDescription("Date filter for --json mode"),
   Options.withDefault("7d" as const)
@@ -40,7 +45,9 @@ const filterOption = Options.choice("filter", ["today", "7d", "30d", "all"]).pip
 
 const resyncOption = Options.boolean("resync").pipe(
   Options.withAlias("r"),
-  Options.withDescription("Full resync before starting (clears and re-parses all files)")
+  Options.withDescription(
+    "Full resync before starting (clears and re-parses all files)"
+  )
 );
 
 const noOpenOption = Options.boolean("no-open").pipe(
@@ -75,11 +82,13 @@ const daeduxCommand = Command.make(
         yield* Console.error(
           "Make sure you have Claude Code installed and have run some sessions."
         );
-        return yield* Effect.fail(new Error("Claude projects directory not found"));
+        return yield* Effect.fail(
+          new Error("Claude projects directory not found")
+        );
       }
 
       // Validate port
-      if (port < 1 || port > 65535) {
+      if (port < 1 || port > 65_535) {
         yield* Console.error(`Error: Invalid port number: ${port}`);
         return yield* Effect.fail(new Error("Invalid port number"));
       }

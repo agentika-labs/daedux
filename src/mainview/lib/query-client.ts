@@ -10,7 +10,10 @@ export const queryClient = new QueryClient({
   queryCache: new QueryCache({
     onError: (error, query) => {
       // Log query errors globally for debugging
-      console.error(`[Query Error] ${query.queryKey.join("/")}:`, error.message);
+      console.error(
+        `[Query Error] ${query.queryKey.join("/")}:`,
+        error.message
+      );
     },
   }),
   mutationCache: new MutationCache({

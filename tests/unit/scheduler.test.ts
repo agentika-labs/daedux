@@ -6,6 +6,7 @@
  */
 
 import { describe, test, expect } from "bun:test";
+
 import {
   calculateNextRunTime,
   isScheduleDue,
@@ -170,7 +171,7 @@ describe("isScheduleDue", () => {
 
   test("returns true when nextRunAt is in the past", () => {
     const now = Date.now();
-    const pastTime = now - 60000; // 1 minute ago
+    const pastTime = now - 60_000; // 1 minute ago
     expect(isScheduleDue(pastTime, now)).toBe(true);
   });
 
@@ -181,7 +182,7 @@ describe("isScheduleDue", () => {
 
   test("returns false when nextRunAt is in the future", () => {
     const now = Date.now();
-    const futureTime = now + 60000; // 1 minute from now
+    const futureTime = now + 60_000; // 1 minute from now
     expect(isScheduleDue(futureTime, now)).toBe(false);
   });
 

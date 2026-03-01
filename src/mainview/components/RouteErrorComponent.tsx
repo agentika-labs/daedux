@@ -11,7 +11,10 @@ interface RouteErrorComponentProps {
   reset?: () => void;
 }
 
-export function RouteErrorComponent({ error, reset }: RouteErrorComponentProps) {
+export function RouteErrorComponent({
+  error,
+  reset,
+}: RouteErrorComponentProps) {
   const router = useRouter();
 
   return (

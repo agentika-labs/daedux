@@ -16,8 +16,6 @@ import type { ConfidenceLevel, DashboardData } from "@shared/rpc-types";
 import { useState } from "react";
 
 import { Section } from "@/components/layout/Section";
-import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
-import { useExpandedIndex } from "@/hooks/useExpandedIndex";
 import { InsightCard } from "@/components/shared/InsightCard";
 import { SectionHeader } from "@/components/shared/SectionHeader";
 import { Badge } from "@/components/ui/badge";
@@ -28,6 +26,8 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
+import { useExpandedIndex } from "@/hooks/useExpandedIndex";
 import {
   parseError,
   matchSuggestionToError,
@@ -153,7 +153,11 @@ export function ToolsSection({ data, loading }: ToolsSectionProps) {
               <div className="max-h-[400px] space-y-2 overflow-y-auto pr-3">
                 {/* Sort by friction score descending (worst first) */}
                 {[...toolHealthReport.frictionPoints]
-                  .toSorted((a, b) => (b.frictionScore ?? b.errorRate) - (a.frictionScore ?? a.errorRate))
+                  .toSorted(
+                    (a, b) =>
+                      (b.frictionScore ?? b.errorRate) -
+                      (a.frictionScore ?? a.errorRate)
+                  )
                   .map((tool, i) => (
                     <FrictionPointCard
                       key={i}
@@ -217,9 +221,12 @@ export function ToolsSection({ data, loading }: ToolsSectionProps) {
 
 /** Confidence badge showing statistical confidence level */
 function ConfidenceBadge({ confidence }: { confidence?: ConfidenceLevel }) {
-  if (!confidence) return null;
+  if (!confidence) {return null;}
 
-  const styles: Record<ConfidenceLevel, { bg: string; text: string; label: string }> = {
+  const styles: Record<
+    ConfidenceLevel,
+    { bg: string; text: string; label: string }
+  > = {
     high: {
       bg: "bg-success/10",
       label: "high confidence",
@@ -502,7 +509,11 @@ interface BashCategoryAccordionProps {
   onToggle: () => void;
 }
 
-function BashCategoryAccordion({ category, expanded, onToggle }: BashCategoryAccordionProps) {
+function BashCategoryAccordion({
+  category,
+  expanded,
+  onToggle,
+}: BashCategoryAccordionProps) {
   const hasErrors = category.errorCount > 0;
 
   // Success state: simple row, no accordion

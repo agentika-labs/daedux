@@ -7,7 +7,17 @@
     "type": "git",
     "url": "https://github.com/agentika-labs/daedux.git"
   },
-  "os": ["darwin"],
-  "cpu": ["arm64"],
-  "files": ["bin/", "src/bun/", "src/cli/", "src/shared/", "dist/"]
+  "files": [
+    "bin/",
+    "src/bun/",
+    "src/cli/",
+    "src/shared/",
+    "dist/"
+  ],
+  "os": [
+    "darwin"
+  ],
+  "cpu": [
+    "arm64"
+  ]
 }

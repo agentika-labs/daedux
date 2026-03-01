@@ -29,13 +29,17 @@ export const Route = createFileRoute("/settings")({
   loader: async () => {
     // Use ensureQueryData to either return cached data or fetch it
     // These all run in parallel, not sequentially
-    const [settings, appInfo, usage, schedules, authStatus] = await Promise.all([
-      queryClient.ensureQueryData(settingsQueryOptions),
-      queryClient.ensureQueryData(appInfoQueryOptions),
-      queryClient.ensureQueryData(anthropicUsageQueryOptions).catch(() => null),
-      queryClient.ensureQueryData(schedulesQueryOptions),
-      queryClient.ensureQueryData(authStatusQueryOptions),
-    ]);
+    const [settings, appInfo, usage, schedules, authStatus] = await Promise.all(
+      [
+        queryClient.ensureQueryData(settingsQueryOptions),
+        queryClient.ensureQueryData(appInfoQueryOptions),
+        queryClient
+          .ensureQueryData(anthropicUsageQueryOptions)
+          .catch(() => null),
+        queryClient.ensureQueryData(schedulesQueryOptions),
+        queryClient.ensureQueryData(authStatusQueryOptions),
+      ]
+    );
     // Return data for type-safe Route.useLoaderData() access in components
     return { settings, appInfo, usage, schedules, authStatus };
   },

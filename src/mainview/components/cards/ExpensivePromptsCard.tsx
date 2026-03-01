@@ -2,7 +2,6 @@ import { modelFamily, modelBadgeId } from "@shared/model-utils";
 import type { DashboardData } from "@shared/rpc-types";
 
 import { Badge } from "@/components/ui/badge";
-import { useExpandedIndex } from "@/hooks/useExpandedIndex";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Collapsible,
@@ -10,6 +9,7 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useExpandedIndex } from "@/hooks/useExpandedIndex";
 import { getModelBadgeStyle } from "@/lib/model-styles";
 import { formatCurrency, formatTokens, cn } from "@/lib/utils";
 

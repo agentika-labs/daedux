@@ -19,7 +19,10 @@ export default {
       "src/bun/libMacWindowEffects.dylib": "bun/libMacWindowEffects.dylib",
     },
     linux: { bundleCEF: true, icon: "icon.png" },
-    mac: { bundleCEF: false, icons: "assets/files/iconsets/daedux-emerald-dark.iconset" },
+    mac: {
+      bundleCEF: false,
+      icons: "assets/files/iconsets/daedux-emerald-dark.iconset",
+    },
     win: { bundleCEF: false, icon: "icon.ico" },
   },
   release: {

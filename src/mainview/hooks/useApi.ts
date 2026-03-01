@@ -20,9 +20,7 @@ import type {
  * Check if we're running in Electrobun desktop environment.
  * The __electrobun global is injected by Electrobun's webview.
  */
-const isElectrobun = (): boolean => {
-  return typeof window !== "undefined" && "__electrobun" in window;
-};
+const isElectrobun = (): boolean => typeof window !== "undefined" && "__electrobun" in window;
 
 // ─── HTTP API Client ─────────────────────────────────────────────────────────
 
@@ -51,6 +49,9 @@ interface ApiClient {
   getAnthropicUsage: () => Promise<AnthropicUsage>;
 }
 
+// Default timeout for API requests (30 seconds)
+const API_TIMEOUT_MS = 30_000;
+
 /**
  * HTTP-based API client for CLI/browser mode.
  * Uses native fetch to communicate with the local HTTP server.
@@ -58,17 +59,28 @@ interface ApiClient {
 const createHttpClient = (): ApiClient => ({
   getDashboardData: async (params) => {
     const searchParams = new URLSearchParams();
-    if (params.filter) searchParams.set("filter", params.filter);
-    if (params.projectPath) searchParams.set("projectPath", params.projectPath);
+    if (params.filter) {searchParams.set("filter", params.filter);}
+    if (params.projectPath) {searchParams.set("projectPath", params.projectPath);}
 
     const url = `/api/dashboard${searchParams.toString() ? `?${searchParams}` : ""}`;
-    const response = await fetch(url);
 
-    if (!response.ok) {
-      throw new Error(`API error: ${response.status}`);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
+
+    try {
+      const response = await fetch(url, { signal: controller.signal });
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`);
+      }
+      return response.json();
+    } catch (error) {
+      if (error instanceof Error && error.name === "AbortError") {
+        throw new Error("Request timed out", { cause: error });
+      }
+      throw error;
+    } finally {
+      clearTimeout(timeoutId);
     }
-
-    return response.json();
   },
 
   triggerSync: async (params) => {
@@ -211,14 +223,10 @@ export const getApiClient = (): ApiClient => {
  * const data = await api.getDashboardData({ filter: "7d" });
  * ```
  */
-export const useApi = (): ApiClient => {
-  return getApiClient();
-};
+export const useApi = (): ApiClient => getApiClient();
 
 /**
  * Check if the app is running in desktop mode (Electrobun).
  * Useful for conditionally rendering desktop-only features.
  */
-export const useIsDesktop = (): boolean => {
-  return isElectrobun();
-};
+export const useIsDesktop = (): boolean => isElectrobun();

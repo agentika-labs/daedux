@@ -1,10 +1,3 @@
-/**
- * Dashboard route - the main view showing usage analytics.
- *
- * This is the index route, rendered at "/".
- * The loader preloads the default "7d" filter data on hover (via preload="intent").
- * Filter changes trigger new queries at the component level.
- */
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useState, useRef } from "react";
 
@@ -27,12 +20,10 @@ import {
 } from "@/queries/dashboard";
 
 export const Route = createFileRoute("/")({
-  // Preload default filter on hover - eliminates loading spinner on initial visit
   loader: async () => {
     await queryClient.ensureQueryData(dashboardQueryOptions("7d"));
   },
   component: Dashboard,
-  // Uses defaultErrorComponent from router config
 });
 
 function Dashboard() {
@@ -43,19 +34,21 @@ function Dashboard() {
   const [filter, setFilter] = useState<FilterOption>("7d");
   const [isSyncing, setIsSyncing] = useState(false);
 
-  // Use TanStack Query for dashboard data
   const { data, isLoading, error, refetch } = useDashboardQuery(filter);
-  const syncMutation = useSyncMutation();
+  const syncMutation = useSyncMutation(filter);
+
+  const refetchRef = useRef(refetch);
+  refetchRef.current = refetch;
 
   // Listen for data updates from main process (desktop only)
   useEffect(() => {
-    if (!isDesktop) return;
+    if (!isDesktop) {return;}
 
     let cleanup: (() => void) | undefined;
 
     import("@/hooks/useRPC").then(({ electroview }) => {
       const handleUpdate = () => {
-        refetch();
+        refetchRef.current();
       };
 
       electroview.addMessageListener("sessionsUpdated", handleUpdate);
@@ -64,22 +57,19 @@ function Dashboard() {
     });
 
     return () => cleanup?.();
-  }, [isDesktop, refetch]);
+  }, [isDesktop]);
 
-  // Trigger sync
   const handleSync = async () => {
     try {
       setIsSyncing(true);
       await syncMutation.mutateAsync({ fullResync: false });
-    } catch (err) {
-      console.error("Sync failed:", err);
+    } catch (error) {
+      console.error("Sync failed:", error);
     } finally {
       setIsSyncing(false);
     }
   };
 
-  // Navigate to section handler for insights - useCallback stabilizes reference
-  // to avoid invalidating InsightsPanel's processedInsights memo
   const handleNavigateToSection = useCallback((section: string) => {
     scrollToSection(
       section as
@@ -92,7 +82,6 @@ function Dashboard() {
     );
   }, []);
 
-  // Show error state - use refetch() to preserve app state
   if (error && !data) {
     return (
       <div className="bg-background flex h-screen items-center justify-center">
@@ -113,10 +102,8 @@ function Dashboard() {
     );
   }
 
-  // Show dashboard
   return (
     <div className="bg-background text-foreground flex h-screen flex-col">
-      {/* Sticky Header */}
       <Header
         ref={settingsButtonRef}
         filter={filter}
@@ -126,7 +113,6 @@ function Dashboard() {
         isSyncing={isSyncing}
       />
 
-      {/* Scrollable Content */}
       <main className="flex-1 overflow-auto">
         <div className="mx-auto max-w-7xl px-6 pb-12">
           <OverviewSection

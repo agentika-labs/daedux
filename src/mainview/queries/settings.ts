@@ -1,3 +1,8 @@
+import type {
+  AppSettings,
+  SessionSchedule,
+  AuthStatus,
+} from "@shared/rpc-types";
 /**
  * TanStack Query hooks for settings-related data.
  *
@@ -7,8 +12,12 @@
  * - Loading/error states
  * - Prefetching on hover via route loaders
  */
-import { queryOptions, useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import type { AppSettings, SessionSchedule, AuthStatus } from "@shared/rpc-types";
+import {
+  queryOptions,
+  useQuery,
+  useMutation,
+  useQueryClient,
+} from "@tanstack/react-query";
 
 import { getApiClient } from "@/hooks/useApi";
 
@@ -66,25 +75,15 @@ export const schedulesQueryOptions = queryOptions({
 
 // ─── Query Hooks ─────────────────────────────────────────────────────────────
 
-export const useSettingsQuery = () => {
-  return useQuery(settingsQueryOptions);
-};
+export const useSettingsQuery = () => useQuery(settingsQueryOptions);
 
-export const useAppInfoQuery = () => {
-  return useQuery(appInfoQueryOptions);
-};
+export const useAppInfoQuery = () => useQuery(appInfoQueryOptions);
 
-export const useAnthropicUsageQuery = () => {
-  return useQuery(anthropicUsageQueryOptions);
-};
+export const useAnthropicUsageQuery = () => useQuery(anthropicUsageQueryOptions);
 
-export const useAuthStatusQuery = () => {
-  return useQuery(authStatusQueryOptions);
-};
+export const useAuthStatusQuery = () => useQuery(authStatusQueryOptions);
 
-export const useSchedulesQuery = () => {
-  return useQuery(schedulesQueryOptions);
-};
+export const useSchedulesQuery = () => useQuery(schedulesQueryOptions);
 
 // ─── Mutation Hooks ──────────────────────────────────────────────────────────
 
@@ -99,7 +98,9 @@ export const useUpdateSettingsMutation = () => {
       // Cancel in-flight queries to avoid race conditions
       await queryClient.cancelQueries({ queryKey: ["settings"] });
       // Snapshot previous value for rollback
-      const previousSettings = queryClient.getQueryData<AppSettings>(["settings"]);
+      const previousSettings = queryClient.getQueryData<AppSettings>([
+        "settings",
+      ]);
       // Optimistically update cache
       if (previousSettings) {
         queryClient.setQueryData<AppSettings>(["settings"], {

@@ -5,7 +5,10 @@
  * We provide QueryClient context here so all routes can access React Query.
  * QueryErrorResetBoundary + ErrorBoundary catches unhandled errors.
  */
-import { QueryClientProvider, QueryErrorResetBoundary } from "@tanstack/react-query";
+import {
+  QueryClientProvider,
+  QueryErrorResetBoundary,
+} from "@tanstack/react-query";
 import { createRootRouteWithContext, Outlet } from "@tanstack/react-router";
 import { lazy, Suspense } from "react";
 import { ErrorBoundary } from "react-error-boundary";
