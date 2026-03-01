@@ -25,8 +25,8 @@ import {
   useAnthropicUsageQuery,
   useUpdateSettingsMutation,
 } from "@/queries/settings";
-
 import { AboutCard } from "./AboutCard";
+import { DataCard } from "./DataCard";
 import { ScheduleSettings } from "./ScheduleSettings";
 import { ThemeToggle } from "./ThemeToggle";
 import { UsageLimitsCard } from "./UsageLimitsCard";
@@ -41,7 +41,6 @@ export const SettingsScreen = () => {
   const headingRef = useRef<HTMLHeadingElement>(null);
   const headerRef = useRef<HTMLElement>(null);
 
-  // Use TanStack Query hooks - data is already cached from route loader
   const { data: settings, isLoading: isLoadingSettings } = useSettingsQuery();
   const { data: appInfo, isLoading: isLoadingAppInfo } = useAppInfoQuery();
   const {
@@ -63,7 +62,6 @@ export const SettingsScreen = () => {
     return () => clearTimeout(timer);
   }, []);
 
-  // Refresh usage data - uses query refetch instead of mutation
   const handleRefreshUsage = async () => {
     try {
       await refetchUsage();
@@ -72,13 +70,11 @@ export const SettingsScreen = () => {
     }
   };
 
-  // Update theme (desktop only - CLI mode uses static settings)
   const handleThemeChange = async (theme: AppSettings["theme"]) => {
     try {
       if (isDesktop) {
         await rpcRequest("updateSettings", { theme });
       }
-      // Optimistically update the local state
       updateSettingsMutation.mutate({ theme });
     } catch (error) {
       console.error("Failed to update theme:", error);
@@ -91,7 +87,7 @@ export const SettingsScreen = () => {
       return;
     }
     const buttons = headerRef.current.querySelectorAll(
-      'button, [role="button"], a'
+      'button, [role="button"], a',
     );
     const zones = [...buttons].map((btn) => {
       const rect = btn.getBoundingClientRect();
@@ -117,7 +113,6 @@ export const SettingsScreen = () => {
 
   return (
     <div className="bg-background text-foreground flex h-screen flex-col">
-      {/* Fixed Header */}
       <header
         ref={headerRef}
         className="bg-background/80 supports-[backdrop-filter]:bg-background/60 border-border sticky top-0 z-50 border-b backdrop-blur"
@@ -142,10 +137,8 @@ export const SettingsScreen = () => {
         </div>
       </header>
 
-      {/* Scrollable Content */}
       <main className="flex-1 overflow-auto">
         <div className="mx-auto max-w-3xl space-y-6 px-6 py-6">
-          {/* Account & Usage */}
           <UsageLimitsCard
             usage={usage ?? null}
             isLoading={isLoading}
@@ -153,7 +146,6 @@ export const SettingsScreen = () => {
             isRefreshing={isRefreshingUsage}
           />
 
-          {/* Appearance */}
           <Card>
             <CardHeader>
               <CardTitle>Appearance</CardTitle>
@@ -176,10 +168,10 @@ export const SettingsScreen = () => {
             </CardContent>
           </Card>
 
-          {/* Session Warm-Up (existing component) */}
           <ScheduleSettings />
 
-          {/* About */}
+          <DataCard />
+
           <AboutCard
             appInfo={appInfo ?? null}
             isLoading={isLoading}
