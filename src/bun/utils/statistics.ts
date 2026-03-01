@@ -14,7 +14,7 @@
 export function wilsonScoreInterval(
   successes: number,
   total: number,
-  z = 1.96,
+  z = 1.96
 ): { lower: number; upper: number } {
   if (total === 0) {
     return { lower: 0, upper: 1 };

@@ -1,6 +1,7 @@
 import { sql, eq, and, count, avg } from "drizzle-orm";
 import type { SQL } from "drizzle-orm";
 import { Effect } from "effect";
+
 import { DatabaseService } from "../db";
 import * as schema from "../db/schema";
 import { DatabaseError } from "../errors";
@@ -62,7 +63,7 @@ export class ContextAnalyticsService extends Effect.Service<ContextAnalyticsServ
       return {
         getCacheEfficiencyCurve: (
           dateFilter: DateFilter = {},
-          projectPath?: string,
+          projectPath?: string
         ) =>
           Effect.tryPromise({
             catch: (error) =>
@@ -82,12 +83,12 @@ export class ContextAnalyticsService extends Effect.Service<ContextAnalyticsServ
                   db
                     .select({
                       avgCacheHitRatio: avg(
-                        schema.contextWindowUsage.cacheHitRatio,
+                        schema.contextWindowUsage.cacheHitRatio
                       ),
                       queryIndex: schema.contextWindowUsage.queryIndex,
                       sessionCount:
                         sql<number>`COUNT(DISTINCT ${schema.contextWindowUsage.sessionId})`.as(
-                          "session_count",
+                          "session_count"
                         ),
                     })
                     .from(schema.contextWindowUsage)
@@ -98,23 +99,23 @@ export class ContextAnalyticsService extends Effect.Service<ContextAnalyticsServ
                   db
                     .select({
                       avgCacheHitRatio: avg(
-                        schema.contextWindowUsage.cacheHitRatio,
+                        schema.contextWindowUsage.cacheHitRatio
                       ),
                       queryIndex: schema.contextWindowUsage.queryIndex,
                       sessionCount:
                         sql<number>`COUNT(DISTINCT ${schema.contextWindowUsage.sessionId})`.as(
-                          "session_count",
+                          "session_count"
                         ),
                     })
                     .from(schema.contextWindowUsage)
                     .innerJoin(
                       sessionsTable,
-                      sessionJoinOn(schema.contextWindowUsage),
+                      sessionJoinOn(schema.contextWindowUsage)
                     )
                     .where(and(...conditions))
                     .groupBy(schema.contextWindowUsage.queryIndex)
                     .orderBy(schema.contextWindowUsage.queryIndex)
-                    .limit(100),
+                    .limit(100)
               );
 
               return result.map((row) => ({
@@ -127,7 +128,7 @@ export class ContextAnalyticsService extends Effect.Service<ContextAnalyticsServ
 
         getCompactionAnalysis: (
           dateFilter: DateFilter = {},
-          projectPath?: string,
+          projectPath?: string
         ) =>
           Effect.tryPromise({
             catch: (error) =>
@@ -146,7 +147,7 @@ export class ContextAnalyticsService extends Effect.Service<ContextAnalyticsServ
                   avgCompactions: avg(schema.sessions.compactions),
                   sessionsWithCompactions:
                     sql<number>`SUM(CASE WHEN COALESCE(${schema.sessions.compactions}, 0) > 0 THEN 1 ELSE 0 END)`.as(
-                      "with_compactions",
+                      "with_compactions"
                     ),
                   totalSessions: count(),
                 })
@@ -169,7 +170,7 @@ export class ContextAnalyticsService extends Effect.Service<ContextAnalyticsServ
 
         getContextHeatmap: (
           dateFilter: DateFilter = {},
-          projectPath?: string,
+          projectPath?: string
         ) =>
           Effect.tryPromise({
             catch: (error) =>
@@ -222,10 +223,10 @@ export class ContextAnalyticsService extends Effect.Service<ContextAnalyticsServ
                     .from(schema.contextWindowUsage)
                     .innerJoin(
                       sessionsTable,
-                      sessionJoinOn(schema.contextWindowUsage),
+                      sessionJoinOn(schema.contextWindowUsage)
                     )
                     .where(and(...conditions))
-                    .groupBy(turnBucketExpr, utilizationBucketExpr),
+                    .groupBy(turnBucketExpr, utilizationBucketExpr)
               );
 
               // Build lookup map from SQL results
@@ -263,7 +264,7 @@ export class ContextAnalyticsService extends Effect.Service<ContextAnalyticsServ
 
         getContextPeakDistribution: (
           dateFilter: DateFilter = {},
-          projectPath?: string,
+          projectPath?: string
         ) =>
           Effect.tryPromise({
             catch: (error) =>
@@ -283,11 +284,11 @@ export class ContextAnalyticsService extends Effect.Service<ContextAnalyticsServ
               // Filter out subagent sessions as they have shorter contexts
               const peakTokensExpr =
                 sql<number>`MAX(COALESCE(${schema.queries.inputTokens}, 0) + COALESCE(${schema.queries.cacheRead}, 0) + COALESCE(${schema.queries.cacheWrite}, 0))`.as(
-                  "peak_tokens",
+                  "peak_tokens"
                 );
               const modelExpr =
                 sql<string>`(SELECT model FROM ${schema.queries} q2 WHERE q2.session_id = ${schema.queries.sessionId} AND q2.query_index = 0 LIMIT 1)`.as(
-                  "model",
+                  "model"
                 );
 
               let result;
@@ -301,7 +302,7 @@ export class ContextAnalyticsService extends Effect.Service<ContextAnalyticsServ
                   .from(schema.queries)
                   .innerJoin(
                     schema.sessions,
-                    eq(schema.queries.sessionId, schema.sessions.sessionId),
+                    eq(schema.queries.sessionId, schema.sessions.sessionId)
                   )
                   .where(excludeSubagents)
                   .groupBy(schema.queries.sessionId);
@@ -315,7 +316,7 @@ export class ContextAnalyticsService extends Effect.Service<ContextAnalyticsServ
                   .from(schema.queries)
                   .innerJoin(
                     schema.sessions,
-                    eq(schema.queries.sessionId, schema.sessions.sessionId),
+                    eq(schema.queries.sessionId, schema.sessions.sessionId)
                   )
                   .where(and(excludeSubagents, ...conditions))
                   .groupBy(schema.queries.sessionId);
@@ -331,7 +332,7 @@ export class ContextAnalyticsService extends Effect.Service<ContextAnalyticsServ
 
         getContextWindowFill: (
           dateFilter: DateFilter = {},
-          projectPath?: string,
+          projectPath?: string
         ) =>
           Effect.tryPromise({
             catch: (error) =>
@@ -348,7 +349,9 @@ export class ContextAnalyticsService extends Effect.Service<ContextAnalyticsServ
               ];
               if (dateConditions.length > 0) {
                 if (dateFilter.startTime) {
-                  whereFragments.push(`s.start_time >= ${dateFilter.startTime}`);
+                  whereFragments.push(
+                    `s.start_time >= ${dateFilter.startTime}`
+                  );
                 }
                 if (dateFilter.endTime) {
                   whereFragments.push(`s.start_time <= ${dateFilter.endTime}`);
@@ -356,7 +359,7 @@ export class ContextAnalyticsService extends Effect.Service<ContextAnalyticsServ
               }
               if (projectPath) {
                 whereFragments.push(
-                  `s.project_path = '${projectPath.replace(/'/g, "''")}'`,
+                  `s.project_path = '${projectPath.replaceAll('\'', "''")}'`
                 );
               }
               const whereClause = whereFragments.join(" AND ");
@@ -411,7 +414,7 @@ export class ContextAnalyticsService extends Effect.Service<ContextAnalyticsServ
           }),
       } as const;
     }),
-  },
+  }
 ) {}
 
 /** @deprecated Use ContextAnalyticsService.Default instead */

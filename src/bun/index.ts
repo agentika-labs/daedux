@@ -26,12 +26,12 @@ import type {
   AnthropicUsage,
   AppInfo,
 } from "../shared/rpc-types";
-import { SessionAnalyticsService } from "./analytics/session-analytics";
-import { ModelAnalyticsService } from "./analytics/model-analytics";
-import { ToolAnalyticsService } from "./analytics/tool-analytics";
-import { FileAnalyticsService } from "./analytics/file-analytics";
 import { AgentAnalyticsService } from "./analytics/agent-analytics";
 import { ContextAnalyticsService } from "./analytics/context-analytics";
+import { FileAnalyticsService } from "./analytics/file-analytics";
+import { ModelAnalyticsService } from "./analytics/model-analytics";
+import { SessionAnalyticsService } from "./analytics/session-analytics";
+import { ToolAnalyticsService } from "./analytics/tool-analytics";
 import { initializeDatabase } from "./db/migrate";
 import { AppLive } from "./main";
 import { AnthropicUsageService } from "./services/anthropic-usage";

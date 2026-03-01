@@ -55,7 +55,6 @@ export const Route = createFileRoute("/")({
 function Dashboard() {
   const isDesktop = useIsDesktop();
   const activeSection = useActiveSection();
-  const settingsButtonRef = useRef<HTMLButtonElement>(null);
 
   const [filter, setFilter] = useState<FilterOption>("7d");
   const [isSyncing, setIsSyncing] = useState(false);
@@ -133,7 +132,6 @@ function Dashboard() {
   return (
     <div className="bg-background text-foreground flex h-screen flex-col">
       <Header
-        ref={settingsButtonRef}
         filter={filter}
         onFilterChange={setFilter}
         activeSection={activeSection}

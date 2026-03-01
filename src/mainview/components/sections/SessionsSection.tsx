@@ -359,137 +359,137 @@ export function SessionsSection({ data, loading }: SessionsSectionProps) {
             className="p-6"
           >
             {tableData.length > 0 ? (
-            <>
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    {table.getHeaderGroups().map((headerGroup) => (
-                      <tr
-                        key={headerGroup.id}
-                        className="border-border text-muted-foreground border-b text-left text-sm"
-                      >
-                        {headerGroup.headers.map((header) => {
-                          const align = (
-                            header.column.columnDef.meta as
-                              | { align?: string }
-                              | undefined
-                          )?.align;
-                          return (
-                            <th
-                              key={header.id}
-                              className={cn(
-                                "p-4 font-medium",
-                                align === "right" && "text-right"
-                              )}
-                            >
-                              {header.isPlaceholder
-                                ? null
-                                : flexRender(
-                                    header.column.columnDef.header,
-                                    header.getContext()
-                                  )}
-                            </th>
-                          );
-                        })}
-                      </tr>
-                    ))}
-                  </thead>
-                  <tbody>
-                    {table.getRowModel().rows.map((row) => (
-                      <tr
-                        key={row.id}
-                        className="border-border/50 hover:bg-muted/50 cursor-pointer border-b transition-colors last:border-0"
-                        onClick={() => setSelectedSession(row.original)}
-                      >
-                        {row.getVisibleCells().map((cell) => {
-                          const align = (
-                            cell.column.columnDef.meta as
-                              | { align?: string }
-                              | undefined
-                          )?.align;
-                          return (
-                            <td
-                              key={cell.id}
-                              className={cn(
-                                "p-4",
-                                align === "right" && "text-right"
-                              )}
-                            >
-                              {flexRender(
-                                cell.column.columnDef.cell,
-                                cell.getContext()
-                              )}
-                            </td>
-                          );
-                        })}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              <>
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      {table.getHeaderGroups().map((headerGroup) => (
+                        <tr
+                          key={headerGroup.id}
+                          className="border-border text-muted-foreground border-b text-left text-sm"
+                        >
+                          {headerGroup.headers.map((header) => {
+                            const align = (
+                              header.column.columnDef.meta as
+                                | { align?: string }
+                                | undefined
+                            )?.align;
+                            return (
+                              <th
+                                key={header.id}
+                                className={cn(
+                                  "p-4 font-medium",
+                                  align === "right" && "text-right"
+                                )}
+                              >
+                                {header.isPlaceholder
+                                  ? null
+                                  : flexRender(
+                                      header.column.columnDef.header,
+                                      header.getContext()
+                                    )}
+                              </th>
+                            );
+                          })}
+                        </tr>
+                      ))}
+                    </thead>
+                    <tbody>
+                      {table.getRowModel().rows.map((row) => (
+                        <tr
+                          key={row.id}
+                          className="border-border/50 hover:bg-muted/50 cursor-pointer border-b transition-colors last:border-0"
+                          onClick={() => setSelectedSession(row.original)}
+                        >
+                          {row.getVisibleCells().map((cell) => {
+                            const align = (
+                              cell.column.columnDef.meta as
+                                | { align?: string }
+                                | undefined
+                            )?.align;
+                            return (
+                              <td
+                                key={cell.id}
+                                className={cn(
+                                  "p-4",
+                                  align === "right" && "text-right"
+                                )}
+                              >
+                                {flexRender(
+                                  cell.column.columnDef.cell,
+                                  cell.getContext()
+                                )}
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
 
-              {/* Pagination Controls */}
-              {totalFiltered > 10 && (
-                <div className="border-border flex items-center justify-between border-t p-4">
-                  <span className="text-muted-foreground text-sm">
-                    Showing {pageStart}–{pageEnd} of {totalFiltered} sessions
-                  </span>
-                  <div className="flex items-center gap-4">
-                    <div className="flex items-center gap-2">
-                      <span className="text-muted-foreground text-sm">
-                        Per page:
-                      </span>
-                      <Select
-                        value={pagination.pageSize.toString()}
-                        onValueChange={(value) =>
-                          setPagination({
-                            pageIndex: 0,
-                            pageSize: Number(value),
-                          })
-                        }
-                      >
-                        <SelectTrigger className="h-8 w-[70px]">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="10">10</SelectItem>
-                          <SelectItem value="25">25</SelectItem>
-                          <SelectItem value="50">50</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Button
-                        variant="outline"
-                        size="icon-sm"
-                        onClick={() => table.previousPage()}
-                        disabled={!table.getCanPreviousPage()}
-                      >
-                        <HugeiconsIcon
-                          icon={ArrowLeft01Icon}
-                          className="h-4 w-4"
-                        />
-                      </Button>
-                      <span className="px-2 text-sm">
-                        Page {pagination.pageIndex + 1} of{" "}
-                        {table.getPageCount()}
-                      </span>
-                      <Button
-                        variant="outline"
-                        size="icon-sm"
-                        onClick={() => table.nextPage()}
-                        disabled={!table.getCanNextPage()}
-                      >
-                        <HugeiconsIcon
-                          icon={ArrowRight01Icon}
-                          className="h-4 w-4"
-                        />
-                      </Button>
+                {/* Pagination Controls */}
+                {totalFiltered > 10 && (
+                  <div className="border-border flex items-center justify-between border-t p-4">
+                    <span className="text-muted-foreground text-sm">
+                      Showing {pageStart}–{pageEnd} of {totalFiltered} sessions
+                    </span>
+                    <div className="flex items-center gap-4">
+                      <div className="flex items-center gap-2">
+                        <span className="text-muted-foreground text-sm">
+                          Per page:
+                        </span>
+                        <Select
+                          value={pagination.pageSize.toString()}
+                          onValueChange={(value) =>
+                            setPagination({
+                              pageIndex: 0,
+                              pageSize: Number(value),
+                            })
+                          }
+                        >
+                          <SelectTrigger className="h-8 w-[70px]">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="10">10</SelectItem>
+                            <SelectItem value="25">25</SelectItem>
+                            <SelectItem value="50">50</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Button
+                          variant="outline"
+                          size="icon-sm"
+                          onClick={() => table.previousPage()}
+                          disabled={!table.getCanPreviousPage()}
+                        >
+                          <HugeiconsIcon
+                            icon={ArrowLeft01Icon}
+                            className="h-4 w-4"
+                          />
+                        </Button>
+                        <span className="px-2 text-sm">
+                          Page {pagination.pageIndex + 1} of{" "}
+                          {table.getPageCount()}
+                        </span>
+                        <Button
+                          variant="outline"
+                          size="icon-sm"
+                          onClick={() => table.nextPage()}
+                          disabled={!table.getCanNextPage()}
+                        >
+                          <HugeiconsIcon
+                            icon={ArrowRight01Icon}
+                            className="h-4 w-4"
+                          />
+                        </Button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              )}
-            </>
+                )}
+              </>
             ) : (
               <p className="text-muted-foreground py-12 text-center">
                 No sessions found

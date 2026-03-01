@@ -25,9 +25,15 @@ export function getDaysInRange(
   filter: FilterOption,
   dateRange?: { from: string; to: string }
 ): number {
-  if (filter === "today") return 1;
-  if (filter === "7d") return 7;
-  if (filter === "30d") return 30;
+  if (filter === "today") {
+    return 1;
+  }
+  if (filter === "7d") {
+    return 7;
+  }
+  if (filter === "30d") {
+    return 30;
+  }
 
   // For "all" filter, calculate from actual date range
   if (dateRange) {
@@ -56,8 +62,12 @@ export function calculateDailyRate(count: number, days: number): number {
 export function getVcsRateVariant(
   rate: number
 ): "success" | "warning" | "default" {
-  if (rate >= VCS_DAILY_THRESHOLDS.moderate) return "success";
-  if (rate >= VCS_DAILY_THRESHOLDS.low) return "warning";
+  if (rate >= VCS_DAILY_THRESHOLDS.moderate) {
+    return "success";
+  }
+  if (rate >= VCS_DAILY_THRESHOLDS.low) {
+    return "warning";
+  }
   return "default";
 }
 

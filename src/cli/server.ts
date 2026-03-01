@@ -7,9 +7,9 @@ import { dirname, join, extname } from "node:path";
 import { Duration, Effect, ManagedRuntime } from "effect";
 import type { Layer } from "effect";
 
+import { FileAnalyticsService } from "../bun/analytics/file-analytics";
 import { SessionAnalyticsService } from "../bun/analytics/session-analytics";
 import { ToolAnalyticsService } from "../bun/analytics/tool-analytics";
-import { FileAnalyticsService } from "../bun/analytics/file-analytics";
 import { AppLive } from "../bun/main";
 import { AnthropicUsageService } from "../bun/services/anthropic-usage";
 import { loadDashboardData } from "../bun/services/dashboard-loader";
@@ -30,15 +30,15 @@ const DEFAULT_TIMEOUT_MS = 30_000;
 
 const runEffect = <A, E>(
   effect: Effect.Effect<A, E, Layer.Layer.Success<typeof AppLive>>,
-  timeoutMs = DEFAULT_TIMEOUT_MS,
+  timeoutMs = DEFAULT_TIMEOUT_MS
 ): Promise<A> =>
   runtime.runPromise(
     effect.pipe(
       Effect.timeoutFail({
         duration: Duration.millis(timeoutMs),
         onTimeout: () => new Error(`Operation timed out after ${timeoutMs}ms`),
-      }),
-    ),
+      })
+    )
   );
 
 export const parseDateFilter = (filter?: string | null): DateFilter => {
@@ -145,7 +145,7 @@ export async function startServer(options: ServerOptions): Promise<void> {
     const syncResult = await runEffect(runSync(resync ?? false));
     if (verbose) {
       console.log(
-        `Synced ${syncResult.synced} sessions (${syncResult.unchanged} unchanged, ${syncResult.errors} errors)`,
+        `Synced ${syncResult.synced} sessions (${syncResult.unchanged} unchanged, ${syncResult.errors} errors)`
       );
     }
   } catch (error) {
@@ -176,7 +176,7 @@ export async function startServer(options: ServerOptions): Promise<void> {
           console.error("Dashboard data error:", error);
           return Response.json(
             { error: "Failed to load dashboard data" },
-            { status: 500 },
+            { status: 500 }
           );
         }
       }
@@ -205,14 +205,14 @@ export async function startServer(options: ServerOptions): Promise<void> {
                 lastScanAt: null,
                 sessionCount: totals.totalSessions,
               };
-            }),
+            })
           );
           return Response.json(status);
         } catch (error) {
           console.error("Sync status error:", error);
           return Response.json(
             { error: "Failed to get sync status" },
-            { status: 500 },
+            { status: 500 }
           );
         }
       }
@@ -240,7 +240,7 @@ export async function startServer(options: ServerOptions): Promise<void> {
                 // Get additional data for the session
                 const sessionToolCounts = yield* tools.getSessionToolCounts({});
                 const sessionFileOps = yield* files.getSessionFileOperations(
-                  {},
+                  {}
                 );
                 const sessionPrimaryModels =
                   yield* sessions.getSessionPrimaryModels({});
@@ -259,14 +259,14 @@ export async function startServer(options: ServerOptions): Promise<void> {
                   agentCount: sessionAgentCounts.get(sessionId) ?? 0,
                   errorCount: sessionToolErrors.get(sessionId) ?? 0,
                 });
-              }),
+              })
             );
             return Response.json(detail);
           } catch (error) {
             console.error("Session detail error:", error);
             return Response.json(
               { error: "Failed to load session" },
-              { status: 500 },
+              { status: 500 }
             );
           }
         }
@@ -292,7 +292,7 @@ export async function startServer(options: ServerOptions): Promise<void> {
           console.error("App info error:", error);
           return Response.json(
             { error: "Failed to get app info" },
-            { status: 500 },
+            { status: 500 }
           );
         }
       }
@@ -303,14 +303,14 @@ export async function startServer(options: ServerOptions): Promise<void> {
             Effect.gen(function* () {
               const anthropicService = yield* AnthropicUsageService;
               return yield* anthropicService.getUsage();
-            }),
+            })
           );
           return Response.json(usage);
         } catch (error) {
           console.error("Anthropic usage error:", error);
           return Response.json(
             { error: "Failed to get usage" },
-            { status: 500 },
+            { status: 500 }
           );
         }
       }
@@ -373,8 +373,8 @@ export async function outputJson(filter?: string): Promise<void> {
           },
         },
         null,
-        2,
-      ),
+        2
+      )
     );
   } catch (error) {
     console.error(JSON.stringify({ error: String(error) }));

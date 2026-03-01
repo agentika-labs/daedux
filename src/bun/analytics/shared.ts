@@ -1,5 +1,6 @@
 import { gte, lte, eq, and } from "drizzle-orm";
 import type { SQL } from "drizzle-orm";
+
 import * as schema from "../db/schema";
 
 /**
@@ -19,7 +20,7 @@ export interface ComparisonWindows {
 }
 
 export const buildComparisonWindows = (
-  dateFilter: DateFilter = {},
+  dateFilter: DateFilter = {}
 ): ComparisonWindows => {
   const now = Date.now();
   const hasFilter =
@@ -57,7 +58,7 @@ export const buildComparisonWindows = (
  */
 export const buildDateConditions = (
   dateFilter: DateFilter,
-  timeColumn: typeof schema.sessions.startTime = schema.sessions.startTime,
+  timeColumn: typeof schema.sessions.startTime = schema.sessions.startTime
 ): SQL[] => {
   const conditions: SQL[] = [];
   if (dateFilter.startTime) {
@@ -81,9 +82,9 @@ export const WEEK_MS = 7 * DAY_MS;
  * Type representing child tables that have a sessionId column.
  * These tables need to join with sessions table for date filtering.
  */
-export type ChildTableWithSession = {
+export interface ChildTableWithSession {
   sessionId: { getSQL: () => unknown };
-};
+}
 
 /**
  * Builds a session join expression for child tables.
@@ -93,7 +94,10 @@ export type ChildTableWithSession = {
  * @returns A join expression that can be passed to `.innerJoin()`
  */
 export const sessionJoinOn = <T extends ChildTableWithSession>(childTable: T) =>
-  eq(childTable.sessionId as unknown as typeof schema.sessions.sessionId, schema.sessions.sessionId);
+  eq(
+    childTable.sessionId as unknown as typeof schema.sessions.sessionId,
+    schema.sessions.sessionId
+  );
 
 /**
  * Gets the sessions table reference for date-filtered joins.
@@ -147,7 +151,7 @@ export const combineConditions = (
 export async function withDateFilter<T>(
   dateConditions: SQL[],
   baseQuery: () => Promise<T>,
-  filteredQuery: () => Promise<T>,
+  filteredQuery: () => Promise<T>
 ): Promise<T> {
   return dateConditions.length === 0 ? baseQuery() : filteredQuery();
 }

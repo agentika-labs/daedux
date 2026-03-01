@@ -9,6 +9,7 @@ import {
   lte,
 } from "drizzle-orm";
 import { Effect } from "effect";
+
 import { DatabaseService } from "../db";
 import * as schema from "../db/schema";
 import { DatabaseError } from "../errors";
@@ -131,39 +132,39 @@ export class InsightsAnalyticsService extends Effect.Service<InsightsAnalyticsSe
                 .select({
                   totalCacheRead:
                     sql<number>`SUM(${schema.sessions.totalCacheRead})`.as(
-                      "cache_read",
+                      "cache_read"
                     ),
                   totalCacheWrite:
                     sql<number>`SUM(${schema.sessions.totalCacheWrite})`.as(
-                      "cache_write",
+                      "cache_write"
                     ),
                   totalCost: sql<number>`SUM(${schema.sessions.totalCost})`.as(
-                    "total_cost",
+                    "total_cost"
                   ),
                   totalInputTokens:
                     sql<number>`SUM(${schema.sessions.totalInputTokens})`.as(
-                      "input",
+                      "input"
                     ),
                   totalQueries:
                     sql<number>`SUM(${schema.sessions.queryCount})`.as(
-                      "total_queries",
+                      "total_queries"
                     ),
                   totalSavedByCaching:
                     sql<number>`SUM(COALESCE(${schema.sessions.savedByCaching}, 0))`.as(
-                      "saved",
+                      "saved"
                     ),
                   totalSessions: count(),
                   totalSubagents:
                     sql<number>`SUM(CASE WHEN ${schema.sessions.isSubagent} = 1 THEN 1 ELSE 0 END)`.as(
-                      "subagents",
+                      "subagents"
                     ),
                 })
                 .from(schema.sessions)
                 .where(
                   and(
                     gte(schema.sessions.startTime, currentStart),
-                    lte(schema.sessions.startTime, currentEnd),
-                  ),
+                    lte(schema.sessions.startTime, currentEnd)
+                  )
                 );
 
               // Get last week's metrics for comparison
@@ -171,22 +172,22 @@ export class InsightsAnalyticsService extends Effect.Service<InsightsAnalyticsSe
                 .select({
                   totalCacheRead:
                     sql<number>`SUM(${schema.sessions.totalCacheRead})`.as(
-                      "cache_read",
+                      "cache_read"
                     ),
                   totalCacheWrite:
                     sql<number>`SUM(${schema.sessions.totalCacheWrite})`.as(
-                      "cache_write",
+                      "cache_write"
                     ),
                   totalCost: sql<number>`SUM(${schema.sessions.totalCost})`.as(
-                    "total_cost",
+                    "total_cost"
                   ),
                   totalInputTokens:
                     sql<number>`SUM(${schema.sessions.totalInputTokens})`.as(
-                      "input",
+                      "input"
                     ),
                   totalQueries:
                     sql<number>`SUM(${schema.sessions.queryCount})`.as(
-                      "total_queries",
+                      "total_queries"
                     ),
                   totalSessions: count(),
                 })
@@ -194,8 +195,8 @@ export class InsightsAnalyticsService extends Effect.Service<InsightsAnalyticsSe
                 .where(
                   and(
                     gte(schema.sessions.startTime, previousStart),
-                    lte(schema.sessions.startTime, previousEnd),
-                  ),
+                    lte(schema.sessions.startTime, previousEnd)
+                  )
                 );
 
               const thisWeek = thisWeekResult[0]!;
@@ -206,20 +207,20 @@ export class InsightsAnalyticsService extends Effect.Service<InsightsAnalyticsSe
                 .select({
                   errors:
                     sql<number>`SUM(CASE WHEN ${schema.toolUses.hasError} = 1 THEN 1 ELSE 0 END)`.as(
-                      "errors",
+                      "errors"
                     ),
                   total: count(),
                 })
                 .from(schema.toolUses)
                 .innerJoin(
                   schema.sessions,
-                  eq(schema.toolUses.sessionId, schema.sessions.sessionId),
+                  eq(schema.toolUses.sessionId, schema.sessions.sessionId)
                 )
                 .where(
                   and(
                     gte(schema.sessions.startTime, currentStart),
-                    lte(schema.sessions.startTime, currentEnd),
-                  ),
+                    lte(schema.sessions.startTime, currentEnd)
+                  )
                 );
 
               const toolStats = toolErrorResult[0]!;
@@ -271,7 +272,7 @@ export class InsightsAnalyticsService extends Effect.Service<InsightsAnalyticsSe
               const toolScore = toolSuccessRate * 100;
               const sessionScore = Math.min(100, queriesPerSession * 10); // 10 queries = 100 score
               const efficiencyScore = Math.round(
-                cacheScore * 0.4 + toolScore * 0.35 + sessionScore * 0.25,
+                cacheScore * 0.4 + toolScore * 0.35 + sessionScore * 0.25
               );
 
               // Determine trend based on cost efficiency improvement
@@ -315,7 +316,7 @@ export class InsightsAnalyticsService extends Effect.Service<InsightsAnalyticsSe
               if (lastWeek.totalSessions > 0) {
                 const costPerSessionChange = pctChange(
                   costPerSession,
-                  lastWeekCostPerSession,
+                  lastWeekCostPerSession
                 );
 
                 if (costPerSessionChange < -10) {
@@ -400,7 +401,7 @@ export class InsightsAnalyticsService extends Effect.Service<InsightsAnalyticsSe
                   .select({
                     errors:
                       sql<number>`SUM(CASE WHEN ${schema.toolUses.hasError} = 1 THEN 1 ELSE 0 END)`.as(
-                        "errors",
+                        "errors"
                       ),
                     toolName: schema.toolUses.toolName,
                     total: count(),
@@ -408,19 +409,19 @@ export class InsightsAnalyticsService extends Effect.Service<InsightsAnalyticsSe
                   .from(schema.toolUses)
                   .innerJoin(
                     schema.sessions,
-                    eq(schema.toolUses.sessionId, schema.sessions.sessionId),
+                    eq(schema.toolUses.sessionId, schema.sessions.sessionId)
                   )
                   .where(
                     and(
                       gte(schema.sessions.startTime, currentStart),
-                      lte(schema.sessions.startTime, currentEnd),
-                    ),
+                      lte(schema.sessions.startTime, currentEnd)
+                    )
                   )
                   .groupBy(schema.toolUses.toolName)
                   .orderBy(
                     desc(
-                      sql`SUM(CASE WHEN ${schema.toolUses.hasError} = 1 THEN 1 ELSE 0 END)`,
-                    ),
+                      sql`SUM(CASE WHEN ${schema.toolUses.hasError} = 1 THEN 1 ELSE 0 END)`
+                    )
                   )
                   .limit(1);
 
@@ -440,18 +441,15 @@ export class InsightsAnalyticsService extends Effect.Service<InsightsAnalyticsSe
                       .from(schema.toolUses)
                       .innerJoin(
                         schema.sessions,
-                        eq(
-                          schema.toolUses.sessionId,
-                          schema.sessions.sessionId,
-                        ),
+                        eq(schema.toolUses.sessionId, schema.sessions.sessionId)
                       )
                       .where(
                         and(
                           eq(schema.toolUses.hasError, true),
                           eq(schema.toolUses.toolName, worstTool.toolName),
                           gte(schema.sessions.startTime, currentStart),
-                          lte(schema.sessions.startTime, currentEnd),
-                        ),
+                          lte(schema.sessions.startTime, currentEnd)
+                        )
                       )
                       .groupBy(schema.toolUses.errorMessage)
                       .orderBy(desc(count()))
@@ -585,7 +583,7 @@ export class InsightsAnalyticsService extends Effect.Service<InsightsAnalyticsSe
 
               // Sort by priority (highest first)
               return insights.toSorted(
-                (a, b) => (b.priority ?? 0) - (a.priority ?? 0),
+                (a, b) => (b.priority ?? 0) - (a.priority ?? 0)
               );
             },
           }),
@@ -606,22 +604,22 @@ export class InsightsAnalyticsService extends Effect.Service<InsightsAnalyticsSe
                 .select({
                   totalCacheRead:
                     sql<number>`SUM(${schema.sessions.totalCacheRead})`.as(
-                      "cache_read",
+                      "cache_read"
                     ),
                   totalCacheWrite:
                     sql<number>`SUM(${schema.sessions.totalCacheWrite})`.as(
-                      "cache_write",
+                      "cache_write"
                     ),
                   totalCost: sql<number>`SUM(${schema.sessions.totalCost})`.as(
-                    "total_cost",
+                    "total_cost"
                   ),
                   totalInputTokens:
                     sql<number>`SUM(${schema.sessions.totalInputTokens})`.as(
-                      "input",
+                      "input"
                     ),
                   totalQueries:
                     sql<number>`SUM(${schema.sessions.queryCount})`.as(
-                      "total_queries",
+                      "total_queries"
                     ),
                   totalSessions: count(),
                 })
@@ -629,8 +627,8 @@ export class InsightsAnalyticsService extends Effect.Service<InsightsAnalyticsSe
                 .where(
                   and(
                     gte(schema.sessions.startTime, currentStart),
-                    lte(schema.sessions.startTime, currentEnd),
-                  ),
+                    lte(schema.sessions.startTime, currentEnd)
+                  )
                 );
 
               // Last week for trend comparison
@@ -638,18 +636,18 @@ export class InsightsAnalyticsService extends Effect.Service<InsightsAnalyticsSe
                 .select({
                   totalCacheRead:
                     sql<number>`SUM(${schema.sessions.totalCacheRead})`.as(
-                      "cache_read",
+                      "cache_read"
                     ),
                   totalCacheWrite:
                     sql<number>`SUM(${schema.sessions.totalCacheWrite})`.as(
-                      "cache_write",
+                      "cache_write"
                     ),
                   totalCost: sql<number>`SUM(${schema.sessions.totalCost})`.as(
-                    "total_cost",
+                    "total_cost"
                   ),
                   totalInputTokens:
                     sql<number>`SUM(${schema.sessions.totalInputTokens})`.as(
-                      "input",
+                      "input"
                     ),
                   totalSessions: count(),
                 })
@@ -657,8 +655,8 @@ export class InsightsAnalyticsService extends Effect.Service<InsightsAnalyticsSe
                 .where(
                   and(
                     gte(schema.sessions.startTime, previousStart),
-                    lte(schema.sessions.startTime, previousEnd),
-                  ),
+                    lte(schema.sessions.startTime, previousEnd)
+                  )
                 );
 
               // Tool success rate
@@ -666,20 +664,20 @@ export class InsightsAnalyticsService extends Effect.Service<InsightsAnalyticsSe
                 .select({
                   errors:
                     sql<number>`SUM(CASE WHEN ${schema.toolUses.hasError} = 1 THEN 1 ELSE 0 END)`.as(
-                      "errors",
+                      "errors"
                     ),
                   total: count(),
                 })
                 .from(schema.toolUses)
                 .innerJoin(
                   schema.sessions,
-                  eq(schema.toolUses.sessionId, schema.sessions.sessionId),
+                  eq(schema.toolUses.sessionId, schema.sessions.sessionId)
                 )
                 .where(
                   and(
                     gte(schema.sessions.startTime, currentStart),
-                    lte(schema.sessions.startTime, currentEnd),
-                  ),
+                    lte(schema.sessions.startTime, currentEnd)
+                  )
                 );
 
               const thisWeek = thisWeekResult[0]!;
@@ -712,7 +710,7 @@ export class InsightsAnalyticsService extends Effect.Service<InsightsAnalyticsSe
                   ? Math.round(
                       cacheEfficiency * 0.4 +
                         toolSuccess * 0.35 +
-                        sessionEfficiency * 0.25,
+                        sessionEfficiency * 0.25
                     )
                   : Math.round(cacheEfficiency * 0.6 + sessionEfficiency * 0.4);
 
@@ -787,21 +785,21 @@ export class InsightsAnalyticsService extends Effect.Service<InsightsAnalyticsSe
                 .select({
                   cacheRead:
                     sql<number>`SUM(${schema.sessions.totalCacheRead})`.as(
-                      "cache_read",
+                      "cache_read"
                     ),
                   cacheWrite:
                     sql<number>`SUM(${schema.sessions.totalCacheWrite})`.as(
-                      "cache_write",
+                      "cache_write"
                     ),
                   cost: sql<number>`SUM(${schema.sessions.totalCost})`.as(
-                    "cost",
+                    "cost"
                   ),
                   inputTokens:
                     sql<number>`SUM(${schema.sessions.totalInputTokens})`.as(
-                      "input",
+                      "input"
                     ),
                   queries: sql<number>`SUM(${schema.sessions.queryCount})`.as(
-                    "queries",
+                    "queries"
                   ),
                   sessions: count(),
                 })
@@ -809,8 +807,8 @@ export class InsightsAnalyticsService extends Effect.Service<InsightsAnalyticsSe
                 .where(
                   and(
                     gte(schema.sessions.startTime, currentStart),
-                    lte(schema.sessions.startTime, currentEnd),
-                  ),
+                    lte(schema.sessions.startTime, currentEnd)
+                  )
                 );
 
               // Last week
@@ -818,21 +816,21 @@ export class InsightsAnalyticsService extends Effect.Service<InsightsAnalyticsSe
                 .select({
                   cacheRead:
                     sql<number>`SUM(${schema.sessions.totalCacheRead})`.as(
-                      "cache_read",
+                      "cache_read"
                     ),
                   cacheWrite:
                     sql<number>`SUM(${schema.sessions.totalCacheWrite})`.as(
-                      "cache_write",
+                      "cache_write"
                     ),
                   cost: sql<number>`SUM(${schema.sessions.totalCost})`.as(
-                    "cost",
+                    "cost"
                   ),
                   inputTokens:
                     sql<number>`SUM(${schema.sessions.totalInputTokens})`.as(
-                      "input",
+                      "input"
                     ),
                   queries: sql<number>`SUM(${schema.sessions.queryCount})`.as(
-                    "queries",
+                    "queries"
                   ),
                   sessions: count(),
                 })
@@ -840,8 +838,8 @@ export class InsightsAnalyticsService extends Effect.Service<InsightsAnalyticsSe
                 .where(
                   and(
                     gte(schema.sessions.startTime, previousStart),
-                    lte(schema.sessions.startTime, previousEnd),
-                  ),
+                    lte(schema.sessions.startTime, previousEnd)
+                  )
                 );
 
               // Tool errors this week
@@ -849,20 +847,20 @@ export class InsightsAnalyticsService extends Effect.Service<InsightsAnalyticsSe
                 .select({
                   errors:
                     sql<number>`SUM(CASE WHEN ${schema.toolUses.hasError} = 1 THEN 1 ELSE 0 END)`.as(
-                      "errors",
+                      "errors"
                     ),
                   total: count(),
                 })
                 .from(schema.toolUses)
                 .innerJoin(
                   schema.sessions,
-                  eq(schema.toolUses.sessionId, schema.sessions.sessionId),
+                  eq(schema.toolUses.sessionId, schema.sessions.sessionId)
                 )
                 .where(
                   and(
                     gte(schema.sessions.startTime, currentStart),
-                    lte(schema.sessions.startTime, currentEnd),
-                  ),
+                    lte(schema.sessions.startTime, currentEnd)
+                  )
                 );
 
               // Tool errors last week
@@ -870,20 +868,20 @@ export class InsightsAnalyticsService extends Effect.Service<InsightsAnalyticsSe
                 .select({
                   errors:
                     sql<number>`SUM(CASE WHEN ${schema.toolUses.hasError} = 1 THEN 1 ELSE 0 END)`.as(
-                      "errors",
+                      "errors"
                     ),
                   total: count(),
                 })
                 .from(schema.toolUses)
                 .innerJoin(
                   schema.sessions,
-                  eq(schema.toolUses.sessionId, schema.sessions.sessionId),
+                  eq(schema.toolUses.sessionId, schema.sessions.sessionId)
                 )
                 .where(
                   and(
                     gte(schema.sessions.startTime, previousStart),
-                    lte(schema.sessions.startTime, previousEnd),
-                  ),
+                    lte(schema.sessions.startTime, previousEnd)
+                  )
                 );
 
               const tw = thisWeekResult[0]!;
@@ -935,24 +933,24 @@ export class InsightsAnalyticsService extends Effect.Service<InsightsAnalyticsSe
               const changes = {
                 avgQueriesPerSession: pctChange(
                   thisWeekData.avgQueriesPerSession,
-                  lastWeekData.avgQueriesPerSession,
+                  lastWeekData.avgQueriesPerSession
                 ),
                 cacheHitRate: pctChange(
                   thisWeekData.cacheHitRate,
-                  lastWeekData.cacheHitRate,
+                  lastWeekData.cacheHitRate
                 ),
                 cost: pctChange(thisWeekData.cost, lastWeekData.cost),
                 costPerSession: pctChange(
                   thisWeekData.costPerSession,
-                  lastWeekData.costPerSession,
+                  lastWeekData.costPerSession
                 ),
                 sessions: pctChange(
                   thisWeekData.sessions,
-                  lastWeekData.sessions,
+                  lastWeekData.sessions
                 ),
                 toolErrorRate: pctChange(
                   thisWeekData.toolErrorRate,
-                  lastWeekData.toolErrorRate,
+                  lastWeekData.toolErrorRate
                 ),
               };
 
@@ -962,38 +960,38 @@ export class InsightsAnalyticsService extends Effect.Service<InsightsAnalyticsSe
 
               if (changes.costPerSession < -10) {
                 improvements.push(
-                  `Cost per session dropped ${Math.abs(changes.costPerSession).toFixed(0)}%`,
+                  `Cost per session dropped ${Math.abs(changes.costPerSession).toFixed(0)}%`
                 );
               }
               if (changes.cacheHitRate > 10) {
                 improvements.push(
-                  `Cache hit rate improved ${changes.cacheHitRate.toFixed(0)}%`,
+                  `Cache hit rate improved ${changes.cacheHitRate.toFixed(0)}%`
                 );
               }
               if (changes.toolErrorRate < -20) {
                 improvements.push(
-                  `Tool errors reduced ${Math.abs(changes.toolErrorRate).toFixed(0)}%`,
+                  `Tool errors reduced ${Math.abs(changes.toolErrorRate).toFixed(0)}%`
                 );
               }
               if (changes.avgQueriesPerSession > 15) {
                 improvements.push(
-                  `Longer sessions (${changes.avgQueriesPerSession.toFixed(0)}% more queries/session)`,
+                  `Longer sessions (${changes.avgQueriesPerSession.toFixed(0)}% more queries/session)`
                 );
               }
 
               if (changes.costPerSession > 20) {
                 concerns.push(
-                  `Cost per session increased ${changes.costPerSession.toFixed(0)}%`,
+                  `Cost per session increased ${changes.costPerSession.toFixed(0)}%`
                 );
               }
               if (changes.cacheHitRate < -15) {
                 concerns.push(
-                  `Cache hit rate dropped ${Math.abs(changes.cacheHitRate).toFixed(0)}%`,
+                  `Cache hit rate dropped ${Math.abs(changes.cacheHitRate).toFixed(0)}%`
                 );
               }
               if (changes.toolErrorRate > 30) {
                 concerns.push(
-                  `Tool errors increased ${changes.toolErrorRate.toFixed(0)}%`,
+                  `Tool errors increased ${changes.toolErrorRate.toFixed(0)}%`
                 );
               }
 
@@ -1025,17 +1023,17 @@ export class InsightsAnalyticsService extends Effect.Service<InsightsAnalyticsSe
               // DEBUG: Log the actual date range being queried
               console.log(
                 "[getOutcomeMetrics] dateFilter:",
-                JSON.stringify(dateFilter),
+                JSON.stringify(dateFilter)
               );
               console.log(
                 "[getOutcomeMetrics] currentStart:",
                 currentStart,
-                new Date(currentStart).toISOString(),
+                new Date(currentStart).toISOString()
               );
               console.log(
                 "[getOutcomeMetrics] currentEnd:",
                 currentEnd,
-                new Date(currentEnd).toISOString(),
+                new Date(currentEnd).toISOString()
               );
 
               // VCS activity: count meaningful git/jj/gh commands
@@ -1046,7 +1044,7 @@ export class InsightsAnalyticsService extends Effect.Service<InsightsAnalyticsSe
                 .from(schema.bashCommands)
                 .innerJoin(
                   schema.sessions,
-                  eq(schema.bashCommands.sessionId, schema.sessions.sessionId),
+                  eq(schema.bashCommands.sessionId, schema.sessions.sessionId)
                 )
                 .where(
                   and(
@@ -1089,8 +1087,8 @@ export class InsightsAnalyticsService extends Effect.Service<InsightsAnalyticsSe
                     OR ${schema.bashCommands.command} LIKE 'gh pr close%'
                   )`,
                     gte(schema.sessions.startTime, currentStart),
-                    lte(schema.sessions.startTime, currentEnd),
-                  ),
+                    lte(schema.sessions.startTime, currentEnd)
+                  )
                 );
 
               // PRs created: count distinct PR URLs in the time period
@@ -1099,13 +1097,13 @@ export class InsightsAnalyticsService extends Effect.Service<InsightsAnalyticsSe
                 .from(schema.prLinks)
                 .innerJoin(
                   schema.sessions,
-                  eq(schema.prLinks.sessionId, schema.sessions.sessionId),
+                  eq(schema.prLinks.sessionId, schema.sessions.sessionId)
                 )
                 .where(
                   and(
                     gte(schema.sessions.startTime, currentStart),
-                    lte(schema.sessions.startTime, currentEnd),
-                  ),
+                    lte(schema.sessions.startTime, currentEnd)
+                  )
                 );
 
               // Get total cost ONLY from sessions that created PRs
@@ -1114,19 +1112,19 @@ export class InsightsAnalyticsService extends Effect.Service<InsightsAnalyticsSe
                 .select({
                   totalCost:
                     sql<number>`SUM(DISTINCT ${schema.sessions.totalCost})`.as(
-                      "total_cost",
+                      "total_cost"
                     ),
                 })
                 .from(schema.sessions)
                 .innerJoin(
                   schema.prLinks,
-                  eq(schema.prLinks.sessionId, schema.sessions.sessionId),
+                  eq(schema.prLinks.sessionId, schema.sessions.sessionId)
                 )
                 .where(
                   and(
                     gte(schema.sessions.startTime, currentStart),
-                    lte(schema.sessions.startTime, currentEnd),
-                  ),
+                    lte(schema.sessions.startTime, currentEnd)
+                  )
                 );
 
               const vcsActivityCount = vcsResult[0]?.count ?? 0;
@@ -1146,5 +1144,5 @@ export class InsightsAnalyticsService extends Effect.Service<InsightsAnalyticsSe
           }),
       } as const;
     }),
-  },
+  }
 ) {}

@@ -268,9 +268,7 @@ export function ProjectsSection({ data, loading }: ProjectsSectionProps) {
           <CardTitle>Recent Activity</CardTitle>
         </CardHeader>
         <CardContent>
-          {loading ? (
-            <Skeleton className="h-[100px] w-full" />
-          ) : (
+          <LoadingBoundary loading={loading} skeleton="chart" height={100}>
             <div className="grid grid-cols-7 gap-1">
               {/* Simple activity visualization - last 28 days */}
               {activityData.map((day) => (
@@ -287,7 +285,7 @@ export function ProjectsSection({ data, loading }: ProjectsSectionProps) {
                 />
               ))}
             </div>
-          )}
+          </LoadingBoundary>
           <div className="text-muted-foreground mt-4 flex items-center justify-end gap-2 text-xs">
             <span>Less</span>
             <div className="bg-muted h-3 w-3 rounded-sm" />

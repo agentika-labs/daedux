@@ -6,12 +6,12 @@
 import { Effect } from "effect";
 
 import type { DashboardData, DateFilter } from "../../shared/rpc-types";
-import { SessionAnalyticsService } from "../analytics/session-analytics";
-import { ModelAnalyticsService } from "../analytics/model-analytics";
-import { ToolAnalyticsService } from "../analytics/tool-analytics";
-import { FileAnalyticsService } from "../analytics/file-analytics";
 import { AgentAnalyticsService } from "../analytics/agent-analytics";
+import { FileAnalyticsService } from "../analytics/file-analytics";
 import { InsightsAnalyticsService } from "../analytics/insights-analytics";
+import { ModelAnalyticsService } from "../analytics/model-analytics";
+import { SessionAnalyticsService } from "../analytics/session-analytics";
+import { ToolAnalyticsService } from "../analytics/tool-analytics";
 import { transformSessionToRPC } from "../utils/session-transformer";
 
 /**

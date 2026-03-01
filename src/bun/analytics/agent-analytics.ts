@@ -1,5 +1,6 @@
 import { sql, desc, eq, and, count, avg } from "drizzle-orm";
 import { Effect } from "effect";
+
 import { DatabaseService } from "../db";
 import * as schema from "../db/schema";
 import { DatabaseError } from "../errors";
@@ -123,7 +124,7 @@ export class AgentAnalyticsService extends Effect.Service<AgentAnalyticsService>
                   skillName: schema.skillInvocations.skillName,
                   uniqueSessions:
                     sql<number>`COUNT(DISTINCT ${schema.skillInvocations.sessionId})`.as(
-                      "unique_sessions",
+                      "unique_sessions"
                     ),
                 })
                 .from(schema.skillInvocations)
@@ -131,13 +132,11 @@ export class AgentAnalyticsService extends Effect.Service<AgentAnalyticsService>
                   schema.sessions,
                   eq(
                     schema.skillInvocations.sessionId,
-                    schema.sessions.sessionId,
-                  ),
+                    schema.sessions.sessionId
+                  )
                 )
                 .where(
-                  dateConditions.length > 0
-                    ? and(...dateConditions)
-                    : undefined,
+                  dateConditions.length > 0 ? and(...dateConditions) : undefined
                 )
                 .groupBy(schema.skillInvocations.skillName)
                 .orderBy(desc(count()));
@@ -150,7 +149,7 @@ export class AgentAnalyticsService extends Effect.Service<AgentAnalyticsService>
                       .select({
                         errorCalls:
                           sql<number>`SUM(CASE WHEN ${schema.toolUses.hasError} = 1 THEN 1 ELSE 0 END)`.as(
-                            "error_calls",
+                            "error_calls"
                           ),
                         skillName: schema.skillInvocations.skillName,
                         totalSkillCalls: count(),
@@ -161,17 +160,17 @@ export class AgentAnalyticsService extends Effect.Service<AgentAnalyticsService>
                         and(
                           eq(
                             schema.skillInvocations.sessionId,
-                            schema.toolUses.sessionId,
+                            schema.toolUses.sessionId
                           ),
-                          eq(schema.toolUses.toolName, "Skill"),
-                        ),
+                          eq(schema.toolUses.toolName, "Skill")
+                        )
                       )
                       .groupBy(schema.skillInvocations.skillName)
                   : await db
                       .select({
                         errorCalls:
                           sql<number>`SUM(CASE WHEN ${schema.toolUses.hasError} = 1 THEN 1 ELSE 0 END)`.as(
-                            "error_calls",
+                            "error_calls"
                           ),
                         skillName: schema.skillInvocations.skillName,
                         totalSkillCalls: count(),
@@ -182,17 +181,17 @@ export class AgentAnalyticsService extends Effect.Service<AgentAnalyticsService>
                         and(
                           eq(
                             schema.skillInvocations.sessionId,
-                            schema.toolUses.sessionId,
+                            schema.toolUses.sessionId
                           ),
-                          eq(schema.toolUses.toolName, "Skill"),
-                        ),
+                          eq(schema.toolUses.toolName, "Skill")
+                        )
                       )
                       .innerJoin(
                         schema.sessions,
                         eq(
                           schema.skillInvocations.sessionId,
-                          schema.sessions.sessionId,
-                        ),
+                          schema.sessions.sessionId
+                        )
                       )
                       .where(and(...dateConditions))
                       .groupBy(schema.skillInvocations.skillName);
@@ -223,17 +222,15 @@ export class AgentAnalyticsService extends Effect.Service<AgentAnalyticsService>
                   schema.sessions,
                   eq(
                     schema.skillInvocations.sessionId,
-                    schema.sessions.sessionId,
-                  ),
+                    schema.sessions.sessionId
+                  )
                 )
                 .where(
-                  dateConditions.length > 0
-                    ? and(...dateConditions)
-                    : undefined,
+                  dateConditions.length > 0 ? and(...dateConditions) : undefined
                 )
                 .groupBy(
                   schema.skillInvocations.skillName,
-                  schema.skillInvocations.sessionId,
+                  schema.skillInvocations.sessionId
                 );
 
               // Aggregate tokens per skill from distinct sessions
@@ -265,7 +262,7 @@ export class AgentAnalyticsService extends Effect.Service<AgentAnalyticsService>
                     skillName: schema.skillInvocations.skillName,
                     toolCount:
                       sql<number>`COUNT(DISTINCT ${schema.toolUses.id})`.as(
-                        "tool_count",
+                        "tool_count"
                       ),
                   })
                   .from(schema.skillInvocations)
@@ -273,8 +270,8 @@ export class AgentAnalyticsService extends Effect.Service<AgentAnalyticsService>
                     schema.toolUses,
                     eq(
                       schema.skillInvocations.sessionId,
-                      schema.toolUses.sessionId,
-                    ),
+                      schema.toolUses.sessionId
+                    )
                   )
                   .groupBy(schema.skillInvocations.skillName);
               } else {
@@ -283,7 +280,7 @@ export class AgentAnalyticsService extends Effect.Service<AgentAnalyticsService>
                     skillName: schema.skillInvocations.skillName,
                     toolCount:
                       sql<number>`COUNT(DISTINCT ${schema.toolUses.id})`.as(
-                        "tool_count",
+                        "tool_count"
                       ),
                   })
                   .from(schema.skillInvocations)
@@ -291,15 +288,15 @@ export class AgentAnalyticsService extends Effect.Service<AgentAnalyticsService>
                     schema.toolUses,
                     eq(
                       schema.skillInvocations.sessionId,
-                      schema.toolUses.sessionId,
-                    ),
+                      schema.toolUses.sessionId
+                    )
                   )
                   .innerJoin(
                     schema.sessions,
                     eq(
                       schema.skillInvocations.sessionId,
-                      schema.sessions.sessionId,
-                    ),
+                      schema.sessions.sessionId
+                    )
                   )
                   .where(and(...dateConditions))
                   .groupBy(schema.skillInvocations.skillName);
@@ -357,7 +354,7 @@ export class AgentAnalyticsService extends Effect.Service<AgentAnalyticsService>
               // Second pass: convert raw efficiency to percentile-based score (0-100)
               // Sort by raw efficiency descending to assign ranks
               const sortedByEfficiency = [...skillMetrics].toSorted(
-                (a, b) => b.rawEfficiency - a.rawEfficiency,
+                (a, b) => b.rawEfficiency - a.rawEfficiency
               );
               const totalSkills = sortedByEfficiency.length;
               const efficiencyRankMap = new Map<string, number>();
@@ -367,7 +364,7 @@ export class AgentAnalyticsService extends Effect.Service<AgentAnalyticsService>
                 const percentile =
                   totalSkills > 1
                     ? Math.round(
-                        ((totalSkills - 1 - index) / (totalSkills - 1)) * 100,
+                        ((totalSkills - 1 - index) / (totalSkills - 1)) * 100
                       )
                     : 50; // Single skill gets 50
                 efficiencyRankMap.set(skill.skillName, percentile);
@@ -402,7 +399,7 @@ export class AgentAnalyticsService extends Effect.Service<AgentAnalyticsService>
                       agentType: schema.agentSpawns.agentType,
                       sessions:
                         sql<number>`COUNT(DISTINCT ${schema.agentSpawns.sessionId})`.as(
-                          "sessions",
+                          "sessions"
                         ),
                       spawns: count(),
                     })
@@ -415,7 +412,7 @@ export class AgentAnalyticsService extends Effect.Service<AgentAnalyticsService>
                       agentType: schema.agentSpawns.agentType,
                       sessions:
                         sql<number>`COUNT(DISTINCT ${schema.agentSpawns.sessionId})`.as(
-                          "sessions",
+                          "sessions"
                         ),
                       spawns: count(),
                     })
@@ -423,7 +420,7 @@ export class AgentAnalyticsService extends Effect.Service<AgentAnalyticsService>
                     .innerJoin(sessionsTable, sessionJoinOn(schema.agentSpawns))
                     .where(and(...dateConditions))
                     .groupBy(schema.agentSpawns.agentType)
-                    .orderBy(desc(count())),
+                    .orderBy(desc(count()))
               );
 
               return result.map((row) => ({
@@ -461,8 +458,8 @@ export class AgentAnalyticsService extends Effect.Service<AgentAnalyticsService>
                         schema.sessions,
                         eq(
                           schema.agentSpawns.sessionId,
-                          schema.sessions.sessionId,
-                        ),
+                          schema.sessions.sessionId
+                        )
                       )
                       .where(and(...dateConditions));
 
@@ -472,7 +469,7 @@ export class AgentAnalyticsService extends Effect.Service<AgentAnalyticsService>
               for (const row of spawnRows) {
                 spawnsByAgent.set(
                   row.agentType,
-                  (spawnsByAgent.get(row.agentType) ?? 0) + 1,
+                  (spawnsByAgent.get(row.agentType) ?? 0) + 1
                 );
                 if (!agentSessions.has(row.agentType)) {
                   agentSessions.set(row.agentType, new Set());
@@ -487,7 +484,7 @@ export class AgentAnalyticsService extends Effect.Service<AgentAnalyticsService>
                       .select({
                         errors:
                           sql<number>`SUM(CASE WHEN ${schema.toolUses.hasError} = 1 THEN 1 ELSE 0 END)`.as(
-                            "errors",
+                            "errors"
                           ),
                         sessionId: schema.toolUses.sessionId,
                         total: count(),
@@ -498,7 +495,7 @@ export class AgentAnalyticsService extends Effect.Service<AgentAnalyticsService>
                       .select({
                         errors:
                           sql<number>`SUM(CASE WHEN ${schema.toolUses.hasError} = 1 THEN 1 ELSE 0 END)`.as(
-                            "errors",
+                            "errors"
                           ),
                         sessionId: schema.toolUses.sessionId,
                         total: count(),
@@ -506,10 +503,7 @@ export class AgentAnalyticsService extends Effect.Service<AgentAnalyticsService>
                       .from(schema.toolUses)
                       .innerJoin(
                         schema.sessions,
-                        eq(
-                          schema.toolUses.sessionId,
-                          schema.sessions.sessionId,
-                        ),
+                        eq(schema.toolUses.sessionId, schema.sessions.sessionId)
                       )
                       .where(and(...dateConditions))
                       .groupBy(schema.toolUses.sessionId);
@@ -532,7 +526,7 @@ export class AgentAnalyticsService extends Effect.Service<AgentAnalyticsService>
                       .select({
                         totalCost:
                           sql<number>`COALESCE(SUM(${schema.sessions.totalCost}), 0)`.as(
-                            "total_cost",
+                            "total_cost"
                           ),
                       })
                       .from(schema.sessions)
@@ -541,15 +535,15 @@ export class AgentAnalyticsService extends Effect.Service<AgentAnalyticsService>
                       .select({
                         totalCost:
                           sql<number>`COALESCE(SUM(${schema.sessions.totalCost}), 0)`.as(
-                            "total_cost",
+                            "total_cost"
                           ),
                       })
                       .from(schema.sessions)
                       .where(
                         and(
                           eq(schema.sessions.isSubagent, true),
-                          ...dateConditions,
-                        ),
+                          ...dateConditions
+                        )
                       );
 
               const totalSubagentCost = subagentCostResult[0]?.totalCost ?? 0;
@@ -557,7 +551,7 @@ export class AgentAnalyticsService extends Effect.Service<AgentAnalyticsService>
               // Get total spawns for cost allocation
               const totalSpawns = [...spawnsByAgent.values()].reduce(
                 (sum, c) => sum + c,
-                0,
+                0
               );
               const avgCostPerSpawn =
                 totalSpawns > 0 ? totalSubagentCost / totalSpawns : 0;
@@ -585,8 +579,7 @@ export class AgentAnalyticsService extends Effect.Service<AgentAnalyticsService>
                   const successRate =
                     toolsTriggered > 0
                       ? Math.round(
-                          ((toolsTriggered - errorCount) / toolsTriggered) *
-                            100,
+                          ((toolsTriggered - errorCount) / toolsTriggered) * 100
                         )
                       : 100;
 
@@ -620,7 +613,7 @@ export class AgentAnalyticsService extends Effect.Service<AgentAnalyticsService>
 
               // Generate summary and recommendations
               const highROIAgents = agents.filter(
-                (a) => a.roi > 1 && a.spawns >= 3,
+                (a) => a.roi > 1 && a.spawns >= 3
               );
               const underusedAgents = agents
                 .filter((a) => a.roi > 2 && a.spawns < 10 && a.spawns >= 3)
@@ -636,28 +629,28 @@ export class AgentAnalyticsService extends Effect.Service<AgentAnalyticsService>
 
               if (underusedAgents.length > 0) {
                 const underusedAgent = agents.find(
-                  (a) => a.agentType === underusedAgents[0],
+                  (a) => a.agentType === underusedAgents[0]
                 );
                 if (underusedAgent) {
                   recommendations.push(
-                    `Consider using ${underusedAgent.agentType} more often - it has ${underusedAgent.roi.toFixed(1)}x ROI but only ${underusedAgent.spawns} spawns.`,
+                    `Consider using ${underusedAgent.agentType} more often - it has ${underusedAgent.roi.toFixed(1)}x ROI but only ${underusedAgent.spawns} spawns.`
                   );
                 }
               }
 
               const lowSuccessAgents = agents.filter(
-                (a) => a.successRate < 80 && a.spawns >= 5,
+                (a) => a.successRate < 80 && a.spawns >= 5
               );
               const firstLowSuccess = lowSuccessAgents[0];
               if (firstLowSuccess) {
                 recommendations.push(
-                  `${firstLowSuccess.agentType} has a ${firstLowSuccess.successRate}% success rate. Review its usage patterns.`,
+                  `${firstLowSuccess.agentType} has a ${firstLowSuccess.successRate}% success rate. Review its usage patterns.`
                 );
               }
 
               if (highROIAgents.length === 0 && agents.length > 0) {
                 recommendations.push(
-                  "No agents currently showing high ROI. Try using Explore or Plan agents for better tool efficiency.",
+                  "No agents currently showing high ROI. Try using Explore or Plan agents for better tool efficiency."
                 );
               }
 
@@ -705,7 +698,7 @@ export class AgentAnalyticsService extends Effect.Service<AgentAnalyticsService>
                     .from(schema.agentSpawns)
                     .innerJoin(sessionsTable, sessionJoinOn(schema.agentSpawns))
                     .where(and(...dateConditions))
-                    .groupBy(schema.agentSpawns.sessionId),
+                    .groupBy(schema.agentSpawns.sessionId)
               );
 
               const sessionAgentCounts = new Map<string, number>();
@@ -728,7 +721,7 @@ export class AgentAnalyticsService extends Effect.Service<AgentAnalyticsService>
                   avgDurationMs: avg(schema.hookEvents.durationMs),
                   failures:
                     sql<number>`SUM(CASE WHEN ${schema.hookEvents.exitCode} != 0 THEN 1 ELSE 0 END)`.as(
-                      "failures",
+                      "failures"
                     ),
                   hookName: schema.hookEvents.hookName,
                   hookType: schema.hookEvents.hookType,
@@ -741,7 +734,7 @@ export class AgentAnalyticsService extends Effect.Service<AgentAnalyticsService>
                   ? await baseQuery
                       .groupBy(
                         schema.hookEvents.hookName,
-                        schema.hookEvents.hookType,
+                        schema.hookEvents.hookType
                       )
                       .orderBy(desc(count()))
                   : await baseQuery
@@ -749,13 +742,13 @@ export class AgentAnalyticsService extends Effect.Service<AgentAnalyticsService>
                         schema.sessions,
                         eq(
                           schema.hookEvents.sessionId,
-                          schema.sessions.sessionId,
-                        ),
+                          schema.sessions.sessionId
+                        )
                       )
                       .where(and(...dateConditions))
                       .groupBy(
                         schema.hookEvents.hookName,
-                        schema.hookEvents.hookType,
+                        schema.hookEvents.hookType
                       )
                       .orderBy(desc(count()));
 
@@ -796,11 +789,11 @@ export class AgentAnalyticsService extends Effect.Service<AgentAnalyticsService>
                     .from(schema.slashCommands)
                     .innerJoin(
                       sessionsTable,
-                      sessionJoinOn(schema.slashCommands),
+                      sessionJoinOn(schema.slashCommands)
                     )
                     .where(and(...dateConditions))
                     .groupBy(schema.slashCommands.command)
-                    .orderBy(desc(count())),
+                    .orderBy(desc(count()))
               );
 
               return result.map((row) => ({
@@ -838,13 +831,13 @@ export class AgentAnalyticsService extends Effect.Service<AgentAnalyticsService>
                         schema.sessions,
                         eq(
                           schema.skillInvocations.sessionId,
-                          schema.sessions.sessionId,
-                        ),
+                          schema.sessions.sessionId
+                        )
                       )
                       .where(and(...dateConditions));
 
               const skillSessionSet = new Set(
-                skillSessionsResult.map((r) => r.sessionId),
+                skillSessionsResult.map((r) => r.sessionId)
               );
 
               if (skillSessionSet.size === 0) {
@@ -880,8 +873,8 @@ export class AgentAnalyticsService extends Effect.Service<AgentAnalyticsService>
                       .where(
                         and(
                           eq(schema.sessions.isSubagent, false),
-                          ...dateConditions,
-                        ),
+                          ...dateConditions
+                        )
                       );
 
               // Get tool errors per session
@@ -891,7 +884,7 @@ export class AgentAnalyticsService extends Effect.Service<AgentAnalyticsService>
                       .select({
                         errors:
                           sql<number>`SUM(CASE WHEN ${schema.toolUses.hasError} = 1 THEN 1 ELSE 0 END)`.as(
-                            "errors",
+                            "errors"
                           ),
                         sessionId: schema.toolUses.sessionId,
                         total: count(),
@@ -902,7 +895,7 @@ export class AgentAnalyticsService extends Effect.Service<AgentAnalyticsService>
                       .select({
                         errors:
                           sql<number>`SUM(CASE WHEN ${schema.toolUses.hasError} = 1 THEN 1 ELSE 0 END)`.as(
-                            "errors",
+                            "errors"
                           ),
                         sessionId: schema.toolUses.sessionId,
                         total: count(),
@@ -910,10 +903,7 @@ export class AgentAnalyticsService extends Effect.Service<AgentAnalyticsService>
                       .from(schema.toolUses)
                       .innerJoin(
                         schema.sessions,
-                        eq(
-                          schema.toolUses.sessionId,
-                          schema.sessions.sessionId,
-                        ),
+                        eq(schema.toolUses.sessionId, schema.sessions.sessionId)
                       )
                       .where(and(...dateConditions))
                       .groupBy(schema.toolUses.sessionId);
@@ -922,20 +912,20 @@ export class AgentAnalyticsService extends Effect.Service<AgentAnalyticsService>
                 toolErrorsResult.map((r) => [
                   r.sessionId,
                   { errors: r.errors ?? 0, total: r.total },
-                ]),
+                ])
               );
 
               // Partition sessions
               const withSkills = allSessions.filter((s) =>
-                skillSessionSet.has(s.sessionId),
+                skillSessionSet.has(s.sessionId)
               );
               const withoutSkills = allSessions.filter(
-                (s) => !skillSessionSet.has(s.sessionId),
+                (s) => !skillSessionSet.has(s.sessionId)
               );
 
               // Calculate metrics for each group
               const calcMetrics = (
-                sessions: typeof allSessions,
+                sessions: typeof allSessions
               ): SkillImpactMetrics => {
                 if (sessions.length === 0) {
                   return {
@@ -1013,7 +1003,7 @@ export class AgentAnalyticsService extends Effect.Service<AgentAnalyticsService>
           }),
       } as const;
     }),
-  },
+  }
 ) {}
 
 /** @deprecated Use AgentAnalyticsService.Default instead */

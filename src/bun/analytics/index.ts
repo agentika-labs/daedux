@@ -1,4 +1,5 @@
 import { Layer } from "effect";
+
 import { AgentAnalyticsService } from "./agent-analytics";
 import { ContextAnalyticsService } from "./context-analytics";
 import { FileAnalyticsService } from "./file-analytics";
@@ -19,5 +20,5 @@ export const AllAnalyticsServicesLive = Layer.mergeAll(
   FileAnalyticsService.Default,
   AgentAnalyticsService.Default,
   ContextAnalyticsService.Default,
-  InsightsAnalyticsService.Default,
+  InsightsAnalyticsService.Default
 );

@@ -153,7 +153,7 @@ export type CategorizedErrors = Record<ErrorCategory, ErrorCount[]>;
  * Returns a Record<string, ErrorCount[]> to allow string indexing from database results.
  */
 export function categorizeErrorsByPattern(
-  errors: RawErrorCount[],
+  errors: RawErrorCount[]
 ): Record<string, ErrorCount[]> {
   const result: CategorizedErrors = {
     build_test: [],
@@ -198,7 +198,7 @@ export function categorizeErrorsByPattern(
  */
 export function getFixSuggestions(
   category: string,
-  errors: ErrorCount[],
+  errors: ErrorCount[]
 ): string[] {
   const patterns =
     FIX_SUGGESTIONS[category as ErrorCategory] ?? FIX_SUGGESTIONS.other;

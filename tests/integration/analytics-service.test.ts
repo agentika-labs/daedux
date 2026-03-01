@@ -6,10 +6,10 @@ import { describe, expect, it } from "bun:test";
 
 import { Effect, Layer } from "effect";
 
-import { AllAnalyticsServicesLive } from "../../src/bun/analytics/index";
 import { AgentAnalyticsService } from "../../src/bun/analytics/agent-analytics";
 import { ContextAnalyticsService } from "../../src/bun/analytics/context-analytics";
 import { FileAnalyticsService } from "../../src/bun/analytics/file-analytics";
+import { AllAnalyticsServicesLive } from "../../src/bun/analytics/index";
 import { InsightsAnalyticsService } from "../../src/bun/analytics/insights-analytics";
 import { ModelAnalyticsService } from "../../src/bun/analytics/model-analytics";
 import { SessionAnalyticsService } from "../../src/bun/analytics/session-analytics";

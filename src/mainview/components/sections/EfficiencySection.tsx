@@ -22,6 +22,7 @@ import { Section } from "@/components/layout/Section";
 import { ChartCard } from "@/components/shared/ChartCard";
 import { EmptyChartState } from "@/components/shared/EmptyChartState";
 import { InfoTooltip } from "@/components/shared/InfoTooltip";
+import { LoadingBoundary } from "@/components/shared/LoadingBoundary";
 import { SectionHeader } from "@/components/shared/SectionHeader";
 import { StatCard } from "@/components/shared/StatCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -31,14 +32,13 @@ import {
   ChartTooltipContent,
 } from "@/components/ui/chart";
 import type { ChartConfig } from "@/components/ui/chart";
-import { LoadingBoundary } from "@/components/shared/LoadingBoundary";
+import { formatDateTick, formatPercentAxisTick } from "@/lib/chart-formatters";
 import {
   calculateDailyRate,
   formatRate,
   getDaysInRange,
   getVcsRateVariant,
 } from "@/lib/metric-rates";
-import { formatDateTick, formatPercentAxisTick } from "@/lib/chart-formatters";
 import { formatPercent } from "@/lib/utils";
 import type { FilterOption } from "@/queries/dashboard";
 

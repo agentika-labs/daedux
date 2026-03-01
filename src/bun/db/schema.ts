@@ -286,7 +286,7 @@ export const skillInvocations = sqliteTable(
     // Composite index for skill analytics (aggregating by skill across sessions)
     index("skill_invocations_name_session_idx").on(
       table.skillName,
-      table.sessionId,
+      table.sessionId
     ),
   ]
 );
@@ -358,12 +358,12 @@ export const contextWindowUsage = sqliteTable(
     // Composite index for context efficiency curve queries (ordered by queryIndex)
     index("context_usage_query_session_idx").on(
       table.queryIndex,
-      table.sessionId,
+      table.sessionId
     ),
     // Composite index for session-scoped lookups by query index
     index("context_usage_session_query_comp_idx").on(
       table.sessionId,
-      table.queryIndex,
+      table.queryIndex
     ),
   ]
 );

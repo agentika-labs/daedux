@@ -156,7 +156,9 @@ export function ToolsSection({ data, loading }: ToolsSectionProps) {
                         totalCalls={tool.totalCalls}
                         errorRate={tool.errorRate}
                         topError={tool.topError}
-                        errorCount={Math.round(tool.totalCalls * tool.errorRate)}
+                        errorCount={Math.round(
+                          tool.totalCalls * tool.errorRate
+                        )}
                         expanded={frictionExpansion.isExpanded(index)}
                         onToggle={() => frictionExpansion.toggle(index)}
                         confidence={tool.confidence}
