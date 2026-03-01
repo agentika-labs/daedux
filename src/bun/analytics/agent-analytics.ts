@@ -4,7 +4,12 @@ import { DatabaseService } from "../db";
 import * as schema from "../db/schema";
 import { DatabaseError } from "../errors";
 import type { DateFilter } from "./shared";
-import { buildDateConditions } from "./shared";
+import {
+  buildDateConditions,
+  sessionsTable,
+  sessionJoinOn,
+  withDateFilter,
+} from "./shared";
 
 export interface SkillROI {
   readonly skillName: string;
@@ -389,39 +394,37 @@ export class AgentAnalyticsService extends Effect.Service<AgentAnalyticsService>
             try: async () => {
               const dateConditions = buildDateConditions(dateFilter);
 
-              let result;
-              if (dateConditions.length === 0) {
-                result = await db
-                  .select({
-                    agentType: schema.agentSpawns.agentType,
-                    sessions:
-                      sql<number>`COUNT(DISTINCT ${schema.agentSpawns.sessionId})`.as(
-                        "sessions",
-                      ),
-                    spawns: count(),
-                  })
-                  .from(schema.agentSpawns)
-                  .groupBy(schema.agentSpawns.agentType)
-                  .orderBy(desc(count()));
-              } else {
-                result = await db
-                  .select({
-                    agentType: schema.agentSpawns.agentType,
-                    sessions:
-                      sql<number>`COUNT(DISTINCT ${schema.agentSpawns.sessionId})`.as(
-                        "sessions",
-                      ),
-                    spawns: count(),
-                  })
-                  .from(schema.agentSpawns)
-                  .innerJoin(
-                    schema.sessions,
-                    eq(schema.agentSpawns.sessionId, schema.sessions.sessionId),
-                  )
-                  .where(and(...dateConditions))
-                  .groupBy(schema.agentSpawns.agentType)
-                  .orderBy(desc(count()));
-              }
+              const result = await withDateFilter(
+                dateConditions,
+                () =>
+                  db
+                    .select({
+                      agentType: schema.agentSpawns.agentType,
+                      sessions:
+                        sql<number>`COUNT(DISTINCT ${schema.agentSpawns.sessionId})`.as(
+                          "sessions",
+                        ),
+                      spawns: count(),
+                    })
+                    .from(schema.agentSpawns)
+                    .groupBy(schema.agentSpawns.agentType)
+                    .orderBy(desc(count())),
+                () =>
+                  db
+                    .select({
+                      agentType: schema.agentSpawns.agentType,
+                      sessions:
+                        sql<number>`COUNT(DISTINCT ${schema.agentSpawns.sessionId})`.as(
+                          "sessions",
+                        ),
+                      spawns: count(),
+                    })
+                    .from(schema.agentSpawns)
+                    .innerJoin(sessionsTable, sessionJoinOn(schema.agentSpawns))
+                    .where(and(...dateConditions))
+                    .groupBy(schema.agentSpawns.agentType)
+                    .orderBy(desc(count())),
+              );
 
               return result.map((row) => ({
                 agentType: row.agentType,
@@ -683,29 +686,27 @@ export class AgentAnalyticsService extends Effect.Service<AgentAnalyticsService>
             try: async () => {
               const dateConditions = buildDateConditions(dateFilter);
 
-              let result;
-              if (dateConditions.length === 0) {
-                result = await db
-                  .select({
-                    count: count(),
-                    sessionId: schema.agentSpawns.sessionId,
-                  })
-                  .from(schema.agentSpawns)
-                  .groupBy(schema.agentSpawns.sessionId);
-              } else {
-                result = await db
-                  .select({
-                    count: count(),
-                    sessionId: schema.agentSpawns.sessionId,
-                  })
-                  .from(schema.agentSpawns)
-                  .innerJoin(
-                    schema.sessions,
-                    eq(schema.agentSpawns.sessionId, schema.sessions.sessionId),
-                  )
-                  .where(and(...dateConditions))
-                  .groupBy(schema.agentSpawns.sessionId);
-              }
+              const result = await withDateFilter(
+                dateConditions,
+                () =>
+                  db
+                    .select({
+                      count: count(),
+                      sessionId: schema.agentSpawns.sessionId,
+                    })
+                    .from(schema.agentSpawns)
+                    .groupBy(schema.agentSpawns.sessionId),
+                () =>
+                  db
+                    .select({
+                      count: count(),
+                      sessionId: schema.agentSpawns.sessionId,
+                    })
+                    .from(schema.agentSpawns)
+                    .innerJoin(sessionsTable, sessionJoinOn(schema.agentSpawns))
+                    .where(and(...dateConditions))
+                    .groupBy(schema.agentSpawns.sessionId),
+              );
 
               const sessionAgentCounts = new Map<string, number>();
               for (const row of result) {
@@ -775,34 +776,32 @@ export class AgentAnalyticsService extends Effect.Service<AgentAnalyticsService>
             try: async () => {
               const dateConditions = buildDateConditions(dateFilter);
 
-              let result;
-              if (dateConditions.length === 0) {
-                result = await db
-                  .select({
-                    command: schema.slashCommands.command,
-                    count: count(),
-                  })
-                  .from(schema.slashCommands)
-                  .groupBy(schema.slashCommands.command)
-                  .orderBy(desc(count()));
-              } else {
-                result = await db
-                  .select({
-                    command: schema.slashCommands.command,
-                    count: count(),
-                  })
-                  .from(schema.slashCommands)
-                  .innerJoin(
-                    schema.sessions,
-                    eq(
-                      schema.slashCommands.sessionId,
-                      schema.sessions.sessionId,
-                    ),
-                  )
-                  .where(and(...dateConditions))
-                  .groupBy(schema.slashCommands.command)
-                  .orderBy(desc(count()));
-              }
+              const result = await withDateFilter(
+                dateConditions,
+                () =>
+                  db
+                    .select({
+                      command: schema.slashCommands.command,
+                      count: count(),
+                    })
+                    .from(schema.slashCommands)
+                    .groupBy(schema.slashCommands.command)
+                    .orderBy(desc(count())),
+                () =>
+                  db
+                    .select({
+                      command: schema.slashCommands.command,
+                      count: count(),
+                    })
+                    .from(schema.slashCommands)
+                    .innerJoin(
+                      sessionsTable,
+                      sessionJoinOn(schema.slashCommands),
+                    )
+                    .where(and(...dateConditions))
+                    .groupBy(schema.slashCommands.command)
+                    .orderBy(desc(count())),
+              );
 
               return result.map((row) => ({
                 command: row.command,

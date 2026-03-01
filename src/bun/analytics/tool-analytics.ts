@@ -6,7 +6,12 @@ import { DatabaseService } from "../db";
 import * as schema from "../db/schema";
 import { DatabaseError } from "../errors";
 import type { DateFilter } from "./shared";
-import { buildDateConditions } from "./shared";
+import {
+  buildDateConditions,
+  sessionsTable,
+  sessionJoinOn,
+  withDateFilter,
+} from "./shared";
 
 export interface ToolUsageStat {
   readonly name: string;
@@ -335,102 +340,96 @@ async function getBashCategoryHealthInternal(
   dateConditions: SQL[],
 ): Promise<BashCategoryHealth[]> {
   // Get category counts
-  let categoryData;
-  if (dateConditions.length === 0) {
-    categoryData = await db
-      .select({
-        category: schema.bashCommands.category,
-        totalCommands: count(),
-      })
-      .from(schema.bashCommands)
-      .groupBy(schema.bashCommands.category)
-      .orderBy(desc(count()));
-  } else {
-    categoryData = await db
-      .select({
-        category: schema.bashCommands.category,
-        totalCommands: count(),
-      })
-      .from(schema.bashCommands)
-      .innerJoin(
-        schema.sessions,
-        eq(schema.bashCommands.sessionId, schema.sessions.sessionId),
-      )
-      .where(and(...dateConditions))
-      .groupBy(schema.bashCommands.category)
-      .orderBy(desc(count()));
-  }
+  const categoryData = await withDateFilter(
+    dateConditions,
+    () =>
+      db
+        .select({
+          category: schema.bashCommands.category,
+          totalCommands: count(),
+        })
+        .from(schema.bashCommands)
+        .groupBy(schema.bashCommands.category)
+        .orderBy(desc(count())),
+    () =>
+      db
+        .select({
+          category: schema.bashCommands.category,
+          totalCommands: count(),
+        })
+        .from(schema.bashCommands)
+        .innerJoin(sessionsTable, sessionJoinOn(schema.bashCommands))
+        .where(and(...dateConditions))
+        .groupBy(schema.bashCommands.category)
+        .orderBy(desc(count())),
+  );
 
   // Get Bash tool errors
-  let bashErrors;
-  if (dateConditions.length === 0) {
-    bashErrors = await db
-      .select({
-        count: count(),
-        errorMessage: schema.toolUses.errorMessage,
-      })
-      .from(schema.toolUses)
-      .where(
-        and(
-          eq(schema.toolUses.toolName, "Bash"),
-          eq(schema.toolUses.hasError, true),
-        ),
-      )
-      .groupBy(schema.toolUses.errorMessage)
-      .orderBy(desc(count()))
-      .limit(20);
-  } else {
-    bashErrors = await db
-      .select({
-        count: count(),
-        errorMessage: schema.toolUses.errorMessage,
-      })
-      .from(schema.toolUses)
-      .innerJoin(
-        schema.sessions,
-        eq(schema.toolUses.sessionId, schema.sessions.sessionId),
-      )
-      .where(
-        and(
-          eq(schema.toolUses.toolName, "Bash"),
-          eq(schema.toolUses.hasError, true),
-          ...dateConditions,
-        ),
-      )
-      .groupBy(schema.toolUses.errorMessage)
-      .orderBy(desc(count()))
-      .limit(20);
-  }
+  const bashErrors = await withDateFilter(
+    dateConditions,
+    () =>
+      db
+        .select({
+          count: count(),
+          errorMessage: schema.toolUses.errorMessage,
+        })
+        .from(schema.toolUses)
+        .where(
+          and(
+            eq(schema.toolUses.toolName, "Bash"),
+            eq(schema.toolUses.hasError, true),
+          ),
+        )
+        .groupBy(schema.toolUses.errorMessage)
+        .orderBy(desc(count()))
+        .limit(20),
+    () =>
+      db
+        .select({
+          count: count(),
+          errorMessage: schema.toolUses.errorMessage,
+        })
+        .from(schema.toolUses)
+        .innerJoin(sessionsTable, sessionJoinOn(schema.toolUses))
+        .where(
+          and(
+            eq(schema.toolUses.toolName, "Bash"),
+            eq(schema.toolUses.hasError, true),
+            ...dateConditions,
+          ),
+        )
+        .groupBy(schema.toolUses.errorMessage)
+        .orderBy(desc(count()))
+        .limit(20),
+  );
 
   // Get overall bash error rate
-  let bashTotalStats;
-  if (dateConditions.length === 0) {
-    bashTotalStats = await db
-      .select({
-        errors:
-          sql<number>`SUM(CASE WHEN ${schema.toolUses.hasError} = 1 THEN 1 ELSE 0 END)`.as(
-            "errors",
-          ),
-        total: count(),
-      })
-      .from(schema.toolUses)
-      .where(eq(schema.toolUses.toolName, "Bash"));
-  } else {
-    bashTotalStats = await db
-      .select({
-        errors:
-          sql<number>`SUM(CASE WHEN ${schema.toolUses.hasError} = 1 THEN 1 ELSE 0 END)`.as(
-            "errors",
-          ),
-        total: count(),
-      })
-      .from(schema.toolUses)
-      .innerJoin(
-        schema.sessions,
-        eq(schema.toolUses.sessionId, schema.sessions.sessionId),
-      )
-      .where(and(eq(schema.toolUses.toolName, "Bash"), ...dateConditions));
-  }
+  const bashTotalStats = await withDateFilter(
+    dateConditions,
+    () =>
+      db
+        .select({
+          errors:
+            sql<number>`SUM(CASE WHEN ${schema.toolUses.hasError} = 1 THEN 1 ELSE 0 END)`.as(
+              "errors",
+            ),
+          total: count(),
+        })
+        .from(schema.toolUses)
+        .where(eq(schema.toolUses.toolName, "Bash")),
+    () =>
+      db
+        .select({
+          errors:
+            sql<number>`SUM(CASE WHEN ${schema.toolUses.hasError} = 1 THEN 1 ELSE 0 END)`.as(
+              "errors",
+            ),
+          total: count(),
+        })
+        .from(schema.toolUses)
+        .innerJoin(sessionsTable, sessionJoinOn(schema.toolUses))
+        .where(and(eq(schema.toolUses.toolName, "Bash"), ...dateConditions)),
+  );
 
   const totalBashUses = bashTotalStats[0]?.total ?? 0;
   const totalBashErrors = bashTotalStats[0]?.errors ?? 0;
@@ -484,39 +483,37 @@ export class ToolAnalyticsService extends Effect.Service<ToolAnalyticsService>()
             try: async () => {
               const dateConditions = buildDateConditions(dateFilter);
 
-              let result;
-              if (dateConditions.length === 0) {
-                result = await db
-                  .select({
-                    count: count(),
-                    errorType: schema.apiErrors.errorType,
-                    lastOccurred:
-                      sql<number>`MAX(${schema.apiErrors.timestamp})`.as(
-                        "last_occurred",
-                      ),
-                  })
-                  .from(schema.apiErrors)
-                  .groupBy(schema.apiErrors.errorType)
-                  .orderBy(desc(count()));
-              } else {
-                result = await db
-                  .select({
-                    count: count(),
-                    errorType: schema.apiErrors.errorType,
-                    lastOccurred:
-                      sql<number>`MAX(${schema.apiErrors.timestamp})`.as(
-                        "last_occurred",
-                      ),
-                  })
-                  .from(schema.apiErrors)
-                  .innerJoin(
-                    schema.sessions,
-                    eq(schema.apiErrors.sessionId, schema.sessions.sessionId),
-                  )
-                  .where(and(...dateConditions))
-                  .groupBy(schema.apiErrors.errorType)
-                  .orderBy(desc(count()));
-              }
+              const result = await withDateFilter(
+                dateConditions,
+                () =>
+                  db
+                    .select({
+                      count: count(),
+                      errorType: schema.apiErrors.errorType,
+                      lastOccurred:
+                        sql<number>`MAX(${schema.apiErrors.timestamp})`.as(
+                          "last_occurred",
+                        ),
+                    })
+                    .from(schema.apiErrors)
+                    .groupBy(schema.apiErrors.errorType)
+                    .orderBy(desc(count())),
+                () =>
+                  db
+                    .select({
+                      count: count(),
+                      errorType: schema.apiErrors.errorType,
+                      lastOccurred:
+                        sql<number>`MAX(${schema.apiErrors.timestamp})`.as(
+                          "last_occurred",
+                        ),
+                    })
+                    .from(schema.apiErrors)
+                    .innerJoin(sessionsTable, sessionJoinOn(schema.apiErrors))
+                    .where(and(...dateConditions))
+                    .groupBy(schema.apiErrors.errorType)
+                    .orderBy(desc(count())),
+              );
 
               return result.map((row) => ({
                 count: row.count,
@@ -549,7 +546,6 @@ export class ToolAnalyticsService extends Effect.Service<ToolAnalyticsService>()
             try: async () => {
               const dateConditions = buildDateConditions(dateFilter);
 
-              let result;
               // Use SUBSTR to cap GROUP_CONCAT at 10KB to prevent memory issues
               // We only need ~5 unique commands, and each command is typically <200 chars
               // Deduplication happens in TypeScript since SQLite DISTINCT doesn't work with separators
@@ -558,35 +554,31 @@ export class ToolAnalyticsService extends Effect.Service<ToolAnalyticsService>()
                   "commands",
                 );
 
-              if (dateConditions.length === 0) {
-                result = await db
-                  .select({
-                    category: schema.bashCommands.category,
-                    commands: boundedGroupConcat,
-                    count: count(),
-                  })
-                  .from(schema.bashCommands)
-                  .groupBy(schema.bashCommands.category)
-                  .orderBy(desc(count()));
-              } else {
-                result = await db
-                  .select({
-                    category: schema.bashCommands.category,
-                    commands: boundedGroupConcat,
-                    count: count(),
-                  })
-                  .from(schema.bashCommands)
-                  .innerJoin(
-                    schema.sessions,
-                    eq(
-                      schema.bashCommands.sessionId,
-                      schema.sessions.sessionId,
-                    ),
-                  )
-                  .where(and(...dateConditions))
-                  .groupBy(schema.bashCommands.category)
-                  .orderBy(desc(count()));
-              }
+              const result = await withDateFilter(
+                dateConditions,
+                () =>
+                  db
+                    .select({
+                      category: schema.bashCommands.category,
+                      commands: boundedGroupConcat,
+                      count: count(),
+                    })
+                    .from(schema.bashCommands)
+                    .groupBy(schema.bashCommands.category)
+                    .orderBy(desc(count())),
+                () =>
+                  db
+                    .select({
+                      category: schema.bashCommands.category,
+                      commands: boundedGroupConcat,
+                      count: count(),
+                    })
+                    .from(schema.bashCommands)
+                    .innerJoin(sessionsTable, sessionJoinOn(schema.bashCommands))
+                    .where(and(...dateConditions))
+                    .groupBy(schema.bashCommands.category)
+                    .orderBy(desc(count())),
+              );
 
               return result.map((row) => {
                 const allCommands = (row.commands ?? "").split("|||");
@@ -611,31 +603,35 @@ export class ToolAnalyticsService extends Effect.Service<ToolAnalyticsService>()
             try: async () => {
               const dateConditions = buildDateConditions(dateFilter);
 
-              let result;
-              if (dateConditions.length === 0) {
-                result = await db
-                  .select({
-                    count: count(),
-                    sessionId: schema.toolUses.sessionId,
-                    toolName: schema.toolUses.toolName,
-                  })
-                  .from(schema.toolUses)
-                  .groupBy(schema.toolUses.sessionId, schema.toolUses.toolName);
-              } else {
-                result = await db
-                  .select({
-                    count: count(),
-                    sessionId: schema.toolUses.sessionId,
-                    toolName: schema.toolUses.toolName,
-                  })
-                  .from(schema.toolUses)
-                  .innerJoin(
-                    schema.sessions,
-                    eq(schema.toolUses.sessionId, schema.sessions.sessionId),
-                  )
-                  .where(and(...dateConditions))
-                  .groupBy(schema.toolUses.sessionId, schema.toolUses.toolName);
-              }
+              const result = await withDateFilter(
+                dateConditions,
+                () =>
+                  db
+                    .select({
+                      count: count(),
+                      sessionId: schema.toolUses.sessionId,
+                      toolName: schema.toolUses.toolName,
+                    })
+                    .from(schema.toolUses)
+                    .groupBy(
+                      schema.toolUses.sessionId,
+                      schema.toolUses.toolName,
+                    ),
+                () =>
+                  db
+                    .select({
+                      count: count(),
+                      sessionId: schema.toolUses.sessionId,
+                      toolName: schema.toolUses.toolName,
+                    })
+                    .from(schema.toolUses)
+                    .innerJoin(sessionsTable, sessionJoinOn(schema.toolUses))
+                    .where(and(...dateConditions))
+                    .groupBy(
+                      schema.toolUses.sessionId,
+                      schema.toolUses.toolName,
+                    ),
+              );
 
               const sessionToolCounts = new Map<
                 string,
@@ -661,35 +657,33 @@ export class ToolAnalyticsService extends Effect.Service<ToolAnalyticsService>()
             try: async () => {
               const dateConditions = buildDateConditions(dateFilter);
 
-              let result;
-              if (dateConditions.length === 0) {
-                result = await db
-                  .select({
-                    errorCount:
-                      sql<number>`SUM(CASE WHEN ${schema.toolUses.hasError} = 1 THEN 1 ELSE 0 END)`.as(
-                        "error_count",
-                      ),
-                    sessionId: schema.toolUses.sessionId,
-                  })
-                  .from(schema.toolUses)
-                  .groupBy(schema.toolUses.sessionId);
-              } else {
-                result = await db
-                  .select({
-                    errorCount:
-                      sql<number>`SUM(CASE WHEN ${schema.toolUses.hasError} = 1 THEN 1 ELSE 0 END)`.as(
-                        "error_count",
-                      ),
-                    sessionId: schema.toolUses.sessionId,
-                  })
-                  .from(schema.toolUses)
-                  .innerJoin(
-                    schema.sessions,
-                    eq(schema.toolUses.sessionId, schema.sessions.sessionId),
-                  )
-                  .where(and(...dateConditions))
-                  .groupBy(schema.toolUses.sessionId);
-              }
+              const result = await withDateFilter(
+                dateConditions,
+                () =>
+                  db
+                    .select({
+                      errorCount:
+                        sql<number>`SUM(CASE WHEN ${schema.toolUses.hasError} = 1 THEN 1 ELSE 0 END)`.as(
+                          "error_count",
+                        ),
+                      sessionId: schema.toolUses.sessionId,
+                    })
+                    .from(schema.toolUses)
+                    .groupBy(schema.toolUses.sessionId),
+                () =>
+                  db
+                    .select({
+                      errorCount:
+                        sql<number>`SUM(CASE WHEN ${schema.toolUses.hasError} = 1 THEN 1 ELSE 0 END)`.as(
+                          "error_count",
+                        ),
+                      sessionId: schema.toolUses.sessionId,
+                    })
+                    .from(schema.toolUses)
+                    .innerJoin(sessionsTable, sessionJoinOn(schema.toolUses))
+                    .where(and(...dateConditions))
+                    .groupBy(schema.toolUses.sessionId),
+              );
 
               const sessionToolErrors = new Map<string, number>();
               for (const row of result) {
@@ -706,47 +700,45 @@ export class ToolAnalyticsService extends Effect.Service<ToolAnalyticsService>()
             try: async () => {
               const dateConditions = buildDateConditions(dateFilter);
 
-              let result;
-              if (dateConditions.length === 0) {
-                result = await db
-                  .select({
-                    errorCount:
-                      sql<number>`SUM(CASE WHEN ${schema.toolUses.hasError} = 1 THEN 1 ELSE 0 END)`.as(
-                        "error_count",
-                      ),
-                    sessions:
-                      sql<number>`COUNT(DISTINCT ${schema.toolUses.sessionId})`.as(
-                        "sessions",
-                      ),
-                    toolName: schema.toolUses.toolName,
-                    totalUses: count(),
-                  })
-                  .from(schema.toolUses)
-                  .groupBy(schema.toolUses.toolName)
-                  .orderBy(desc(count()));
-              } else {
-                result = await db
-                  .select({
-                    errorCount:
-                      sql<number>`SUM(CASE WHEN ${schema.toolUses.hasError} = 1 THEN 1 ELSE 0 END)`.as(
-                        "error_count",
-                      ),
-                    sessions:
-                      sql<number>`COUNT(DISTINCT ${schema.toolUses.sessionId})`.as(
-                        "sessions",
-                      ),
-                    toolName: schema.toolUses.toolName,
-                    totalUses: count(),
-                  })
-                  .from(schema.toolUses)
-                  .innerJoin(
-                    schema.sessions,
-                    eq(schema.toolUses.sessionId, schema.sessions.sessionId),
-                  )
-                  .where(and(...dateConditions))
-                  .groupBy(schema.toolUses.toolName)
-                  .orderBy(desc(count()));
-              }
+              const result = await withDateFilter(
+                dateConditions,
+                () =>
+                  db
+                    .select({
+                      errorCount:
+                        sql<number>`SUM(CASE WHEN ${schema.toolUses.hasError} = 1 THEN 1 ELSE 0 END)`.as(
+                          "error_count",
+                        ),
+                      sessions:
+                        sql<number>`COUNT(DISTINCT ${schema.toolUses.sessionId})`.as(
+                          "sessions",
+                        ),
+                      toolName: schema.toolUses.toolName,
+                      totalUses: count(),
+                    })
+                    .from(schema.toolUses)
+                    .groupBy(schema.toolUses.toolName)
+                    .orderBy(desc(count())),
+                () =>
+                  db
+                    .select({
+                      errorCount:
+                        sql<number>`SUM(CASE WHEN ${schema.toolUses.hasError} = 1 THEN 1 ELSE 0 END)`.as(
+                          "error_count",
+                        ),
+                      sessions:
+                        sql<number>`COUNT(DISTINCT ${schema.toolUses.sessionId})`.as(
+                          "sessions",
+                        ),
+                      toolName: schema.toolUses.toolName,
+                      totalUses: count(),
+                    })
+                    .from(schema.toolUses)
+                    .innerJoin(sessionsTable, sessionJoinOn(schema.toolUses))
+                    .where(and(...dateConditions))
+                    .groupBy(schema.toolUses.toolName)
+                    .orderBy(desc(count())),
+              );
 
               return result.map((row) => ({
                 errorRate:
@@ -771,79 +763,75 @@ export class ToolAnalyticsService extends Effect.Service<ToolAnalyticsService>()
               const dateConditions = buildDateConditions(dateFilter);
 
               // Get tool health stats
-              let toolHealthData;
-              if (dateConditions.length === 0) {
-                toolHealthData = await db
-                  .select({
-                    errorCount:
-                      sql<number>`SUM(CASE WHEN ${schema.toolUses.hasError} = 1 THEN 1 ELSE 0 END)`.as(
-                        "error_count",
-                      ),
-                    toolName: schema.toolUses.toolName,
-                    totalUses: count(),
-                  })
-                  .from(schema.toolUses)
-                  .groupBy(schema.toolUses.toolName)
-                  .orderBy(desc(count()));
-              } else {
-                toolHealthData = await db
-                  .select({
-                    errorCount:
-                      sql<number>`SUM(CASE WHEN ${schema.toolUses.hasError} = 1 THEN 1 ELSE 0 END)`.as(
-                        "error_count",
-                      ),
-                    toolName: schema.toolUses.toolName,
-                    totalUses: count(),
-                  })
-                  .from(schema.toolUses)
-                  .innerJoin(
-                    schema.sessions,
-                    eq(schema.toolUses.sessionId, schema.sessions.sessionId),
-                  )
-                  .where(and(...dateConditions))
-                  .groupBy(schema.toolUses.toolName)
-                  .orderBy(desc(count()));
-              }
+              const toolHealthData = await withDateFilter(
+                dateConditions,
+                () =>
+                  db
+                    .select({
+                      errorCount:
+                        sql<number>`SUM(CASE WHEN ${schema.toolUses.hasError} = 1 THEN 1 ELSE 0 END)`.as(
+                          "error_count",
+                        ),
+                      toolName: schema.toolUses.toolName,
+                      totalUses: count(),
+                    })
+                    .from(schema.toolUses)
+                    .groupBy(schema.toolUses.toolName)
+                    .orderBy(desc(count())),
+                () =>
+                  db
+                    .select({
+                      errorCount:
+                        sql<number>`SUM(CASE WHEN ${schema.toolUses.hasError} = 1 THEN 1 ELSE 0 END)`.as(
+                          "error_count",
+                        ),
+                      toolName: schema.toolUses.toolName,
+                      totalUses: count(),
+                    })
+                    .from(schema.toolUses)
+                    .innerJoin(sessionsTable, sessionJoinOn(schema.toolUses))
+                    .where(and(...dateConditions))
+                    .groupBy(schema.toolUses.toolName)
+                    .orderBy(desc(count())),
+              );
 
               // Get top errors per tool
-              let topErrorsData;
-              if (dateConditions.length === 0) {
-                topErrorsData = await db
-                  .select({
-                    count: count(),
-                    errorMessage: schema.toolUses.errorMessage,
-                    toolName: schema.toolUses.toolName,
-                  })
-                  .from(schema.toolUses)
-                  .where(eq(schema.toolUses.hasError, true))
-                  .groupBy(
-                    schema.toolUses.toolName,
-                    schema.toolUses.errorMessage,
-                  )
-                  .orderBy(desc(count()))
-                  .limit(100);
-              } else {
-                topErrorsData = await db
-                  .select({
-                    count: count(),
-                    errorMessage: schema.toolUses.errorMessage,
-                    toolName: schema.toolUses.toolName,
-                  })
-                  .from(schema.toolUses)
-                  .innerJoin(
-                    schema.sessions,
-                    eq(schema.toolUses.sessionId, schema.sessions.sessionId),
-                  )
-                  .where(
-                    and(eq(schema.toolUses.hasError, true), ...dateConditions),
-                  )
-                  .groupBy(
-                    schema.toolUses.toolName,
-                    schema.toolUses.errorMessage,
-                  )
-                  .orderBy(desc(count()))
-                  .limit(100);
-              }
+              const topErrorsData = await withDateFilter(
+                dateConditions,
+                () =>
+                  db
+                    .select({
+                      count: count(),
+                      errorMessage: schema.toolUses.errorMessage,
+                      toolName: schema.toolUses.toolName,
+                    })
+                    .from(schema.toolUses)
+                    .where(eq(schema.toolUses.hasError, true))
+                    .groupBy(
+                      schema.toolUses.toolName,
+                      schema.toolUses.errorMessage,
+                    )
+                    .orderBy(desc(count()))
+                    .limit(100),
+                () =>
+                  db
+                    .select({
+                      count: count(),
+                      errorMessage: schema.toolUses.errorMessage,
+                      toolName: schema.toolUses.toolName,
+                    })
+                    .from(schema.toolUses)
+                    .innerJoin(sessionsTable, sessionJoinOn(schema.toolUses))
+                    .where(
+                      and(eq(schema.toolUses.hasError, true), ...dateConditions),
+                    )
+                    .groupBy(
+                      schema.toolUses.toolName,
+                      schema.toolUses.errorMessage,
+                    )
+                    .orderBy(desc(count()))
+                    .limit(100),
+              );
 
               // Group errors by tool
               const errorsByTool = new Map<
@@ -1000,39 +988,37 @@ export class ToolAnalyticsService extends Effect.Service<ToolAnalyticsService>()
             try: async () => {
               const dateConditions = buildDateConditions(dateFilter);
 
-              let result;
-              if (dateConditions.length === 0) {
-                result = await db
-                  .select({
-                    count: count(),
-                    name: schema.toolUses.toolName,
-                    sessions:
-                      sql<number>`COUNT(DISTINCT ${schema.toolUses.sessionId})`.as(
-                        "sessions",
-                      ),
-                  })
-                  .from(schema.toolUses)
-                  .groupBy(schema.toolUses.toolName)
-                  .orderBy(desc(count()));
-              } else {
-                result = await db
-                  .select({
-                    count: count(),
-                    name: schema.toolUses.toolName,
-                    sessions:
-                      sql<number>`COUNT(DISTINCT ${schema.toolUses.sessionId})`.as(
-                        "sessions",
-                      ),
-                  })
-                  .from(schema.toolUses)
-                  .innerJoin(
-                    schema.sessions,
-                    eq(schema.toolUses.sessionId, schema.sessions.sessionId),
-                  )
-                  .where(and(...dateConditions))
-                  .groupBy(schema.toolUses.toolName)
-                  .orderBy(desc(count()));
-              }
+              const result = await withDateFilter(
+                dateConditions,
+                () =>
+                  db
+                    .select({
+                      count: count(),
+                      name: schema.toolUses.toolName,
+                      sessions:
+                        sql<number>`COUNT(DISTINCT ${schema.toolUses.sessionId})`.as(
+                          "sessions",
+                        ),
+                    })
+                    .from(schema.toolUses)
+                    .groupBy(schema.toolUses.toolName)
+                    .orderBy(desc(count())),
+                () =>
+                  db
+                    .select({
+                      count: count(),
+                      name: schema.toolUses.toolName,
+                      sessions:
+                        sql<number>`COUNT(DISTINCT ${schema.toolUses.sessionId})`.as(
+                          "sessions",
+                        ),
+                    })
+                    .from(schema.toolUses)
+                    .innerJoin(sessionsTable, sessionJoinOn(schema.toolUses))
+                    .where(and(...dateConditions))
+                    .groupBy(schema.toolUses.toolName)
+                    .orderBy(desc(count())),
+              );
 
               return result.map((row) => ({
                 count: row.count,

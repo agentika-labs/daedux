@@ -5,7 +5,12 @@ import { DatabaseService } from "../db";
 import * as schema from "../db/schema";
 import { DatabaseError } from "../errors";
 import type { DateFilter } from "./shared";
-import { buildDateConditions } from "./shared";
+import {
+  buildDateConditions,
+  sessionsTable,
+  sessionJoinOn,
+  withDateFilter,
+} from "./shared";
 
 export interface ContextHeatmapPoint {
   readonly turnRange: string;
@@ -71,48 +76,46 @@ export class ContextAnalyticsService extends Effect.Service<ContextAnalyticsServ
                 conditions.push(eq(schema.sessions.projectPath, projectPath));
               }
 
-              let result;
-              if (conditions.length === 0) {
-                result = await db
-                  .select({
-                    avgCacheHitRatio: avg(
-                      schema.contextWindowUsage.cacheHitRatio,
-                    ),
-                    queryIndex: schema.contextWindowUsage.queryIndex,
-                    sessionCount:
-                      sql<number>`COUNT(DISTINCT ${schema.contextWindowUsage.sessionId})`.as(
-                        "session_count",
+              const result = await withDateFilter(
+                conditions,
+                () =>
+                  db
+                    .select({
+                      avgCacheHitRatio: avg(
+                        schema.contextWindowUsage.cacheHitRatio,
                       ),
-                  })
-                  .from(schema.contextWindowUsage)
-                  .groupBy(schema.contextWindowUsage.queryIndex)
-                  .orderBy(schema.contextWindowUsage.queryIndex)
-                  .limit(100);
-              } else {
-                result = await db
-                  .select({
-                    avgCacheHitRatio: avg(
-                      schema.contextWindowUsage.cacheHitRatio,
-                    ),
-                    queryIndex: schema.contextWindowUsage.queryIndex,
-                    sessionCount:
-                      sql<number>`COUNT(DISTINCT ${schema.contextWindowUsage.sessionId})`.as(
-                        "session_count",
+                      queryIndex: schema.contextWindowUsage.queryIndex,
+                      sessionCount:
+                        sql<number>`COUNT(DISTINCT ${schema.contextWindowUsage.sessionId})`.as(
+                          "session_count",
+                        ),
+                    })
+                    .from(schema.contextWindowUsage)
+                    .groupBy(schema.contextWindowUsage.queryIndex)
+                    .orderBy(schema.contextWindowUsage.queryIndex)
+                    .limit(100),
+                () =>
+                  db
+                    .select({
+                      avgCacheHitRatio: avg(
+                        schema.contextWindowUsage.cacheHitRatio,
                       ),
-                  })
-                  .from(schema.contextWindowUsage)
-                  .innerJoin(
-                    schema.sessions,
-                    eq(
-                      schema.contextWindowUsage.sessionId,
-                      schema.sessions.sessionId,
-                    ),
-                  )
-                  .where(and(...conditions))
-                  .groupBy(schema.contextWindowUsage.queryIndex)
-                  .orderBy(schema.contextWindowUsage.queryIndex)
-                  .limit(100);
-              }
+                      queryIndex: schema.contextWindowUsage.queryIndex,
+                      sessionCount:
+                        sql<number>`COUNT(DISTINCT ${schema.contextWindowUsage.sessionId})`.as(
+                          "session_count",
+                        ),
+                    })
+                    .from(schema.contextWindowUsage)
+                    .innerJoin(
+                      sessionsTable,
+                      sessionJoinOn(schema.contextWindowUsage),
+                    )
+                    .where(and(...conditions))
+                    .groupBy(schema.contextWindowUsage.queryIndex)
+                    .orderBy(schema.contextWindowUsage.queryIndex)
+                    .limit(100),
+              );
 
               return result.map((row) => ({
                 avgCacheHitRatio: Number(row.avgCacheHitRatio) || 0,
@@ -198,34 +201,32 @@ export class ContextAnalyticsService extends Effect.Service<ContextAnalyticsServ
                 ELSE '81-100%'
               END`;
 
-              let result;
-              if (conditions.length === 0) {
-                result = await db
-                  .select({
-                    count: count(),
-                    turnRange: turnBucketExpr,
-                    utilizationBucket: utilizationBucketExpr,
-                  })
-                  .from(schema.contextWindowUsage)
-                  .groupBy(turnBucketExpr, utilizationBucketExpr);
-              } else {
-                result = await db
-                  .select({
-                    count: count(),
-                    turnRange: turnBucketExpr,
-                    utilizationBucket: utilizationBucketExpr,
-                  })
-                  .from(schema.contextWindowUsage)
-                  .innerJoin(
-                    schema.sessions,
-                    eq(
-                      schema.contextWindowUsage.sessionId,
-                      schema.sessions.sessionId,
-                    ),
-                  )
-                  .where(and(...conditions))
-                  .groupBy(turnBucketExpr, utilizationBucketExpr);
-              }
+              const result = await withDateFilter(
+                conditions,
+                () =>
+                  db
+                    .select({
+                      count: count(),
+                      turnRange: turnBucketExpr,
+                      utilizationBucket: utilizationBucketExpr,
+                    })
+                    .from(schema.contextWindowUsage)
+                    .groupBy(turnBucketExpr, utilizationBucketExpr),
+                () =>
+                  db
+                    .select({
+                      count: count(),
+                      turnRange: turnBucketExpr,
+                      utilizationBucket: utilizationBucketExpr,
+                    })
+                    .from(schema.contextWindowUsage)
+                    .innerJoin(
+                      sessionsTable,
+                      sessionJoinOn(schema.contextWindowUsage),
+                    )
+                    .where(and(...conditions))
+                    .groupBy(turnBucketExpr, utilizationBucketExpr),
+              );
 
               // Build lookup map from SQL results
               const buckets = new Map<string, number>();
