@@ -10,12 +10,27 @@ import {
 
 describe("getPricing", () => {
   describe("model tier matching", () => {
-    test("returns Opus 4 pricing for opus-4 models", () => {
-      const pricing = getPricing("claude-opus-4-6-20260210");
-      expect(pricing.inputPerMTok).toBe(15);
-      expect(pricing.outputPerMTok).toBe(75);
-      expect(pricing.cacheWriteMultiplier).toBe(1.25);
-      expect(pricing.cacheReadMultiplier).toBe(0.1);
+    test("returns Opus 4.5/4.6 pricing at $5/$25", () => {
+      const pricing46 = getPricing("claude-opus-4-6-20260210");
+      expect(pricing46.inputPerMTok).toBe(5);
+      expect(pricing46.outputPerMTok).toBe(25);
+      expect(pricing46.cacheWriteMultiplier).toBe(1.25);
+      expect(pricing46.cacheReadMultiplier).toBe(0.1);
+
+      const pricing45 = getPricing("claude-opus-4-5-20251022");
+      expect(pricing45.inputPerMTok).toBe(5);
+      expect(pricing45.outputPerMTok).toBe(25);
+    });
+
+    test("returns Opus 4/4.1 pricing at $15/$75 (legacy tier)", () => {
+      const pricing41 = getPricing("claude-opus-4-1-20250401");
+      expect(pricing41.inputPerMTok).toBe(15);
+      expect(pricing41.outputPerMTok).toBe(75);
+
+      // Generic opus-4 falls back to legacy tier
+      const pricing4 = getPricing("claude-opus-4-20250101");
+      expect(pricing4.inputPerMTok).toBe(15);
+      expect(pricing4.outputPerMTok).toBe(75);
     });
 
     test("returns Sonnet 4 pricing for sonnet-4 models", () => {
@@ -24,16 +39,20 @@ describe("getPricing", () => {
       expect(pricing.outputPerMTok).toBe(15);
     });
 
-    test("returns Haiku 4 pricing for haiku-4 models", () => {
+    test("returns Haiku 4.5 pricing at $1/$5", () => {
       const pricing = getPricing("claude-haiku-4-5-20251022");
-      expect(pricing.inputPerMTok).toBe(0.8);
-      expect(pricing.outputPerMTok).toBe(4);
+      expect(pricing.inputPerMTok).toBe(1);
+      expect(pricing.outputPerMTok).toBe(5);
     });
 
-    test("returns Opus 3.5 pricing for opus-3-5 models", () => {
-      const pricing = getPricing("claude-opus-3-5-20240620");
-      expect(pricing.inputPerMTok).toBe(15);
-      expect(pricing.outputPerMTok).toBe(75);
+    test("returns Opus 3.x pricing at $15/$75 (legacy tier)", () => {
+      const pricing35 = getPricing("claude-opus-3-5-20240620");
+      expect(pricing35.inputPerMTok).toBe(15);
+      expect(pricing35.outputPerMTok).toBe(75);
+
+      const pricing3 = getPricing("claude-opus-3-20240101");
+      expect(pricing3.inputPerMTok).toBe(15);
+      expect(pricing3.outputPerMTok).toBe(75);
     });
 
     test("returns Sonnet 3.5 pricing for sonnet-3-5 models", () => {
@@ -42,27 +61,33 @@ describe("getPricing", () => {
       expect(pricing.outputPerMTok).toBe(15);
     });
 
-    test("returns Haiku 3.5 pricing for haiku-3-5 models", () => {
+    test("returns Haiku 3.5 pricing at $0.80/$4", () => {
       const pricing = getPricing("claude-haiku-3-5-20240307");
       expect(pricing.inputPerMTok).toBe(0.8);
       expect(pricing.outputPerMTok).toBe(4);
+    });
+
+    test("returns Haiku 3 pricing at $0.25/$1.25", () => {
+      const pricing = getPricing("claude-haiku-3-20240307");
+      expect(pricing.inputPerMTok).toBe(0.25);
+      expect(pricing.outputPerMTok).toBe(1.25);
     });
   });
 
   describe("case sensitivity", () => {
     test("is case insensitive - lowercase", () => {
       const pricing = getPricing("claude-opus-4-6");
-      expect(pricing.inputPerMTok).toBe(15);
+      expect(pricing.inputPerMTok).toBe(5);
     });
 
     test("is case insensitive - uppercase", () => {
       const pricing = getPricing("CLAUDE-OPUS-4-6");
-      expect(pricing.inputPerMTok).toBe(15);
+      expect(pricing.inputPerMTok).toBe(5);
     });
 
     test("is case insensitive - mixed case", () => {
       const pricing = getPricing("Claude-Opus-4-6");
-      expect(pricing.inputPerMTok).toBe(15);
+      expect(pricing.inputPerMTok).toBe(5);
     });
   });
 
@@ -85,10 +110,19 @@ describe("getPricing", () => {
   });
 
   describe("first-match-wins behavior", () => {
+    test("opus-4-5 matches before generic opus-4", () => {
+      // Specific version should match before generic fallback
+      const pricing45 = getPricing("claude-opus-4-5-20251022");
+      expect(pricing45.inputPerMTok).toBe(5); // Opus 4.5 tier
+
+      const pricing4 = getPricing("claude-opus-4-20250101");
+      expect(pricing4.inputPerMTok).toBe(15); // Legacy tier
+    });
+
     test("opus-4 matches before haiku-4 when both present", () => {
       // Model ID contains both substrings - first match (opus-4) should win
       const pricing = getPricing("opus-4-haiku-4-hybrid");
-      expect(pricing.inputPerMTok).toBe(15); // Opus pricing, not Haiku
+      expect(pricing.inputPerMTok).toBe(15); // Legacy Opus pricing, not Haiku
     });
 
     test("sonnet-4 matches before sonnet-3-5", () => {
@@ -113,8 +147,9 @@ describe("getPricing", () => {
 
 describe("calculateCost", () => {
   const sonnetPricing = getPricing("claude-sonnet-4-5");
-  const opusPricing = getPricing("claude-opus-4-6");
-  const haikuPricing = getPricing("claude-haiku-4-5");
+  const opus45Pricing = getPricing("claude-opus-4-5"); // New tier: $5/$25
+  const opusLegacyPricing = getPricing("claude-opus-4-1"); // Legacy tier: $15/$75
+  const haikuPricing = getPricing("claude-haiku-4-5"); // New tier: $1/$5
 
   describe("zero and edge cases", () => {
     test("returns zero cost for zero tokens", () => {
@@ -167,8 +202,18 @@ describe("calculateCost", () => {
       expect(result.totalCost).toBe(3);
     });
 
-    test("calculates uncached input cost at $15/MTok for Opus", () => {
-      const result = calculateCost(opusPricing, {
+    test("calculates uncached input cost at $5/MTok for Opus 4.5", () => {
+      const result = calculateCost(opus45Pricing, {
+        cacheCreation: 0,
+        cacheRead: 0,
+        output: 0,
+        uncachedInput: 1_000_000,
+      });
+      expect(result.uncachedInputCost).toBe(5);
+    });
+
+    test("calculates uncached input cost at $15/MTok for Opus legacy", () => {
+      const result = calculateCost(opusLegacyPricing, {
         cacheCreation: 0,
         cacheRead: 0,
         output: 0,
@@ -177,14 +222,14 @@ describe("calculateCost", () => {
       expect(result.uncachedInputCost).toBe(15);
     });
 
-    test("calculates uncached input cost at $0.80/MTok for Haiku", () => {
+    test("calculates uncached input cost at $1/MTok for Haiku 4.5", () => {
       const result = calculateCost(haikuPricing, {
         cacheCreation: 0,
         cacheRead: 0,
         output: 0,
         uncachedInput: 1_000_000,
       });
-      expect(result.uncachedInputCost).toBe(0.8);
+      expect(result.uncachedInputCost).toBe(1);
     });
 
     test("scales linearly with token count", () => {
@@ -216,8 +261,18 @@ describe("calculateCost", () => {
       expect(result.totalCost).toBe(15);
     });
 
-    test("calculates output cost at $75/MTok for Opus", () => {
-      const result = calculateCost(opusPricing, {
+    test("calculates output cost at $25/MTok for Opus 4.5", () => {
+      const result = calculateCost(opus45Pricing, {
+        cacheCreation: 0,
+        cacheRead: 0,
+        output: 1_000_000,
+        uncachedInput: 0,
+      });
+      expect(result.outputCost).toBe(25);
+    });
+
+    test("calculates output cost at $75/MTok for Opus legacy", () => {
+      const result = calculateCost(opusLegacyPricing, {
         cacheCreation: 0,
         cacheRead: 0,
         output: 1_000_000,
@@ -226,14 +281,14 @@ describe("calculateCost", () => {
       expect(result.outputCost).toBe(75);
     });
 
-    test("calculates output cost at $4/MTok for Haiku", () => {
+    test("calculates output cost at $5/MTok for Haiku 4.5", () => {
       const result = calculateCost(haikuPricing, {
         cacheCreation: 0,
         cacheRead: 0,
         output: 1_000_000,
         uncachedInput: 0,
       });
-      expect(result.outputCost).toBe(4);
+      expect(result.outputCost).toBe(5);
     });
   });
 
@@ -393,22 +448,39 @@ describe("calculateCost", () => {
       uncachedInput: 1_000_000,
     };
 
-    test("Opus is 5x more expensive than Sonnet for input", () => {
-      const opus = calculateCost(opusPricing, tokens);
+    test("Opus 4.5 is ~1.67x more expensive than Sonnet for input", () => {
+      const opus = calculateCost(opus45Pricing, tokens);
+      const sonnet = calculateCost(sonnetPricing, tokens);
+      expect(opus.uncachedInputCost / sonnet.uncachedInputCost).toBeCloseTo(
+        5 / 3,
+        2
+      );
+    });
+
+    test("Opus legacy is 5x more expensive than Sonnet for input", () => {
+      const opus = calculateCost(opusLegacyPricing, tokens);
       const sonnet = calculateCost(sonnetPricing, tokens);
       expect(opus.uncachedInputCost / sonnet.uncachedInputCost).toBe(5);
     });
 
-    test("Opus is 5x more expensive than Sonnet for output", () => {
-      const opus = calculateCost(opusPricing, tokens);
+    test("Opus 4.5 is ~1.67x more expensive than Sonnet for output", () => {
+      const opus = calculateCost(opus45Pricing, tokens);
+      const sonnet = calculateCost(sonnetPricing, tokens);
+      expect(opus.outputCost / sonnet.outputCost).toBeCloseTo(25 / 15, 2);
+    });
+
+    test("Opus legacy is 5x more expensive than Sonnet for output", () => {
+      const opus = calculateCost(opusLegacyPricing, tokens);
       const sonnet = calculateCost(sonnetPricing, tokens);
       expect(opus.outputCost / sonnet.outputCost).toBe(5);
     });
 
-    test("Haiku is ~3.75x cheaper than Sonnet", () => {
+    test("Haiku 4.5 is 3x cheaper than Sonnet", () => {
       const haiku = calculateCost(haikuPricing, tokens);
       const sonnet = calculateCost(sonnetPricing, tokens);
-      expect(sonnet.totalCost / haiku.totalCost).toBeCloseTo(3.75, 1);
+      // Sonnet: $3 input + $15 output = $18
+      // Haiku 4.5: $1 input + $5 output = $6
+      expect(sonnet.totalCost / haiku.totalCost).toBe(3);
     });
   });
 });

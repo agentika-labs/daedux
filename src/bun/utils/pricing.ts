@@ -11,11 +11,45 @@ export interface ModelPricing {
  * Pricing table for Claude models.
  * Keys are substrings matched against the full model ID.
  * Order matters: first match wins (most specific first).
+ *
+ * Pricing source: https://www.anthropic.com/pricing
  */
 const PRICING_TABLE: readonly (readonly [
   substring: string,
   pricing: ModelPricing,
 ])[] = [
+  // Opus 4.5/4.6 - cheaper tier ($5/$25)
+  [
+    "opus-4-5",
+    {
+      cacheReadMultiplier: 0.1,
+      cacheWriteMultiplier: 1.25,
+      contextWindowSize: 200_000,
+      inputPerMTok: 5,
+      outputPerMTok: 25,
+    },
+  ],
+  [
+    "opus-4-6",
+    {
+      cacheReadMultiplier: 0.1,
+      cacheWriteMultiplier: 1.25,
+      contextWindowSize: 200_000,
+      inputPerMTok: 5,
+      outputPerMTok: 25,
+    },
+  ],
+  // Opus 4/4.1 - legacy tier ($15/$75)
+  [
+    "opus-4-1",
+    {
+      cacheReadMultiplier: 0.1,
+      cacheWriteMultiplier: 1.25,
+      contextWindowSize: 200_000,
+      inputPerMTok: 15,
+      outputPerMTok: 75,
+    },
+  ],
   [
     "opus-4",
     {
@@ -27,6 +61,17 @@ const PRICING_TABLE: readonly (readonly [
     },
   ],
   [
+    "opus-3",
+    {
+      cacheReadMultiplier: 0.1,
+      cacheWriteMultiplier: 1.25,
+      contextWindowSize: 200_000,
+      inputPerMTok: 15,
+      outputPerMTok: 75,
+    },
+  ],
+  // Sonnet - all versions same price ($3/$15)
+  [
     "sonnet-4",
     {
       cacheReadMultiplier: 0.1,
@@ -37,28 +82,7 @@ const PRICING_TABLE: readonly (readonly [
     },
   ],
   [
-    "haiku-4",
-    {
-      cacheReadMultiplier: 0.1,
-      cacheWriteMultiplier: 1.25,
-      contextWindowSize: 200_000,
-      inputPerMTok: 0.8,
-      outputPerMTok: 4,
-    },
-  ],
-  // Older models
-  [
-    "opus-3-5",
-    {
-      cacheReadMultiplier: 0.1,
-      cacheWriteMultiplier: 1.25,
-      contextWindowSize: 200_000,
-      inputPerMTok: 15,
-      outputPerMTok: 75,
-    },
-  ],
-  [
-    "sonnet-3-5",
+    "sonnet-3",
     {
       cacheReadMultiplier: 0.1,
       cacheWriteMultiplier: 1.25,
@@ -67,6 +91,29 @@ const PRICING_TABLE: readonly (readonly [
       outputPerMTok: 15,
     },
   ],
+  // Haiku 4.5 - new tier ($1/$5)
+  [
+    "haiku-4-5",
+    {
+      cacheReadMultiplier: 0.1,
+      cacheWriteMultiplier: 1.25,
+      contextWindowSize: 200_000,
+      inputPerMTok: 1,
+      outputPerMTok: 5,
+    },
+  ],
+  // Haiku 4.x fallback (same as 4.5)
+  [
+    "haiku-4",
+    {
+      cacheReadMultiplier: 0.1,
+      cacheWriteMultiplier: 1.25,
+      contextWindowSize: 200_000,
+      inputPerMTok: 1,
+      outputPerMTok: 5,
+    },
+  ],
+  // Haiku 3.5 ($0.80/$4)
   [
     "haiku-3-5",
     {
@@ -75,6 +122,17 @@ const PRICING_TABLE: readonly (readonly [
       contextWindowSize: 200_000,
       inputPerMTok: 0.8,
       outputPerMTok: 4,
+    },
+  ],
+  // Haiku 3 ($0.25/$1.25)
+  [
+    "haiku-3",
+    {
+      cacheReadMultiplier: 0.1,
+      cacheWriteMultiplier: 1.25,
+      contextWindowSize: 200_000,
+      inputPerMTok: 0.25,
+      outputPerMTok: 1.25,
     },
   ],
 ];
