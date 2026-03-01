@@ -16,10 +16,14 @@
     "url": "https://github.com/agentika-labs/daedux.git"
   },
   "bin": {
-    "daedux": "index.js"
+    "daedux": "bin/cli.ts"
   },
   "files": [
-    "index.js",
+    "bin/",
+    "src/bun/",
+    "src/cli/",
+    "src/shared/",
+    "dist/",
     "README.md"
   ],
   "type": "module",
@@ -86,8 +90,5 @@
     "typescript": "^5",
     "ultracite": "7.2.3",
     "vite": "^7"
-  },
-  "optionalDependencies": {
-    "@agentika/daedux-darwin-arm64": "0.1.0"
   }
 }

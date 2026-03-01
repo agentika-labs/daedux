@@ -152,31 +152,13 @@ jobs:
           fi
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
-      - name: Install dependencies
-        run: bun install --frozen-lockfile
-
-      - name: Prepare platform package
+      - name: Update version in package.json
         run: |
-          VERSION="${{ steps.version.outputs.version }}"
-          mkdir -p packages/darwin-arm64/{bin,src,dist}
-          cp -r bin packages/darwin-arm64/
-          cp -r src/bun src/cli src/shared packages/darwin-arm64/src/
-          cp -r dist packages/darwin-arm64/
-          jq --arg v "$VERSION" '.version = $v' packages/darwin-arm64/package.json > tmp.json
-          mv tmp.json packages/darwin-arm64/package.json
-
-      - name: Publish platform package
-        working-directory: packages/darwin-arm64
-        run: npm publish --access public --provenance || echo "Package version may already exist, continuing..."
-
-      - name: Prepare main package
-        run: |
-          VERSION="${{ steps.version.outputs.version }}"
-          jq --arg v "$VERSION" '.version = $v | .optionalDependencies["@agentika/daedux-darwin-arm64"] = $v' package.json > tmp.json
+          jq --arg v "${{ steps.version.outputs.version }}" '.version = $v' package.json > tmp.json
           mv tmp.json package.json
 
-      - name: Publish main package
-        run: npm publish --access public --provenance || echo "Package version may already exist, continuing..."
+      - name: Publish to NPM
+        run: npm publish --access public --provenance || echo "Version may already exist"
 
   release:
     needs: build-desktop
