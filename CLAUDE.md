@@ -1,105 +1,114 @@
-# CLAUDE.md
+# Daedux
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
-
-## Overview
-
-Daedux is a token usage dashboard for Claude Code. It parses session JSONL files from `~/.claude/projects/`, stores aggregated data in SQLite, and serves an interactive HTML dashboard showing costs, token usage, tool health, and cache efficiency.
+Claude Code analytics dashboard with dual-mode architecture (Electrobun desktop + CLI/web).
 
 ## Commands
 
 ```bash
 # Development
-bun run dev                    # Run CLI with hot reload
-bun run typecheck              # Type check with tsc --noEmit
+bun run dev           # CLI server (3456) + Vite frontend (5173)
+bun run dev:app       # Desktop app with HMR
+bun run dev:cli       # CLI server only
+bun run dev:frontend  # Vite frontend only
 
-# Testing
-bun test                       # Run all tests
-bun test --watch               # Watch mode
-bun test tests/unit/           # Run unit tests only
-bun test tests/integration/    # Run integration tests only
-bun test --coverage            # Coverage report
+# Quality
+bun run typecheck     # TypeScript check
+bun run check         # Lint (ultracite)
+bun run fix           # Auto-fix lint issues
+bun test              # Run tests
 
-# Building
-bun run build                  # Bundle to dist/
-bun run compile                # Compile to standalone binary
-
-# CLI usage
-bun src/cli.ts                 # Start dashboard server on :3456
-bun src/cli.ts --json          # Output JSON to stdout, exit
-bun src/cli.ts --resync        # Full resync (clears and re-parses all files)
-bun src/cli.ts --verbose       # Log parse errors to stderr
+# Build
+bun run build         # Full build (native + frontend + app)
+bun run build:prod    # Production build
 ```
 
 ## Architecture
 
-### Service Layer (Effect TS)
-
-The app uses Effect's Layer system for dependency injection:
-
 ```
-AppLive (composed layer)
-├── DatabaseServiceLive   # SQLite connection with Drizzle ORM
-├── SyncServiceLive       # Parses JSONL files, writes to DB
-└── AnalyticsServiceLive  # Reads aggregated data from DB
+src/
+├── bun/           # Backend (Bun runtime, Effect TS services)
+│   ├── analytics/ # Data aggregation services
+│   ├── db/        # Drizzle schema + migrations
+│   ├── services/  # Background services (scheduler, Anthropic)
+│   └── utils/     # Formatting, parsing utilities
+├── mainview/      # Frontend (React 19, TanStack)
+│   ├── routes/    # TanStack Router (file-based)
+│   ├── queries/   # TanStack Query definitions
+│   ├── components/# UI components (Shadcn/ui, Base-UI)
+│   └── hooks/     # Custom hooks
+├── cli/           # CLI entry point (@effect/cli)
+└── shared/        # RPC types (frontend-backend contract)
 ```
 
-Services are defined in `src/services/`:
+**Dual Mode:**
+- Desktop: Electrobun RPC (WebSocket) between main process and renderer
+- CLI/Web: HTTP fetch to local server on port 3456
 
-- `db.ts` - SQLite connection (WAL mode, 64MB cache), transaction helper
-- `sync.ts` - File discovery, incremental sync by mtime, batch inserts
-- `analytics.ts` - All read queries with date filtering support
-- `main.ts` - Composes layers, re-exports service interfaces
+## Code Rules
 
-### Data Flow
+### DO: Use Bun ecosystem
+- `bun` / `bun run` over node/npm/pnpm/yarn
+- `bun test` over jest/vitest
+- `Bun.file()` over node:fs
+- Bun auto-loads .env (no dotenv)
 
-1. **Discovery**: `SyncService.discoverFiles()` scans `~/.claude/projects/` for `*.jsonl`
-2. **Incremental sync**: Compares file mtime to cached values, skips unchanged files
-3. **Parsing**: `src/services/parser.ts` extracts sessions, queries, tool uses from JSONL
-4. **Storage**: Batch inserts into SQLite (respects 999-param limit)
-5. **Analytics**: SQL queries aggregate data for dashboard
+### DON'T: Create barrel exports
+```typescript
+// BAD: index.ts with re-exports
+export * from "./UserRepository";
+export type { User } from "./types";
 
-### Database
+// GOOD: Direct imports from source
+import { UserRepository } from "@/services/UserRepository";
+```
 
-- Location: `~/Library/Application Support/Daedux/daedux.db` (macOS)
-- Schema: `src/db/schema.ts` (Drizzle ORM)
-- Migrations: Manual via `drizzle-kit push`
+### DON'T: Add Redux/Zustand for server state
+All API data goes through TanStack Query. No client-side stores for server state.
 
-Key tables:
+### DON'T: Throw exceptions in Effect code
+Use typed errors via Effect.fail() - exceptions break Effect's error channel.
 
-- `sessions` - Aggregated session data (costs, tokens)
-- `queries` - Per-API-call token breakdown
-- `tool_uses` - Tool invocations with error tracking
-- `file_operations`, `bash_commands`, `skill_invocations`, `agent_spawns` - Extended analytics
+### DON'T: Over-engineer
+Keep solutions simple. Don't create abstractions for one-time operations.
 
-### Dashboard
+## Key Files
 
-- HTML: `src/dashboard.html` (imported as text)
-- API: REST endpoints in `cli.ts` (`/api/data`, `/api/analytics/*`)
-- Lazy loading: Core data loads fast, extended analytics load on demand
+| File | Purpose |
+|------|---------|
+| `src/shared/rpc-types.ts` | Frontend-backend contract (source of truth) |
+| `src/bun/db/schema.ts` | Drizzle database schema |
+| `src/bun/errors.ts` | Domain error definitions |
+| `src/bun/main.ts` | Effect Layer composition |
+| `src/mainview/hooks/useApi.ts` | Environment-aware API client |
 
-## Key Patterns
+## Testing
 
-**Effect pipelines**: Use `Effect.gen` for sequential effects, `Effect.all` for parallel. Wrap database calls in `Effect.tryPromise` with typed errors.
+```bash
+bun test              # All tests
+bun test --watch      # Watch mode
+bun test:coverage     # With coverage
+```
 
-**Date filtering**: Most analytics methods accept `DateFilter` for server-side filtering. Use `buildDateConditions()` helper for consistent SQL generation.
+Tests in `tests/unit/` and `tests/integration/`.
 
-**Batch inserts**: SQLite has ~999 param limit. Use `getSafeBatchSize(tableName)` based on column count, insert in batches.
+## Gotchas
 
-**Test databases**: `tests/helpers/test-db.ts` provides in-memory SQLite with schema. Use `createTestDatabaseLayer()` for Effect tests or `createTestDb()` for direct access.
+1. **Memory history required**: Router uses `createMemoryHistory` for desktop app's `views://` protocol (not browser history)
 
-**Test factories**: `tests/fixtures/factories/` provides builders for sessions, queries, etc.
+2. **Environment detection**: Check `window.__electrobun` to detect desktop vs web mode
 
-## Dependencies
+3. **SQLite parameter limit**: Batch inserts must respect 999-parameter limit per statement
 
-- **Effect TS**: Functional effects, error handling, DI
-- **Drizzle ORM**: Type-safe SQL queries, schema definition
-- **Bun**: Runtime, bundler, test runner, file I/O
+4. **Streaming parser**: JSONL parser streams line-by-line for memory efficiency
 
-## File Locations
+5. **Pre-aggregated metrics**: Token/cost totals stored in sessions table during sync (not calculated at runtime)
 
-- CLI entry: `src/cli.ts`
-- Services: `src/services/*.ts`
-- DB schema: `src/db/schema.ts`
-- Pricing: `src/pricing.ts`
-- Parser: `src/services/parser.ts`, `src/parser-utils.ts`
+6. **Database locations**:
+   - macOS: `~/Library/Application Support/Daedux/daedux.db`
+   - Windows: `%APPDATA%/Daedux/daedux.db`
+   - Linux: `~/.local/share/daedux/daedux.db`
+
+7. **Path aliases**:
+   - `@/*` → `./src/mainview/*`
+   - `@shared/*` → `./src/shared/*`
+   - `~/*` → `./src/*`
