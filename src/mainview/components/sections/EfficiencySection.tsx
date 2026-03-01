@@ -33,7 +33,6 @@ import {
   ChartTooltipContent,
 } from "@/components/ui/chart";
 import type { ChartConfig } from "@/components/ui/chart";
-import { ChartSkeletonGrid } from "@/components/shared/ChartSkeletonGrid";
 import { formatDateTick, formatPercentAxisTick } from "@/lib/chart-formatters";
 import {
   calculateDailyRate,
@@ -321,9 +320,10 @@ export function EfficiencySection({
           <CardTitle>Context Compaction Analysis</CardTitle>
         </CardHeader>
         <CardContent>
-          {loading ? (
-            <ChartSkeletonGrid columns={3} rows={1} />
-          ) : (
+          <LoadingBoundary
+            loading={loading}
+            fallback={<ChartSkeletonGrid columns={3} rows={1} />}
+          >
             <div className="grid grid-cols-3 gap-6">
               <CompactionStat
                 label="Sessions with Compactions"

@@ -256,9 +256,10 @@ export function OverviewSection({
             <CardTitle>This Week vs Last Week</CardTitle>
           </CardHeader>
           <CardContent>
-            {loading ? (
-              <ChartSkeletonGrid columns={3} rows={1} />
-            ) : (
+            <LoadingBoundary
+              loading={loading}
+              fallback={<ChartSkeletonGrid columns={3} rows={1} />}
+            >
               <>
                 <div className="mb-4 grid grid-cols-3 gap-4">
                   <ComparisonCard

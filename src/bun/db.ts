@@ -139,7 +139,6 @@ export class DatabaseService extends Effect.Service<DatabaseService>()(
   }
 ) {}
 
-
 // ─── Helper: Execute SQL with Effect Error Handling ─────────────────────────
 
 /** Wrap raw SQL execution in Effect error handling */
