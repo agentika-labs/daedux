@@ -44,7 +44,10 @@ export const ThemeToggle = ({
       newIndex = (index - 1 + THEME_OPTIONS.length) % THEME_OPTIONS.length;
     } else if (e.key === " " || e.key === "Enter") {
       e.preventDefault();
-      onChange(THEME_OPTIONS[index].value);
+      const currentOption = THEME_OPTIONS[index];
+      if (currentOption) {
+        onChange(currentOption.value);
+      }
       return;
     } else {
       return;

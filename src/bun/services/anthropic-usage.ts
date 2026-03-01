@@ -752,7 +752,7 @@ export class AnthropicUsageService extends Effect.Service<AnthropicUsageService>
             // Check cache INSIDE mutex to avoid thundering herd
             // (concurrent callers wait here, then get cached data)
             const now = Date.now();
-            const cached: CachedUsage | null = usageCache;
+            const cached = usageCache as CachedUsage | null;
             if (cached && now - cached.cachedAt < CACHE_TTL_MS) {
               return cached.data;
             }

@@ -66,6 +66,13 @@ export interface ProjectSummary {
   readonly cwd?: string;
 }
 
+export interface GetSessionSummariesOptions {
+  readonly limit?: number;
+  readonly projectPath?: string;
+  readonly includeSubagents?: boolean;
+  readonly dateFilter?: DateFilter;
+}
+
 export interface ExtendedTotals extends Totals {
   readonly totalTokens: number;
   readonly uncachedInput: number;
@@ -964,7 +971,7 @@ export class SessionAnalyticsService extends Effect.Service<SessionAnalyticsServ
             },
           }),
 
-        getSessionSummaries: (options = {}) =>
+        getSessionSummaries: (options: GetSessionSummariesOptions = {}) =>
           Effect.tryPromise({
             catch: (error) =>
               new DatabaseError({

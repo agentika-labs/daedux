@@ -83,6 +83,10 @@ let nativeLib: ReturnType<
       args: [typeof FFIType.ptr, typeof FFIType.ptr, typeof FFIType.i32];
       returns: typeof FFIType.bool;
     };
+    extendTitlebarWithToolbar: {
+      args: [typeof FFIType.ptr];
+      returns: typeof FFIType.bool;
+    };
   }>
 > | null = null;
 
