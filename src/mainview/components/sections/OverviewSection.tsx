@@ -2,6 +2,7 @@ import type { DashboardData } from "@shared/rpc-types";
 
 import { Section } from "@/components/layout/Section";
 import { ComparisonCard } from "@/components/shared/ComparisonCard";
+import { InfoTooltip } from "@/components/shared/InfoTooltip";
 import { InsightsPanel } from "@/components/shared/InsightsPanel";
 import { ScoreBar } from "@/components/shared/ScoreBar";
 import { SectionHeader } from "@/components/shared/SectionHeader";
@@ -67,11 +68,17 @@ export function OverviewSection({
       {/* Hero Stats Row */}
       <div className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-5">
         <StatCard
-          label="Total Cost"
+          label="API Value"
           value={formatCurrency(totals?.totalCost ?? 0)}
           subtext={`${formatCurrency(totals?.avgCostPerSession ?? 0)} avg/session`}
           trend={costTrend}
           loading={loading}
+          tooltip={
+            <InfoTooltip
+              title="API Value"
+              description="What this usage would cost at Anthropic's published API rates. Includes uncached input, cached reads (at 10% rate), cache writes (at 125% rate), and output tokens."
+            />
+          }
         />
         <StatCard
           label="Sessions"
@@ -83,8 +90,14 @@ export function OverviewSection({
         <StatCard
           label="Total Tokens"
           value={formatTokens(totals?.totalTokens ?? 0)}
-          subtext={`${formatTokens(totals?.totalInputTokens ?? 0)} input`}
+          subtext={`${formatTokens(totals?.totalInputTokens ?? 0)} input, ${formatTokens(totals?.totalCacheRead ?? 0)} cache`}
           loading={loading}
+          tooltip={
+            <InfoTooltip
+              title="Total Tokens"
+              description="Total tokens processed. 'Input' is fresh/uncached context. 'Cache' is reused context from prompt caching (billed at 10% rate)."
+            />
+          }
         />
         <StatCard
           label="PRs Created"
@@ -106,6 +119,12 @@ export function OverviewSection({
           subtext={`${formatPercent(totals?.cacheEfficiencyRatio ?? 0)} hit rate`}
           variant="success"
           loading={loading}
+          tooltip={
+            <InfoTooltip
+              title="Cache Savings"
+              description="Saved by paying $0.50/MTok for cached context instead of the full input price (e.g., $5/MTok for Opus). Without prompt caching, every turn would re-send full context at full price."
+            />
+          }
         />
       </div>
 
