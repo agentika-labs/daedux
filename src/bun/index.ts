@@ -40,6 +40,7 @@ import { AnthropicUsageService } from "./services/anthropic-usage";
 import { SchedulerService, parseDaysOfWeek } from "./services/scheduler";
 import { SyncService } from "./sync";
 import { toDateString } from "./utils/formatting";
+import { transformSessionToRPC } from "./utils/session-transformer";
 import {
   formatRateLimitItem,
   formatExtraUsage,
@@ -429,46 +430,17 @@ const loadDashboardData = (dateFilter: DateFilter = {}) =>
     };
 
     // Transform sessions
-    const dashboardSessions = sessionList.map((s) => {
-      const sessionModel =
-        sessionPrimaryModels.get(s.sessionId) ?? "claude-sonnet-4-5-20251022";
-      const sessionTools = sessionToolCounts.get(s.sessionId) ?? {};
-      const sessionFileOps = sessionFileOperations.get(s.sessionId) ?? [];
-
-      return {
-        bashCommandCount: sessionTools.Bash ?? 0,
-        cacheCreation: s.totalCacheWrite ?? 0,
-        cacheRead: s.totalCacheRead ?? 0,
-        compactions: s.compactions ?? 0,
-        date: toDateString(s.startTime),
-        displayName: s.displayName,
-        durationMs: s.durationMs ?? 0,
-        fileActivityDetails: sessionFileOps,
-        fileEditCount: sessionFileOps.filter((op) => op.tool === "Edit").length,
-        fileReadCount: sessionFileOps.filter((op) => op.tool === "Read").length,
-        fileWriteCount: sessionFileOps.filter((op) => op.tool === "Write")
-          .length,
-        firstPrompt: s.displayName ?? "Session",
-        isSubagent: s.isSubagent ?? false,
-        model: sessionModel,
-        modelShort: modelDisplayNameWithVersion(sessionModel),
-        output: s.totalOutputTokens ?? 0,
-        project: s.projectPath,
-        queries: [],
-        queryCount: s.queryCount ?? 0,
-        savedByCaching: s.savedByCaching ?? 0,
-        sessionId: s.sessionId,
-        startTime: s.startTime,
-        subagentCount: sessionAgentCounts.get(s.sessionId) ?? 0,
-        toolCounts: sessionTools,
-        toolErrorCount: sessionToolErrorCounts.get(s.sessionId) ?? 0,
-        toolUseCount: s.toolUseCount ?? 0,
-        totalCost: s.totalCost ?? 0,
-        totalTokens: (s.totalInputTokens ?? 0) + (s.totalOutputTokens ?? 0),
-        turnCount: s.turnCount ?? 0,
-        uncachedInput: s.totalInputTokens ?? 0,
-      } satisfies SessionSummary;
-    });
+    const dashboardSessions = sessionList.map((s) =>
+      transformSessionToRPC({
+        session: s,
+        sessionTools: sessionToolCounts.get(s.sessionId) ?? {},
+        sessionFileOps: sessionFileOperations.get(s.sessionId) ?? [],
+        sessionModel:
+          sessionPrimaryModels.get(s.sessionId) ?? "claude-sonnet-4-5-20251022",
+        agentCount: sessionAgentCounts.get(s.sessionId) ?? 0,
+        errorCount: sessionToolErrorCounts.get(s.sessionId) ?? 0,
+      })
+    );
 
     // Transform insights
     const transformedInsights = insights.map((i) => ({
