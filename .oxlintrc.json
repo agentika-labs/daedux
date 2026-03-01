@@ -91,6 +91,7 @@
     "dist",
     "build",
     ".electrobun",
+    ".claude",
     "node_modules",
     "coverage",
     "**/routeTree.gen.ts"

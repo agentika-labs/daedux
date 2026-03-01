@@ -2,7 +2,7 @@
 // https://oxc.rs/docs/guide/usage/formatter/config-file-reference.html
 {
   "$schema": "./node_modules/oxfmt/configuration_schema.json",
-  "ignorePatterns": ["**/routeTree.gen.ts"],
+  "ignorePatterns": ["**/routeTree.gen.ts", ".claude/**"],
   "printWidth": 80,
   "tabWidth": 2,
   "useTabs": false,
