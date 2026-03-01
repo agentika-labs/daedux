@@ -359,7 +359,7 @@ export class ContextAnalyticsService extends Effect.Service<ContextAnalyticsServ
               }
               if (projectPath) {
                 whereFragments.push(
-                  `s.project_path = '${projectPath.replaceAll('\'', "''")}'`
+                  `s.project_path = '${projectPath.replaceAll("'", "''")}'`
                 );
               }
               const whereClause = whereFragments.join(" AND ");
