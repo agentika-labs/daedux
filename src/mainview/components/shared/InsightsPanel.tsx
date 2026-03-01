@@ -59,19 +59,17 @@ export function InsightsPanel({
         ) : processedInsights.length > 0 ? (
           <ScrollArea className="h-[340px]">
             <div className="space-y-3 pr-4">
-              {processedInsights.map(
-                ({ insight, type, priority, action }, i) => (
-                  <InsightCard
-                    key={insight.title + i}
-                    headline={insight.title}
-                    context={insight.description}
-                    type={type}
-                    priority={priority}
-                    dollarImpact={insight.dollarImpact}
-                    action={action}
-                  />
-                )
-              )}
+              {processedInsights.map(({ insight, type, priority, action }) => (
+                <InsightCard
+                  key={insight.title}
+                  headline={insight.title}
+                  context={insight.description}
+                  type={type}
+                  priority={priority}
+                  dollarImpact={insight.dollarImpact}
+                  action={action}
+                />
+              ))}
             </div>
           </ScrollArea>
         ) : (

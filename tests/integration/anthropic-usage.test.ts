@@ -14,13 +14,12 @@ import {
   setDefaultTimeout,
 } from "bun:test";
 
-import { Effect, Layer } from "effect";
+import { Effect } from "effect";
 
 import {
   AnthropicUsageService,
   AnthropicUsageServiceLive,
 } from "../../src/bun/services/anthropic-usage";
-import type { AnthropicUsage } from "../../src/shared/rpc-types";
 
 // CLI probe uses expect with 15s timeout, so we need longer test timeouts
 setDefaultTimeout(30_000);

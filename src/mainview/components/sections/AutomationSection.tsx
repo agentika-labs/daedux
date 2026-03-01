@@ -45,6 +45,10 @@ import {
   formatAvgDuration,
 } from "@/lib/utils";
 
+// ─── Stable Empty Arrays (prevent useMemo dep changes on rerenders) ──────────
+const EMPTY_SKILL_ROI: SkillROIEntry[] = [];
+const EMPTY_HOOK_STATS: HookStatEntry[] = [];
+
 interface AutomationSectionProps {
   data: DashboardData | null;
   loading?: boolean;
@@ -52,8 +56,8 @@ interface AutomationSectionProps {
 
 export function AutomationSection({ data, loading }: AutomationSectionProps) {
   const agentROI = data?.agentROI;
-  const skillROI = data?.skillROI ?? [];
-  const hookStats = data?.hookStats ?? [];
+  const skillROI = data?.skillROI ?? EMPTY_SKILL_ROI;
+  const hookStats = data?.hookStats ?? EMPTY_HOOK_STATS;
   const skillImpact = data?.skillImpact;
 
   // Generate headline insight based on data

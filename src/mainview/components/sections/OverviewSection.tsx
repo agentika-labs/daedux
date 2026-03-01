@@ -278,8 +278,8 @@ export function OverviewSection({
                           Improvements
                         </p>
                         <ul className="text-muted-foreground space-y-1 text-sm">
-                          {weeklyComparison.improvements.map((item, i) => (
-                            <li key={i}>+ {item}</li>
+                          {weeklyComparison.improvements.map((item) => (
+                            <li key={item}>+ {item}</li>
                           ))}
                         </ul>
                       </div>
@@ -290,8 +290,8 @@ export function OverviewSection({
                           Concerns
                         </p>
                         <ul className="text-muted-foreground space-y-1 text-sm">
-                          {weeklyComparison.concerns.map((item, i) => (
-                            <li key={i}>- {item}</li>
+                          {weeklyComparison.concerns.map((item) => (
+                            <li key={item}>- {item}</li>
                           ))}
                         </ul>
                       </div>

@@ -20,7 +20,8 @@ import type {
  * Check if we're running in Electrobun desktop environment.
  * The __electrobun global is injected by Electrobun's webview.
  */
-const isElectrobun = (): boolean => typeof window !== "undefined" && "__electrobun" in window;
+const isElectrobun = (): boolean =>
+  typeof window !== "undefined" && "__electrobun" in window;
 
 // ─── HTTP API Client ─────────────────────────────────────────────────────────
 
@@ -59,8 +60,12 @@ const API_TIMEOUT_MS = 30_000;
 const createHttpClient = (): ApiClient => ({
   getDashboardData: async (params) => {
     const searchParams = new URLSearchParams();
-    if (params.filter) {searchParams.set("filter", params.filter);}
-    if (params.projectPath) {searchParams.set("projectPath", params.projectPath);}
+    if (params.filter) {
+      searchParams.set("filter", params.filter);
+    }
+    if (params.projectPath) {
+      searchParams.set("projectPath", params.projectPath);
+    }
 
     const url = `/api/dashboard${searchParams.toString() ? `?${searchParams}` : ""}`;
 

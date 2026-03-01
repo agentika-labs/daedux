@@ -42,7 +42,9 @@ function Dashboard() {
 
   // Listen for data updates from main process (desktop only)
   useEffect(() => {
-    if (!isDesktop) {return;}
+    if (!isDesktop) {
+      return;
+    }
 
     let cleanup: (() => void) | undefined;
 

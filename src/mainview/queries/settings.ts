@@ -79,7 +79,8 @@ export const useSettingsQuery = () => useQuery(settingsQueryOptions);
 
 export const useAppInfoQuery = () => useQuery(appInfoQueryOptions);
 
-export const useAnthropicUsageQuery = () => useQuery(anthropicUsageQueryOptions);
+export const useAnthropicUsageQuery = () =>
+  useQuery(anthropicUsageQueryOptions);
 
 export const useAuthStatusQuery = () => useQuery(authStatusQueryOptions);
 

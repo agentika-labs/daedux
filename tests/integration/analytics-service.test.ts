@@ -22,7 +22,7 @@ import { createTestDb } from "../helpers/test-db";
 
 // ─── Test Helpers ───────────────────────────────────────────────────────────
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- test harness provides requirements
 const runWithAnalytics = <A, E>(
   setup: (db: ReturnType<typeof createTestDb>["db"]) => Promise<void>,
   effect: Effect.Effect<A, E, any>

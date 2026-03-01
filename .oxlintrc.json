@@ -92,7 +92,8 @@
     "build",
     ".electrobun",
     "node_modules",
-    "coverage"
+    "coverage",
+    "**/routeTree.gen.ts"
   ],
   "extends": [
     "./node_modules/ultracite/config/oxlint/core/.oxlintrc.json",

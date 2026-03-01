@@ -100,9 +100,9 @@ export function ToolsSection({ data, loading }: ToolsSectionProps) {
             ) : toolHealthReport?.reliableTools &&
               toolHealthReport.reliableTools.length > 0 ? (
               <div className="max-h-[300px] space-y-2 overflow-y-auto pr-3">
-                {toolHealthReport.reliableTools.map((tool, i) => (
+                {toolHealthReport.reliableTools.map((tool) => (
                   <div
-                    key={i}
+                    key={tool.name}
                     className="bg-success/5 border-success/20 flex items-center justify-between rounded-lg border px-3 py-2"
                   >
                     <div className="flex items-center gap-2">
@@ -158,16 +158,16 @@ export function ToolsSection({ data, loading }: ToolsSectionProps) {
                       (b.frictionScore ?? b.errorRate) -
                       (a.frictionScore ?? a.errorRate)
                   )
-                  .map((tool, i) => (
+                  .map((tool, index) => (
                     <FrictionPointCard
-                      key={i}
+                      key={tool.name}
                       name={tool.name}
                       totalCalls={tool.totalCalls}
                       errorRate={tool.errorRate}
                       topError={tool.topError}
                       errorCount={Math.round(tool.totalCalls * tool.errorRate)}
-                      expanded={frictionExpansion.isExpanded(i)}
-                      onToggle={() => frictionExpansion.toggle(i)}
+                      expanded={frictionExpansion.isExpanded(index)}
+                      onToggle={() => frictionExpansion.toggle(index)}
                       confidence={tool.confidence}
                       frictionScore={tool.frictionScore}
                     />
@@ -197,12 +197,12 @@ export function ToolsSection({ data, loading }: ToolsSectionProps) {
           ) : toolHealthReport?.bashDeepDive &&
             toolHealthReport.bashDeepDive.length > 0 ? (
             <div className="space-y-2">
-              {toolHealthReport.bashDeepDive.map((category, i) => (
+              {toolHealthReport.bashDeepDive.map((category, index) => (
                 <BashCategoryAccordion
-                  key={i}
+                  key={category.category}
                   category={category}
-                  expanded={bashExpansion.isExpanded(i)}
-                  onToggle={() => bashExpansion.toggle(i)}
+                  expanded={bashExpansion.isExpanded(index)}
+                  onToggle={() => bashExpansion.toggle(index)}
                 />
               ))}
             </div>
@@ -221,7 +221,9 @@ export function ToolsSection({ data, loading }: ToolsSectionProps) {
 
 /** Confidence badge showing statistical confidence level */
 function ConfidenceBadge({ confidence }: { confidence?: ConfidenceLevel }) {
-  if (!confidence) {return null;}
+  if (!confidence) {
+    return null;
+  }
 
   const styles: Record<
     ConfidenceLevel,
@@ -570,7 +572,7 @@ function BashCategoryAccordion({
           <div>
             <p className="mb-2 text-sm font-medium">Top Errors</p>
             <div className="space-y-2">
-              {category.topErrors.slice(0, 3).map((error, i) => {
+              {category.topErrors.slice(0, 3).map((error) => {
                 const parsed = parseError(error.message);
                 const matchedSuggestion = matchSuggestionToError(
                   parsed,
@@ -578,7 +580,7 @@ function BashCategoryAccordion({
                 );
                 return (
                   <SmartErrorCard
-                    key={i}
+                    key={error.message}
                     message={error.message}
                     count={error.count}
                     suggestion={matchedSuggestion}

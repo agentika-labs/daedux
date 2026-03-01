@@ -2,21 +2,16 @@
  * Integration tests for sync service database operations.
  * Tests the parse-to-database pipeline using in-memory SQLite.
  */
-import { describe, expect, it, beforeEach } from "bun:test";
+import { describe, expect, it } from "bun:test";
 import * as path from "node:path";
 
 import { eq } from "drizzle-orm";
 import { Effect } from "effect";
 
-import { DatabaseService } from "../../src/bun/db";
 import * as schema from "../../src/bun/db/schema";
 import { parseSessionFile } from "../../src/bun/parser";
 import type { FileInfo } from "../../src/bun/parser";
-import {
-  createTestDb,
-  runWithTestDb,
-  insertTestSession,
-} from "../helpers/test-db";
+import { createTestDb } from "../helpers/test-db";
 
 // ─── Test Helpers ───────────────────────────────────────────────────────────
 
@@ -39,17 +34,7 @@ const createFileInfo = (
 describe("Sync Database Operations", () => {
   describe("session insertion", () => {
     it("inserts a new session from parsed file", async () => {
-      const { db, layer } = (() => {
-        const testDb = createTestDb();
-        return {
-          db: testDb.db,
-          layer: Effect.provideService(
-            Effect.succeed(),
-            DatabaseService,
-            testDb
-          ).pipe(Effect.map(() => testDb)),
-        };
-      })();
+      const { db } = createTestDb();
 
       // Parse and get records
       const fileInfo = createFileInfo("minimal-session.jsonl");

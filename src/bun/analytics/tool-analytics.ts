@@ -94,7 +94,9 @@ export function wilsonScoreInterval(
   total: number,
   z = 1.96
 ): { lower: number; upper: number } {
-  if (total === 0) {return { lower: 0, upper: 1 };}
+  if (total === 0) {
+    return { lower: 0, upper: 1 };
+  }
 
   const p = successes / total;
   const z2 = z * z;
@@ -117,15 +119,21 @@ export function wilsonScoreInterval(
  * @returns The value at the given percentile
  */
 export function percentile(values: number[], p: number): number {
-  if (values.length === 0) {return 0;}
-  if (values.length === 1) {return values[0]!;}
+  if (values.length === 0) {
+    return 0;
+  }
+  if (values.length === 1) {
+    return values[0]!;
+  }
 
   const sorted = [...values].toSorted((a, b) => a - b);
   const idx = (p / 100) * (sorted.length - 1);
   const lo = Math.floor(idx);
   const hi = Math.ceil(idx);
 
-  if (lo === hi) {return sorted[lo]!;}
+  if (lo === hi) {
+    return sorted[lo]!;
+  }
   return sorted[lo]! + (sorted[hi]! - sorted[lo]!) * (idx - lo);
 }
 
@@ -138,8 +146,12 @@ export function percentile(values: number[], p: number): number {
 export type ConfidenceLevel = "high" | "medium" | "low";
 
 export function getConfidenceLevel(totalCalls: number): ConfidenceLevel {
-  if (totalCalls >= 100) {return "high";}
-  if (totalCalls >= 20) {return "medium";}
+  if (totalCalls >= 100) {
+    return "high";
+  }
+  if (totalCalls >= 20) {
+    return "medium";
+  }
   return "low";
 }
 

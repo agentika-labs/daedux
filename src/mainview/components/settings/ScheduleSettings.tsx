@@ -171,7 +171,9 @@ export const ScheduleSettings = () => {
 
   // Toggle scheduler enabled
   const handleToggleScheduler = async () => {
-    if (!settings) {return;}
+    if (!settings) {
+      return;
+    }
     const newEnabled = !settings.schedulerEnabled;
     try {
       await rpcRequest("updateSettings", { schedulerEnabled: newEnabled });

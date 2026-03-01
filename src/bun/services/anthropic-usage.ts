@@ -596,7 +596,7 @@ const tryCliUsage = () =>
                 // Use DOWN ARROW to select "Yes, I accept" (option 1 "No, exit" is pre-selected)
                 // The menu uses arrow-key navigation, not numbered input
                 // Send DOWN ARROW first, then Enter after a short delay to allow the menu to update
-                terminal.write("\x1B[B"); // DOWN ARROW
+                terminal.write("\u001B[B"); // DOWN ARROW
                 setTimeout(() => {
                   if (!resolved && proc.terminal) {
                     console.log(

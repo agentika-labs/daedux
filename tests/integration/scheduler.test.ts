@@ -9,9 +9,11 @@ import { describe, test, expect, beforeEach, afterEach } from "bun:test";
 
 import { Effect } from "effect";
 
+import type { DatabaseService } from "../../src/bun/db";
 import * as schema from "../../src/bun/db/schema";
 import { SchedulerService } from "../../src/bun/services/scheduler";
 import { createRpcTestHarness } from "../helpers/rpc-test-harness";
+import type { TestAppContext } from "../helpers/rpc-test-harness";
 
 // ─── Test Setup ──────────────────────────────────────────────────────────────
 
@@ -28,8 +30,9 @@ afterEach(async () => {
 
 // ─── Helper Functions ────────────────────────────────────────────────────────
 
-const runEffect = <A, E>(effect: Effect.Effect<A, E, any>): Promise<A> =>
-  harness.runEffect(effect);
+const runEffect = <A, E>(
+  effect: Effect.Effect<A, E, TestAppContext | DatabaseService>
+): Promise<A> => harness.runEffect(effect);
 
 // ─── getSchedules Tests ──────────────────────────────────────────────────────
 

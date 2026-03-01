@@ -80,7 +80,9 @@ const App = () => {
 
   // Listen for theme changes from main process (desktop only)
   useEffect(() => {
-    if (!isDesktop) {return;}
+    if (!isDesktop) {
+      return;
+    }
 
     // Dynamically import RPC for desktop mode
     import("./hooks/useRPC").then(({ electroview }) => {

@@ -2,6 +2,9 @@ import type { DashboardData, ProjectSummary } from "@shared/rpc-types";
 import { useMemo } from "react";
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Cell } from "recharts";
 
+// ─── Stable Empty Arrays (prevent useMemo dep changes on rerenders) ──────────
+const EMPTY_PROJECTS: ProjectSummary[] = [];
+
 import { Section } from "@/components/layout/Section";
 import { ChartCard } from "@/components/shared/ChartCard";
 import { EmptyChartState } from "@/components/shared/EmptyChartState";
@@ -71,7 +74,7 @@ const projectConfig = {
 } satisfies ChartConfig;
 
 export function ProjectsSection({ data, loading }: ProjectsSectionProps) {
-  const projects = data?.projects ?? [];
+  const projects = data?.projects ?? EMPTY_PROJECTS;
 
   // Memoize sorted projects (only recalculates when projects changes)
   const sortedProjects = useMemo(
@@ -225,9 +228,9 @@ export function ProjectsSection({ data, loading }: ProjectsSectionProps) {
                   }
                 />
                 <Bar dataKey="cost" radius={[0, 4, 4, 0]}>
-                  {chartData.map((_, index) => (
+                  {chartData.map((entry, index) => (
                     <Cell
-                      key={`cell-${index}`}
+                      key={entry.name}
                       fill={`var(--chart-${(index % 5) + 1})`}
                     />
                   ))}
@@ -283,9 +286,9 @@ export function ProjectsSection({ data, loading }: ProjectsSectionProps) {
           ) : (
             <div className="grid grid-cols-7 gap-1">
               {/* Simple activity visualization - last 28 days */}
-              {activityData.map((day, i) => (
+              {activityData.map((day) => (
                 <div
-                  key={i}
+                  key={day.date}
                   className={cn(
                     "h-6 rounded-sm",
                     day.sessions === 0 && "bg-muted",

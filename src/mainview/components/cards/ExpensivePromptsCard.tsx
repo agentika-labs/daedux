@@ -214,18 +214,18 @@ export function ExpensivePromptsCard({
           </div>
         ) : topPrompts.length > 0 ? (
           <div className="space-y-1">
-            {topPrompts.map((prompt, i) => (
+            {topPrompts.map((prompt, index) => (
               <PromptRow
-                key={`${prompt.sessionId}-${i}`}
+                key={prompt.sessionId}
                 prompt={prompt}
-                rank={i + 1}
+                rank={index + 1}
                 maxCost={maxCost}
                 totalOfTop5={totalOfTop5}
                 percentOfTotal={
                   totalOfTop5 > 0 ? (prompt.cost / totalOfTop5) * 100 : 0
                 }
-                expanded={isExpanded(i)}
-                onToggle={() => toggle(i)}
+                expanded={isExpanded(index)}
+                onToggle={() => toggle(index)}
               />
             ))}
           </div>

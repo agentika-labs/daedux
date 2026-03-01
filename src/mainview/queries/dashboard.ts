@@ -28,7 +28,8 @@ export const dashboardQueryOptions = (filter: FilterOption) =>
 
 // ─── Query Hooks ─────────────────────────────────────────────────────────────
 
-export const useDashboardQuery = (filter: FilterOption) => useQuery(dashboardQueryOptions(filter));
+export const useDashboardQuery = (filter: FilterOption) =>
+  useQuery(dashboardQueryOptions(filter));
 
 // ─── Mutation Hooks ──────────────────────────────────────────────────────────
 

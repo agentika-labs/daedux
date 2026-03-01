@@ -1,5 +1,13 @@
-import type { DashboardData } from "@shared/rpc-types";
+import type {
+  DashboardData,
+  DailyStat,
+  SessionSummary,
+} from "@shared/rpc-types";
 import { useMemo } from "react";
+
+// ─── Stable Empty Arrays (prevent useMemo dep changes on rerenders) ──────────
+const EMPTY_DAILY_USAGE: DailyStat[] = [];
+const EMPTY_SESSIONS: SessionSummary[] = [];
 import {
   Area,
   AreaChart,
@@ -57,18 +65,23 @@ const sessionConfig = {
 } satisfies ChartConfig;
 
 export function EfficiencySection({ data, loading }: EfficiencySectionProps) {
-  const dailyUsage = data?.dailyUsage ?? [];
-  const sessions = data?.sessions ?? [];
+  const dailyUsage = data?.dailyUsage ?? EMPTY_DAILY_USAGE;
+  const sessions = data?.sessions ?? EMPTY_SESSIONS;
 
   // Memoize cache efficiency calculation (only recalculates when dailyUsage changes)
-  const cacheEfficiencyData = useMemo(() => dailyUsage.map((day) => {
-      const totalInput = day.uncachedInput + day.cacheRead + day.cacheCreation;
-      const hitRate = totalInput > 0 ? day.cacheRead / totalInput : 0;
-      return {
-        cacheHitRate: hitRate * 100,
-        date: day.date,
-      };
-    }), [dailyUsage]);
+  const cacheEfficiencyData = useMemo(
+    () =>
+      dailyUsage.map((day) => {
+        const totalInput =
+          day.uncachedInput + day.cacheRead + day.cacheCreation;
+        const hitRate = totalInput > 0 ? day.cacheRead / totalInput : 0;
+        return {
+          cacheHitRate: hitRate * 100,
+          date: day.date,
+        };
+      }),
+    [dailyUsage]
+  );
 
   // Memoize session length distribution
   const sessionLengthBuckets = useMemo(

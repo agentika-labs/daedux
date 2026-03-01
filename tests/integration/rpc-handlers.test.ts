@@ -15,9 +15,11 @@ import { InsightsAnalyticsService } from "../../src/bun/analytics/insights-analy
 import { ModelAnalyticsService } from "../../src/bun/analytics/model-analytics";
 import { SessionAnalyticsService } from "../../src/bun/analytics/session-analytics";
 import { ToolAnalyticsService } from "../../src/bun/analytics/tool-analytics";
+import type { DatabaseService } from "../../src/bun/db";
 import * as schema from "../../src/bun/db/schema";
 import { SchedulerService } from "../../src/bun/services/scheduler";
 import { createRpcTestHarness } from "../helpers/rpc-test-harness";
+import type { TestAppContext } from "../helpers/rpc-test-harness";
 
 // ─── Test Setup ──────────────────────────────────────────────────────────────
 
@@ -34,8 +36,9 @@ afterEach(async () => {
   await harness.cleanup();
 });
 
-const runEffect = <A, E>(effect: Effect.Effect<A, E, any>): Promise<A> =>
-  harness.runEffect(effect);
+const runEffect = <A, E>(
+  effect: Effect.Effect<A, E, TestAppContext | DatabaseService>
+): Promise<A> => harness.runEffect(effect);
 
 // ─── Helper to create test session data ──────────────────────────────────────
 

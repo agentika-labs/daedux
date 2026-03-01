@@ -1,4 +1,8 @@
-import type { DashboardData, DailyStat } from "@shared/rpc-types";
+import type {
+  DashboardData,
+  DailyStat,
+  ModelBreakdown,
+} from "@shared/rpc-types";
 import { useMemo } from "react";
 import {
   Bar,
@@ -25,6 +29,10 @@ import {
 } from "@/components/ui/chart";
 import type { ChartConfig } from "@/components/ui/chart";
 import { formatCurrency, formatTokens } from "@/lib/utils";
+
+// ─── Stable Empty Arrays (prevent useMemo dep changes on rerenders) ──────────
+const EMPTY_DAILY_USAGE: DailyStat[] = [];
+const EMPTY_MODEL_BREAKDOWN: ModelBreakdown[] = [];
 
 interface CostSectionProps {
   data: DashboardData | null;
@@ -84,18 +92,22 @@ const tokenConfig = {
 
 export function CostSection({ data, loading }: CostSectionProps) {
   const totals = data?.totals;
-  const dailyUsage = data?.dailyUsage ?? [];
-  const modelBreakdown = data?.modelBreakdown ?? [];
+  const dailyUsage = data?.dailyUsage ?? EMPTY_DAILY_USAGE;
+  const modelBreakdown = data?.modelBreakdown ?? EMPTY_MODEL_BREAKDOWN;
 
   // Memoize cumulative cost calculation (only recalculates when dailyUsage changes)
-  const dailyWithCumulative = useMemo(() => dailyUsage.reduce<(DailyStat & { cumulativeCost: number })[]>(
-      (acc, day) => {
-        const lastItem = acc.at(-1);
-        const prev = lastItem?.cumulativeCost ?? 0;
-        return [...acc, { ...day, cumulativeCost: prev + day.totalCost }];
-      },
-      []
-    ), [dailyUsage]);
+  const dailyWithCumulative = useMemo(
+    () =>
+      dailyUsage.reduce<(DailyStat & { cumulativeCost: number })[]>(
+        (acc, day) => {
+          const lastItem = acc.at(-1);
+          const prev = lastItem?.cumulativeCost ?? 0;
+          return [...acc, { ...day, cumulativeCost: prev + day.totalCost }];
+        },
+        []
+      ),
+    [dailyUsage]
+  );
 
   // Token breakdown for stacked bar
   const tokenBreakdown = useMemo(
@@ -257,9 +269,9 @@ export function CostSection({ data, loading }: CostSectionProps) {
                   }
                 />
                 <Bar dataKey="totalCost" name="cost" radius={[0, 4, 4, 0]}>
-                  {sortedModelBreakdown.map((_, index) => (
+                  {sortedModelBreakdown.map((entry, index) => (
                     <Cell
-                      key={`cell-${index}`}
+                      key={entry.modelShort}
                       fill={`var(--chart-${(index % 5) + 1})`}
                     />
                   ))}

@@ -6,7 +6,15 @@ import {
   ArrowLeft01Icon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import type { DashboardData, SessionSummary } from "@shared/rpc-types";
+import type {
+  DashboardData,
+  SessionSummary,
+  ProjectSummary,
+} from "@shared/rpc-types";
+
+// ─── Stable Empty Arrays (prevent useMemo dep changes on rerenders) ──────────
+const EMPTY_SESSIONS: SessionSummary[] = [];
+const EMPTY_PROJECTS: ProjectSummary[] = [];
 import {
   useReactTable,
   getCoreRowModel,
@@ -111,7 +119,7 @@ export function SessionsSection({ data, loading }: SessionsSectionProps) {
     setGlobalFilter(deferredSearch);
   }, [deferredSearch]);
 
-  const sessions = data?.sessions ?? [];
+  const sessions = data?.sessions ?? EMPTY_SESSIONS;
 
   // Reset pagination when underlying data changes (e.g., filter change)
   // This prevents trying to access non-existent pages when data shrinks
@@ -127,7 +135,7 @@ export function SessionsSection({ data, loading }: SessionsSectionProps) {
 
     // Build projectPath → cwd lookup from projects data
     const projectCwdMap = new Map(
-      (data?.projects ?? []).map((p) => [p.projectPath, p.cwd])
+      (data?.projects ?? EMPTY_PROJECTS).map((p) => [p.projectPath, p.cwd])
     );
 
     // Build items for smart name calculation
@@ -633,9 +641,9 @@ function SessionDetail({ session }: { session: SessionRow }) {
           <div className="space-y-3">
             <h4 className="text-sm font-medium">File Activity</h4>
             <div className="max-h-[200px] space-y-1 overflow-y-auto">
-              {session.fileActivityDetails.slice(0, 20).map((file, i) => (
+              {session.fileActivityDetails.slice(0, 20).map((file, index) => (
                 <div
-                  key={i}
+                  key={`${file.filePath}-${file.tool}-${index}`}
                   className="flex items-center justify-between py-1 text-xs"
                 >
                   <span className="text-muted-foreground max-w-[300px] truncate">

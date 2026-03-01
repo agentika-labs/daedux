@@ -4,8 +4,8 @@ import { dirname, join, extname } from "node:path";
 /**
  * HTTP server for CLI mode - serves the dashboard via Bun.serve()
  */
-import { Duration, Effect, ManagedRuntime } from 'effect';
-import type { Layer } from 'effect';
+import { Duration, Effect, ManagedRuntime } from "effect";
+import type { Layer } from "effect";
 
 import {
   SessionAnalyticsService,
