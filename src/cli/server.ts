@@ -509,7 +509,7 @@ export async function startServer(options: ServerOptions): Promise<void> {
           const version = packageJson.version ?? "0.0.0";
 
           // Construct ARM64 DMG download URL for macOS
-          const downloadUrl = `https://github.com/adamferguson/daedux/releases/download/v${version}/daedux-${version}-darwin-arm64.dmg`;
+          const downloadUrl = `https://github.com/agentika-labs/daedux/releases/download/v${version}/daedux-${version}-darwin-arm64.dmg`;
 
           return Response.json({
             version,

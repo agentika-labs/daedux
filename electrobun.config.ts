@@ -26,7 +26,7 @@ export default {
     win: { bundleCEF: false, icon: "icon.ico" },
   },
   release: {
-    baseUrl: "https://github.com/adamferguson/daedux/releases/download/",
+    baseUrl: "https://github.com/agentika-labs/daedux/releases/download/",
   },
   runtime: {
     exitOnLastWindowClosed: false,
