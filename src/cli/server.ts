@@ -32,6 +32,7 @@ import type {
 export interface ServerOptions {
   port: number;
   verbose?: boolean;
+  resync?: boolean;
 }
 
 // ─── Effect Runtime ──────────────────────────────────────────────────────────
@@ -71,7 +72,14 @@ export const parseDateFilter = (filter?: string | null): DateFilter => {
     case "30d": {
       return { endTime: now, startTime: now - 30 * 86_400_000 };
     }
+    case "all": {
+      // Explicit full range: epoch to now
+      // This ensures buildComparisonWindows detects hasFilter=true
+      // and uses our bounds instead of defaulting to 7 days
+      return { startTime: 0, endTime: now };
+    }
     default: {
+      // No filter specified (undefined/null) - returns empty
       return {};
     }
   }
@@ -330,7 +338,7 @@ const serveStatic = (pathname: string): Response | null => {
 // ─── HTTP Server ─────────────────────────────────────────────────────────────
 
 export async function startServer(options: ServerOptions): Promise<void> {
-  const { port, verbose } = options;
+  const { port, verbose, resync } = options;
 
   // Run initial sync before starting server
   if (verbose) {
@@ -338,7 +346,7 @@ export async function startServer(options: ServerOptions): Promise<void> {
   }
 
   try {
-    const syncResult = await runEffect(runSync(false));
+    const syncResult = await runEffect(runSync(resync ?? false));
     if (verbose) {
       console.log(
         `Synced ${syncResult.synced} sessions (${syncResult.unchanged} unchanged, ${syncResult.errors} errors)`

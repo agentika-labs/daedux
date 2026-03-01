@@ -72,7 +72,7 @@ const daeduxCommand = Command.make(
     resync: resyncOption,
     verbose: verboseOption,
   },
-  ({ filter, json, noOpen, port, resync: _resync, verbose }) =>
+  ({ filter, json, noOpen, port, resync, verbose }) =>
     Effect.gen(function* () {
       // Check if Claude projects directory exists
       if (!existsSync(CLAUDE_PROJECTS)) {
@@ -118,6 +118,7 @@ const daeduxCommand = Command.make(
       yield* Effect.promise(() =>
         startServer({
           port,
+          resync,
           verbose,
         })
       );
