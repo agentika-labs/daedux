@@ -35,7 +35,7 @@
     "build": "bun run build:native-effects && vite build && electrobun build",
     "build:prod": "bun run build:native-effects && vite build && electrobun build --env=stable",
     "preview": "vite preview",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc -b --noEmit",
     "test": "bun test",
     "test:watch": "bun test --watch",
     "test:coverage": "bun test --coverage",
