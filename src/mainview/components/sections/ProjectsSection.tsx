@@ -23,7 +23,7 @@ import {
   formatNumber,
   cn,
   shortenPath,
-  getSmartProjectName,
+  computeSmartProjectNames,
 } from "@/lib/utils";
 import type { SmartProjectName } from "@/lib/utils";
 
@@ -87,22 +87,14 @@ export function ProjectsSection({ data, loading }: ProjectsSectionProps) {
   const mostActiveProject = sortedProjects[0];
   const highestCostProject = sortedProjects[0];
 
-  // Pre-compute smart names for disambiguation
+  // Pre-compute smart names for disambiguation in O(n) instead of O(n²)
   // Pass cwd when available for accurate path splitting (avoids hyphenated path ambiguity)
   const smartNames = useMemo(() => {
     const allItems = projects.map((p) => ({
       cwd: p.cwd,
       projectPath: p.projectPath,
     }));
-    return new Map(
-      projects.map((p) => [
-        p.projectPath,
-        getSmartProjectName(
-          { cwd: p.cwd, projectPath: p.projectPath },
-          allItems
-        ),
-      ])
-    );
+    return computeSmartProjectNames(allItems);
   }, [projects]);
 
   // Memoize chart data (depends on sortedProjects and smartNames)
