@@ -125,6 +125,7 @@ export class FileAnalyticsService extends Effect.Service<FileAnalyticsService>()
               const extensionNotEmpty = sql`${schema.fileOperations.fileExtension} IS NOT NULL AND ${schema.fileOperations.fileExtension} != ''`;
 
               let result;
+              // Limit to top 100 extensions to avoid unbounded result sets
               if (dateConditions.length === 0) {
                 result = await db
                   .select({
@@ -134,7 +135,8 @@ export class FileAnalyticsService extends Effect.Service<FileAnalyticsService>()
                   .from(schema.fileOperations)
                   .where(extensionNotEmpty)
                   .groupBy(schema.fileOperations.fileExtension)
-                  .orderBy(desc(count()));
+                  .orderBy(desc(count()))
+                  .limit(100);
               } else {
                 result = await db
                   .select({
@@ -151,7 +153,8 @@ export class FileAnalyticsService extends Effect.Service<FileAnalyticsService>()
                   )
                   .where(and(extensionNotEmpty, ...dateConditions))
                   .groupBy(schema.fileOperations.fileExtension)
-                  .orderBy(desc(count()));
+                  .orderBy(desc(count()))
+                  .limit(100);
               }
 
               const total = result.reduce((sum, row) => sum + row.count, 0);
@@ -175,6 +178,8 @@ export class FileAnalyticsService extends Effect.Service<FileAnalyticsService>()
               const operationCondition = sql`${schema.fileOperations.operation} IN ('read', 'write', 'edit')`;
 
               let result;
+              // Defensive limit to avoid memory issues with large datasets
+              const MAX_FILE_OPS = 100_000;
               if (dateConditions.length === 0) {
                 result = await db
                   .select({
@@ -184,7 +189,8 @@ export class FileAnalyticsService extends Effect.Service<FileAnalyticsService>()
                     sessionId: schema.fileOperations.sessionId,
                   })
                   .from(schema.fileOperations)
-                  .where(operationCondition);
+                  .where(operationCondition)
+                  .limit(MAX_FILE_OPS);
               } else {
                 result = await db
                   .select({
@@ -201,7 +207,8 @@ export class FileAnalyticsService extends Effect.Service<FileAnalyticsService>()
                       schema.sessions.sessionId,
                     ),
                   )
-                  .where(and(operationCondition, ...dateConditions));
+                  .where(and(operationCondition, ...dateConditions))
+                  .limit(MAX_FILE_OPS);
               }
 
               // Group by sessionId

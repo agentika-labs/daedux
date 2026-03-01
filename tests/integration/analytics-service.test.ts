@@ -6,16 +6,14 @@ import { describe, expect, it } from "bun:test";
 
 import { Effect, Layer } from "effect";
 
-import {
-  AllAnalyticsServicesLive,
-  SessionAnalyticsService,
-  ModelAnalyticsService,
-  ToolAnalyticsService,
-  FileAnalyticsService,
-  AgentAnalyticsService,
-  ContextAnalyticsService,
-  InsightsAnalyticsService,
-} from "../../src/bun/analytics/index";
+import { AllAnalyticsServicesLive } from "../../src/bun/analytics/index";
+import { AgentAnalyticsService } from "../../src/bun/analytics/agent-analytics";
+import { ContextAnalyticsService } from "../../src/bun/analytics/context-analytics";
+import { FileAnalyticsService } from "../../src/bun/analytics/file-analytics";
+import { InsightsAnalyticsService } from "../../src/bun/analytics/insights-analytics";
+import { ModelAnalyticsService } from "../../src/bun/analytics/model-analytics";
+import { SessionAnalyticsService } from "../../src/bun/analytics/session-analytics";
+import { ToolAnalyticsService } from "../../src/bun/analytics/tool-analytics";
 import { DatabaseService } from "../../src/bun/db";
 import * as schema from "../../src/bun/db/schema";
 import { createTestDb } from "../helpers/test-db";

@@ -550,14 +550,19 @@ export class ToolAnalyticsService extends Effect.Service<ToolAnalyticsService>()
               const dateConditions = buildDateConditions(dateFilter);
 
               let result;
+              // Use SUBSTR to cap GROUP_CONCAT at 10KB to prevent memory issues
+              // We only need ~5 unique commands, and each command is typically <200 chars
+              // Deduplication happens in TypeScript since SQLite DISTINCT doesn't work with separators
+              const boundedGroupConcat =
+                sql<string>`SUBSTR(GROUP_CONCAT(${schema.bashCommands.command}, '|||'), 1, 10000)`.as(
+                  "commands",
+                );
+
               if (dateConditions.length === 0) {
                 result = await db
                   .select({
                     category: schema.bashCommands.category,
-                    commands:
-                      sql<string>`GROUP_CONCAT(${schema.bashCommands.command}, '|||')`.as(
-                        "commands",
-                      ),
+                    commands: boundedGroupConcat,
                     count: count(),
                   })
                   .from(schema.bashCommands)
@@ -567,10 +572,7 @@ export class ToolAnalyticsService extends Effect.Service<ToolAnalyticsService>()
                 result = await db
                   .select({
                     category: schema.bashCommands.category,
-                    commands:
-                      sql<string>`GROUP_CONCAT(${schema.bashCommands.command}, '|||')`.as(
-                        "commands",
-                      ),
+                    commands: boundedGroupConcat,
                     count: count(),
                   })
                   .from(schema.bashCommands)
@@ -588,6 +590,7 @@ export class ToolAnalyticsService extends Effect.Service<ToolAnalyticsService>()
 
               return result.map((row) => {
                 const allCommands = (row.commands ?? "").split("|||");
+                // Deduplicate and take top 5 unique commands
                 const uniqueCommands = [...new Set(allCommands)].slice(0, 5);
                 return {
                   category: row.category,

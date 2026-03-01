@@ -265,79 +265,21 @@ const insertRecords = (
       prLinks,
     } = records;
 
-    // Delete existing children (cascade handles tool_uses via foreign key)
-    // Delete all related records for clean re-sync
+    // Delete existing session - ON DELETE CASCADE handles all child tables
     yield* Effect.tryPromise({
       catch: (cause) =>
-        new DatabaseError({ cause, operation: "deleteChildren" }),
-      try: async () => {
-        await db
-          .delete(schema.queries)
-          .where(eq(schema.queries.sessionId, session.sessionId));
-        await db
-          .delete(schema.fileOperations)
-          .where(eq(schema.fileOperations.sessionId, session.sessionId));
-        await db
-          .delete(schema.hookEvents)
-          .where(eq(schema.hookEvents.sessionId, session.sessionId));
-        await db
-          .delete(schema.bashCommands)
-          .where(eq(schema.bashCommands.sessionId, session.sessionId));
-        await db
-          .delete(schema.apiErrors)
-          .where(eq(schema.apiErrors.sessionId, session.sessionId));
-        await db
-          .delete(schema.skillInvocations)
-          .where(eq(schema.skillInvocations.sessionId, session.sessionId));
-        await db
-          .delete(schema.agentSpawns)
-          .where(eq(schema.agentSpawns.sessionId, session.sessionId));
-        await db
-          .delete(schema.slashCommands)
-          .where(eq(schema.slashCommands.sessionId, session.sessionId));
-        await db
-          .delete(schema.contextWindowUsage)
-          .where(eq(schema.contextWindowUsage.sessionId, session.sessionId));
-        await db
-          .delete(schema.prLinks)
-          .where(eq(schema.prLinks.sessionId, session.sessionId));
-      },
-    });
-
-    // Upsert session
-    yield* Effect.tryPromise({
-      catch: (cause) =>
-        new DatabaseError({ cause, operation: "upsertSession" }),
+        new DatabaseError({ cause, operation: "deleteSession" }),
       try: () =>
         db
-          .insert(schema.sessions)
-          .values(session)
-          .onConflictDoUpdate({
-            set: {
-              compactions: session.compactions,
-              cwd: session.cwd,
-              displayName: session.displayName,
-              durationMs: session.durationMs,
-              endTime: session.endTime,
-              gitBranch: session.gitBranch,
-              isSubagent: session.isSubagent,
-              parentSessionId: session.parentSessionId,
-              queryCount: session.queryCount,
-              savedByCaching: session.savedByCaching,
-              slug: session.slug,
-              toolUseCount: session.toolUseCount,
-              totalCacheRead: session.totalCacheRead,
-              totalCacheWrite: session.totalCacheWrite,
-              totalCost: session.totalCost,
-              totalEphemeral1hTokens: session.totalEphemeral1hTokens,
-              totalEphemeral5mTokens: session.totalEphemeral5mTokens,
-              totalInputTokens: session.totalInputTokens,
-              totalOutputTokens: session.totalOutputTokens,
-              turnCount: session.turnCount,
-              version: session.version,
-            },
-            target: schema.sessions.sessionId,
-          }),
+          .delete(schema.sessions)
+          .where(eq(schema.sessions.sessionId, session.sessionId)),
+    });
+
+    // Insert fresh session (we deleted any existing one above)
+    yield* Effect.tryPromise({
+      catch: (cause) =>
+        new DatabaseError({ cause, operation: "insertSession" }),
+      try: () => db.insert(schema.sessions).values(session),
     });
 
     // Batch insert queries
@@ -487,6 +429,16 @@ const updateFileMtime = (
     });
   });
 
+/** Execute ANALYZE to update query planner statistics */
+const runAnalyze = (): Effect.Effect<void, DatabaseError, DatabaseService> =>
+  Effect.gen(function* runAnalyze() {
+    const { sqlite } = yield* DatabaseService;
+    yield* Effect.try({
+      catch: (cause) => new DatabaseError({ cause, operation: "ANALYZE" }),
+      try: () => sqlite.exec("ANALYZE"),
+    });
+  });
+
 /** Get cached file mtimes from database */
 const getCachedMtimes = (): Effect.Effect<
   Map<string, number>,
@@ -582,6 +534,9 @@ export class SyncService extends Effect.Service<SyncService>()("SyncService", {
             );
           }
 
+          // Update query planner statistics after bulk operations
+          yield* runAnalyze();
+
           yield* Effect.logInfo(
             `Full resync complete: ${synced} synced, ${errors} errors`
           );
@@ -639,6 +594,11 @@ export class SyncService extends Effect.Service<SyncService>()("SyncService", {
                 })
               )
             );
+          }
+
+          // Update query planner statistics after significant bulk operations
+          if (synced > 10) {
+            yield* runAnalyze();
           }
 
           yield* Effect.logInfo(

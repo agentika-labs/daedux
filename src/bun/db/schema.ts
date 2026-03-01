@@ -156,6 +156,10 @@ export const toolUses = sqliteTable(
     index("tool_uses_target_path_idx").on(table.targetPath),
     // Composite index for tool counts per session
     index("tool_uses_session_tool_idx").on(table.sessionId, table.toolName),
+    // Composite index for tool error filtering queries
+    index("tool_uses_session_error_idx").on(table.sessionId, table.hasError),
+    // Composite index for error analysis by tool (used in tool health queries)
+    index("tool_uses_error_tool_idx").on(table.hasError, table.toolName),
   ]
 );
 
@@ -279,6 +283,11 @@ export const skillInvocations = sqliteTable(
   (table) => [
     index("skill_invocations_session_idx").on(table.sessionId),
     index("skill_invocations_skill_idx").on(table.skillName),
+    // Composite index for skill analytics (aggregating by skill across sessions)
+    index("skill_invocations_name_session_idx").on(
+      table.skillName,
+      table.sessionId,
+    ),
   ]
 );
 
@@ -346,6 +355,16 @@ export const contextWindowUsage = sqliteTable(
   (table) => [
     index("context_usage_session_idx").on(table.sessionId),
     index("context_usage_query_idx").on(table.queryIndex),
+    // Composite index for context efficiency curve queries (ordered by queryIndex)
+    index("context_usage_query_session_idx").on(
+      table.queryIndex,
+      table.sessionId,
+    ),
+    // Composite index for session-scoped lookups by query index
+    index("context_usage_session_query_comp_idx").on(
+      table.sessionId,
+      table.queryIndex,
+    ),
   ]
 );
 

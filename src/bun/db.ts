@@ -121,7 +121,7 @@ export class DatabaseService extends Effect.Service<DatabaseService>()(
         // Migrate from legacy location if needed
         migrateFromLegacyLocation();
 
-        const sqlite = new Database(DB_PATH);
+        const sqlite = new Database(DB_PATH, { strict: true });
 
         // Optimize SQLite for our workload
         sqlite.exec("PRAGMA journal_mode = WAL"); // Better concurrent reads

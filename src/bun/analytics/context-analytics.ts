@@ -180,20 +180,40 @@ export class ContextAnalyticsService extends Effect.Service<ContextAnalyticsServ
                 conditions.push(eq(schema.sessions.projectPath, projectPath));
               }
 
-              // Bucket queries by turn index ranges and cache hit ratio ranges
+              // SQL-side bucketing for turn ranges and utilization ranges
+              // This avoids loading all raw data into memory
+              const turnBucketExpr = sql<string>`CASE
+                WHEN ${schema.contextWindowUsage.queryIndex} <= 5 THEN '1-5'
+                WHEN ${schema.contextWindowUsage.queryIndex} <= 10 THEN '6-10'
+                WHEN ${schema.contextWindowUsage.queryIndex} <= 20 THEN '11-20'
+                WHEN ${schema.contextWindowUsage.queryIndex} <= 50 THEN '21-50'
+                ELSE '51+'
+              END`;
+
+              const utilizationBucketExpr = sql<string>`CASE
+                WHEN COALESCE(${schema.contextWindowUsage.cacheHitRatio}, 0) * 100 <= 20 THEN '0-20%'
+                WHEN COALESCE(${schema.contextWindowUsage.cacheHitRatio}, 0) * 100 <= 40 THEN '21-40%'
+                WHEN COALESCE(${schema.contextWindowUsage.cacheHitRatio}, 0) * 100 <= 60 THEN '41-60%'
+                WHEN COALESCE(${schema.contextWindowUsage.cacheHitRatio}, 0) * 100 <= 80 THEN '61-80%'
+                ELSE '81-100%'
+              END`;
+
               let result;
               if (conditions.length === 0) {
                 result = await db
                   .select({
-                    cacheHitRatio: schema.contextWindowUsage.cacheHitRatio,
-                    queryIndex: schema.contextWindowUsage.queryIndex,
+                    count: count(),
+                    turnRange: turnBucketExpr,
+                    utilizationBucket: utilizationBucketExpr,
                   })
-                  .from(schema.contextWindowUsage);
+                  .from(schema.contextWindowUsage)
+                  .groupBy(turnBucketExpr, utilizationBucketExpr);
               } else {
                 result = await db
                   .select({
-                    cacheHitRatio: schema.contextWindowUsage.cacheHitRatio,
-                    queryIndex: schema.contextWindowUsage.queryIndex,
+                    count: count(),
+                    turnRange: turnBucketExpr,
+                    utilizationBucket: utilizationBucketExpr,
                   })
                   .from(schema.contextWindowUsage)
                   .innerJoin(
@@ -203,11 +223,18 @@ export class ContextAnalyticsService extends Effect.Service<ContextAnalyticsServ
                       schema.sessions.sessionId,
                     ),
                   )
-                  .where(and(...conditions));
+                  .where(and(...conditions))
+                  .groupBy(turnBucketExpr, utilizationBucketExpr);
               }
 
-              // Create heatmap buckets (aligned with frontend naming convention)
+              // Build lookup map from SQL results
               const buckets = new Map<string, number>();
+              for (const row of result) {
+                const key = `${row.turnRange}:${row.utilizationBucket}`;
+                buckets.set(key, row.count);
+              }
+
+              // Generate all possible combinations (frontend expects complete grid)
               const turnRanges = ["1-5", "6-10", "11-20", "21-50", "51+"];
               const utilizationRanges = [
                 "0-20%",
@@ -217,37 +244,6 @@ export class ContextAnalyticsService extends Effect.Service<ContextAnalyticsServ
                 "81-100%",
               ];
 
-              for (const row of result) {
-                const turn = row.queryIndex;
-                const ratio = (row.cacheHitRatio ?? 0) * 100;
-
-                let turnRange = "51+";
-                if (turn <= 5) {
-                  turnRange = "1-5";
-                } else if (turn <= 10) {
-                  turnRange = "6-10";
-                } else if (turn <= 20) {
-                  turnRange = "11-20";
-                } else if (turn <= 50) {
-                  turnRange = "21-50";
-                }
-
-                let utilBucket = "81-100%";
-                if (ratio <= 20) {
-                  utilBucket = "0-20%";
-                } else if (ratio <= 40) {
-                  utilBucket = "21-40%";
-                } else if (ratio <= 60) {
-                  utilBucket = "41-60%";
-                } else if (ratio <= 80) {
-                  utilBucket = "61-80%";
-                }
-
-                const key = `${turnRange}:${utilBucket}`;
-                buckets.set(key, (buckets.get(key) ?? 0) + 1);
-              }
-
-              // Convert to array
               const heatmap: ContextHeatmapPoint[] = [];
               for (const turnRange of turnRanges) {
                 for (const utilBucket of utilizationRanges) {
@@ -343,93 +339,73 @@ export class ContextAnalyticsService extends Effect.Service<ContextAnalyticsServ
                 operation: "getContextWindowFill",
               }),
             try: async () => {
-              const conditions: SQL[] = [...buildDateConditions(dateFilter)];
+              // Build WHERE clause for date/project filtering
+              const dateConditions = buildDateConditions(dateFilter);
+              const whereFragments: string[] = [
+                "s.is_subagent = 0",
+                "q.query_index <= 100",
+              ];
+              if (dateConditions.length > 0) {
+                if (dateFilter.startTime) {
+                  whereFragments.push(`s.start_time >= ${dateFilter.startTime}`);
+                }
+                if (dateFilter.endTime) {
+                  whereFragments.push(`s.start_time <= ${dateFilter.endTime}`);
+                }
+              }
               if (projectPath) {
-                conditions.push(eq(schema.sessions.projectPath, projectPath));
-              }
-              const excludeSubagents = eq(schema.sessions.isSubagent, false);
-
-              // Context fill = input_tokens + cache_read + cache_write (full context window)
-              // cache_write (cache_creation_input_tokens) represents tokens being written to cache
-              // which are ALSO part of the input context for that request
-              // Filter out subagent sessions as they have much shorter contexts and dilute metrics
-              const contextFillExpr =
-                sql<number>`(COALESCE(${schema.queries.inputTokens}, 0) + COALESCE(${schema.queries.cacheRead}, 0) + COALESCE(${schema.queries.cacheWrite}, 0))`.as(
-                  "context_fill",
+                whereFragments.push(
+                  `s.project_path = '${projectPath.replace(/'/g, "''")}'`,
                 );
-
-              let result;
-              if (conditions.length === 0) {
-                result = await db
-                  .select({
-                    contextFill: contextFillExpr,
-                    queryIndex: schema.queries.queryIndex,
-                  })
-                  .from(schema.queries)
-                  .innerJoin(
-                    schema.sessions,
-                    eq(schema.queries.sessionId, schema.sessions.sessionId),
-                  )
-                  .where(excludeSubagents)
-                  .orderBy(schema.queries.queryIndex);
-              } else {
-                result = await db
-                  .select({
-                    contextFill: contextFillExpr,
-                    queryIndex: schema.queries.queryIndex,
-                  })
-                  .from(schema.queries)
-                  .innerJoin(
-                    schema.sessions,
-                    eq(schema.queries.sessionId, schema.sessions.sessionId),
-                  )
-                  .where(and(excludeSubagents, ...conditions))
-                  .orderBy(schema.queries.queryIndex);
               }
+              const whereClause = whereFragments.join(" AND ");
 
-              // Group by queryIndex and calculate statistics
-              const byIndex = new Map<number, number[]>();
-              for (const row of result) {
-                const tokens = row.contextFill ?? 0;
-                const idx = row.queryIndex;
-                if (!byIndex.has(idx)) {
-                  byIndex.set(idx, []);
-                }
-                byIndex.get(idx)!.push(tokens);
-              }
+              // SQL-side aggregation with NTILE for approximate percentiles
+              // This avoids loading all rows into memory
+              // NTILE(4) divides values into 4 quartiles:
+              // - quartile 1: lowest 25% (max = ~p25)
+              // - quartile 3: 50-75% range (max = ~p75)
+              const result = await db.all<{
+                avgCumulativeTokens: number;
+                maxCumulativeTokens: number;
+                p25Tokens: number | null;
+                p75Tokens: number | null;
+                queryIndex: number;
+                sessionCount: number;
+              }>(sql`
+                WITH ranked AS (
+                  SELECT
+                    q.query_index,
+                    (COALESCE(q.input_tokens, 0) + COALESCE(q.cache_read, 0) + COALESCE(q.cache_write, 0)) as context_fill,
+                    NTILE(4) OVER (
+                      PARTITION BY q.query_index
+                      ORDER BY (COALESCE(q.input_tokens, 0) + COALESCE(q.cache_read, 0) + COALESCE(q.cache_write, 0))
+                    ) as quartile
+                  FROM queries q
+                  INNER JOIN sessions s ON q.session_id = s.session_id
+                  WHERE ${sql.raw(whereClause)}
+                )
+                SELECT
+                  query_index as "queryIndex",
+                  CAST(ROUND(AVG(context_fill)) AS INTEGER) as "avgCumulativeTokens",
+                  MAX(context_fill) as "maxCumulativeTokens",
+                  COUNT(*) as "sessionCount",
+                  MAX(CASE WHEN quartile = 1 THEN context_fill END) as "p25Tokens",
+                  MAX(CASE WHEN quartile = 3 THEN context_fill END) as "p75Tokens"
+                FROM ranked
+                GROUP BY query_index
+                ORDER BY query_index
+                LIMIT 100
+              `);
 
-              // Calculate aggregates for each query index
-              const fillPoints: ContextWindowFillPoint[] = [];
-              for (const [queryIndex, tokenValues] of [
-                ...byIndex.entries(),
-              ].toSorted((a, b) => a[0] - b[0])) {
-                if (tokenValues.length === 0) {
-                  continue;
-                }
-
-                // Sort for percentile calculation
-                const sorted = [...tokenValues].toSorted((a, b) => a - b);
-                const len = sorted.length;
-
-                const avgCumulativeTokens =
-                  tokenValues.reduce((a, b) => a + b, 0) / len;
-                const maxCumulativeTokens = sorted[len - 1]!;
-                const p25Tokens = sorted[Math.floor(len * 0.25)] ?? sorted[0]!;
-                const p75Tokens =
-                  sorted[Math.floor(len * 0.75)] ?? sorted[len - 1]!;
-
-                fillPoints.push({
-                  avgCumulativeTokens: Math.round(avgCumulativeTokens),
-                  maxCumulativeTokens,
-                  p25Tokens,
-                  p75Tokens,
-                  queryIndex,
-                  sessionCount: len,
-                });
-              }
-
-              // Limit to first 100 turns for reasonable chart size
-              return fillPoints.slice(0, 100);
+              return result.map((row) => ({
+                avgCumulativeTokens: row.avgCumulativeTokens ?? 0,
+                maxCumulativeTokens: row.maxCumulativeTokens ?? 0,
+                p25Tokens: row.p25Tokens ?? row.avgCumulativeTokens ?? 0,
+                p75Tokens: row.p75Tokens ?? row.maxCumulativeTokens ?? 0,
+                queryIndex: row.queryIndex,
+                sessionCount: row.sessionCount ?? 0,
+              }));
             },
           }),
       } as const;

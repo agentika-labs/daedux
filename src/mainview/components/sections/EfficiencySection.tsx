@@ -32,11 +32,19 @@ import {
 } from "@/components/ui/chart";
 import type { ChartConfig } from "@/components/ui/chart";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  calculateDailyRate,
+  formatRate,
+  getDaysInRange,
+  getVcsRateVariant,
+} from "@/lib/metric-rates";
 import { formatPercent } from "@/lib/utils";
+import type { FilterOption } from "@/queries/dashboard";
 
 interface EfficiencySectionProps {
   data: DashboardData | null;
   loading?: boolean;
+  filter: FilterOption;
 }
 
 // ─── Hoisted Formatters (stable references, no re-creation on render) ─────────
@@ -64,7 +72,11 @@ const sessionConfig = {
   },
 } satisfies ChartConfig;
 
-export function EfficiencySection({ data, loading }: EfficiencySectionProps) {
+export function EfficiencySection({
+  data,
+  loading,
+  filter,
+}: EfficiencySectionProps) {
   const dailyUsage = data?.dailyUsage ?? EMPTY_DAILY_USAGE;
   const sessions = data?.sessions ?? EMPTY_SESSIONS;
 
@@ -105,6 +117,10 @@ export function EfficiencySection({ data, loading }: EfficiencySectionProps) {
   const vcsActivityCount = data?.efficiencyScore?.vcsActivityCount ?? 0;
   const prsCreated = data?.efficiencyScore?.prsCreated ?? 0;
   const prEfficiency = data?.efficiencyScore?.prEfficiency;
+
+  // VCS Activity rate calculation
+  const days = getDaysInRange(filter, data?.totals?.dateRange);
+  const vcsRate = calculateDailyRate(vcsActivityCount, days);
 
   return (
     <Section id="efficiency">
@@ -152,24 +168,18 @@ export function EfficiencySection({ data, loading }: EfficiencySectionProps) {
         />
         <StatCard
           label="VCS Activity"
-          value={vcsActivityCount.toString()}
-          subtext="Commits, pushes, merges"
+          value={`${formatRate(vcsRate)}/day`}
+          subtext={`${vcsActivityCount} actions over ${days} day${days !== 1 ? "s" : ""}`}
           loading={loading}
-          variant={
-            vcsActivityCount >= 30
-              ? "success"
-              : vcsActivityCount >= 10
-                ? "warning"
-                : "default"
-          }
+          variant={getVcsRateVariant(vcsRate)}
           tooltip={
             <InfoTooltip
               title="What does this measure?"
               description="Commits, pushes, merges, and rebases across Git and JJ. Excludes read-only commands like status and log."
               scale={[
-                { quality: "Low", range: "0-10 actions" },
-                { quality: "Moderate", range: "11-30 actions" },
-                { quality: "Active", range: "30+ actions" },
+                { quality: "Low", range: "< 15/day" },
+                { quality: "Moderate", range: "15-40/day" },
+                { quality: "Active", range: "> 40/day" },
               ]}
             />
           }

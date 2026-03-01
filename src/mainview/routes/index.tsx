@@ -154,7 +154,11 @@ function Dashboard() {
           </Suspense>
 
           <Suspense fallback={<Skeleton className="h-64 w-full" />}>
-            <EfficiencySection data={data ?? null} loading={isLoading} />
+            <EfficiencySection
+              data={data ?? null}
+              loading={isLoading}
+              filter={filter}
+            />
           </Suspense>
 
           <ToolsSection data={data ?? null} loading={isLoading} />
