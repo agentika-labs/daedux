@@ -25,6 +25,7 @@ import {
   useAnthropicUsageQuery,
   useUpdateSettingsMutation,
 } from "@/queries/settings";
+
 import { AboutCard } from "./AboutCard";
 import { DataCard } from "./DataCard";
 import { ScheduleSettings } from "./ScheduleSettings";
@@ -87,7 +88,7 @@ export const SettingsScreen = () => {
       return;
     }
     const buttons = headerRef.current.querySelectorAll(
-      'button, [role="button"], a',
+      'button, [role="button"], a'
     );
     const zones = [...buttons].map((btn) => {
       const rect = btn.getBoundingClientRect();

@@ -13,7 +13,7 @@ import {
 const SettingsScreenLazy = lazy(() =>
   import("@/components/settings/SettingsScreen").then((m) => ({
     default: m.SettingsScreen,
-  })),
+  }))
 );
 
 export const Route = createFileRoute("/settings")({
@@ -27,7 +27,7 @@ export const Route = createFileRoute("/settings")({
           .catch(() => null),
         queryClient.ensureQueryData(schedulesQueryOptions),
         queryClient.ensureQueryData(authStatusQueryOptions),
-      ],
+      ]
     );
     return { settings, appInfo, usage, schedules, authStatus };
   },

@@ -247,7 +247,9 @@ export const ScheduleSettings = () => {
               <TooltipTrigger
                 render={
                   <Button
-                    variant={settings?.schedulerEnabled ? "destructive" : "default"}
+                    variant={
+                      settings?.schedulerEnabled ? "destructive" : "default"
+                    }
                     size="sm"
                     onClick={handleToggleScheduler}
                     disabled={
