@@ -90,14 +90,8 @@ export function OverviewSection({
         <StatCard
           label="Total Tokens"
           value={formatTokens(totals?.totalTokens ?? 0)}
-          subtext={`${formatTokens(totals?.totalInputTokens ?? 0)} input, ${formatTokens(totals?.totalCacheRead ?? 0)} cache`}
+          subtext={`${formatTokens(totals?.totalInputTokens ?? 0)} input, ${formatTokens(totals?.totalOutputTokens ?? 0)} output`}
           loading={loading}
-          tooltip={
-            <InfoTooltip
-              title="Total Tokens"
-              description="Total tokens processed. 'Input' is fresh/uncached context. 'Cache' is reused context from prompt caching (billed at 10% rate)."
-            />
-          }
         />
         <StatCard
           label="PRs Created"
