@@ -86,7 +86,7 @@ jobs:
       - name: Create artifacts
         run: |
           VERSION="${{ steps.version.outputs.version }}"
-          cd build/stable
+          cd build/stable-macos-arm64
 
           # Create zip from app bundle
           zip -r "daedux-${VERSION}-darwin-arm64.zip" "Daedux.app"
@@ -108,11 +108,11 @@ jobs:
         with:
           name: desktop-darwin-arm64
           path: |
-            build/stable/*.zip
-            build/stable/*.dmg
-            build/stable/*-update.json
-            build/stable/*.tar.zst
-            build/stable/*.patch
+            build/stable-macos-arm64/*.zip
+            build/stable-macos-arm64/*.dmg
+            build/stable-macos-arm64/*-update.json
+            build/stable-macos-arm64/*.tar.zst
+            build/stable-macos-arm64/*.patch
 
   publish-npm:
     needs: build-desktop
