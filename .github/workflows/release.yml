@@ -1,0 +1,197 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to build (e.g., 1.0.0)"
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Typecheck
+        run: bun run typecheck
+
+      - name: Lint
+        run: bun run check
+
+      - name: Format check
+        run: bun run format:check
+
+  build-desktop:
+    needs: ci
+    runs-on: macos-14 # ARM64 runner
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Get version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "push" ]; then
+            VERSION="${GITHUB_REF_NAME#v}"
+          else
+            VERSION="${{ github.event.inputs.version }}"
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "tag=v$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Update version in configs
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+
+          # Update package.json
+          jq --arg v "$VERSION" '.version = $v' package.json > package.tmp.json
+          mv package.tmp.json package.json
+
+          # Update electrobun.config.ts
+          sed -i '' "s/version: \".*\"/version: \"$VERSION\"/" electrobun.config.ts
+
+      - name: Build native effects library
+        run: bun run build:native-effects
+
+      - name: Build frontend
+        run: bun run build:frontend
+
+      - name: Build Electrobun production app
+        run: bun run electrobun build --env=stable
+
+      - name: Create artifacts
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          cd build/stable
+
+          # Create zip from app bundle
+          zip -r "daedux-${VERSION}-darwin-arm64.zip" "Daedux.app"
+
+          # Create DMG
+          hdiutil create -volname "Daedux" \
+            -srcfolder "Daedux.app" \
+            -ov -format UDZO \
+            "daedux-${VERSION}-darwin-arm64.dmg"
+
+      - name: Upload frontend artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist
+          path: dist/
+
+      - name: Upload desktop artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: desktop-darwin-arm64
+          path: |
+            build/stable/*.zip
+            build/stable/*.dmg
+            build/stable/*-update.json
+            build/stable/*.tar.zst
+            build/stable/*.patch
+
+  publish-npm:
+    needs: build-desktop
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # OIDC trusted publishing
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Download frontend artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-dist
+          path: dist/
+
+      - name: Get version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "push" ]; then
+            VERSION="${GITHUB_REF_NAME#v}"
+          else
+            VERSION="${{ github.event.inputs.version }}"
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Prepare platform package
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          mkdir -p packages/darwin-arm64/{bin,src,dist}
+          cp -r bin packages/darwin-arm64/
+          cp -r src/bun src/cli src/shared packages/darwin-arm64/src/
+          cp -r dist packages/darwin-arm64/
+          jq --arg v "$VERSION" '.version = $v' packages/darwin-arm64/package.json > tmp.json
+          mv tmp.json packages/darwin-arm64/package.json
+
+      - name: Publish platform package
+        working-directory: packages/darwin-arm64
+        run: npm publish --access public --provenance || echo "Package version may already exist, continuing..."
+
+      - name: Prepare main package
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          jq --arg v "$VERSION" '.version = $v | .optionalDependencies["@agentika/daedux-darwin-arm64"] = $v' package.json > tmp.json
+          mv tmp.json package.json
+
+      - name: Publish main package
+        run: npm publish --access public --provenance || echo "Package version may already exist, continuing..."
+
+  release:
+    needs: build-desktop
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' # Only create release on tag push
+
+    steps:
+      - name: Download desktop artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: desktop-darwin-arm64
+          path: artifacts/
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: artifacts/**/*
