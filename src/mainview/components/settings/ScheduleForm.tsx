@@ -1,5 +1,5 @@
 import type { SessionSchedule } from "@shared/rpc-types";
-import { useState } from "react";
+import { useState, useId } from "react";
 
 import {
   AlertDialog,
@@ -64,6 +64,10 @@ export const ScheduleForm = ({
   );
   const [error, setError] = useState<string | null>(null);
 
+  const nameId = useId();
+  const timeId = useId();
+  const daysId = useId();
+
   const toggleDay = (day: number) => {
     setDaysOfWeek((prev) =>
       prev.includes(day)
@@ -124,8 +128,11 @@ export const ScheduleForm = ({
         <div className="space-y-4 py-2">
           {/* Name Input */}
           <div className="space-y-2">
-            <label className="text-sm font-medium">Name</label>
+            <label htmlFor={nameId} className="text-sm font-medium">
+              Name
+            </label>
             <input
+              id={nameId}
               type="text"
               value={name}
               onChange={(e) => {
@@ -139,13 +146,15 @@ export const ScheduleForm = ({
 
           {/* Time Selection */}
           <div className="space-y-2">
-            <label className="text-sm font-medium">Time</label>
-            <div className="flex items-center gap-2">
+            <label id={timeId} className="text-sm font-medium">
+              Time
+            </label>
+            <div className="flex items-center gap-2" aria-labelledby={timeId}>
               <Select
                 value={hour.toString()}
                 onValueChange={(v) => v && setHour(Number.parseInt(v, 10))}
               >
-                <SelectTrigger className="w-24">
+                <SelectTrigger className="w-24" aria-labelledby={timeId}>
                   <SelectValue>{formatHour(hour)}</SelectValue>
                 </SelectTrigger>
                 <SelectContent>
@@ -161,7 +170,7 @@ export const ScheduleForm = ({
                 value={minute.toString()}
                 onValueChange={(v) => v && setMinute(Number.parseInt(v, 10))}
               >
-                <SelectTrigger className="w-20">
+                <SelectTrigger className="w-20" aria-labelledby={timeId}>
                   <SelectValue>
                     {minute.toString().padStart(2, "0")}
                   </SelectValue>
@@ -180,7 +189,9 @@ export const ScheduleForm = ({
           {/* Day Selection */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <label className="text-sm font-medium">Days</label>
+              <label id={daysId} className="text-sm font-medium">
+                Days
+              </label>
               <div className="flex gap-1">
                 <Button
                   variant="ghost"
@@ -205,7 +216,7 @@ export const ScheduleForm = ({
                 </Button>
               </div>
             </div>
-            <div className="flex gap-1.5">
+            <div className="flex gap-1.5" role="group" aria-labelledby={daysId}>
               {DAYS.map((day) => (
                 <Button
                   key={day.value}

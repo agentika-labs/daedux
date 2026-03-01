@@ -112,12 +112,6 @@ export function SessionsSection({ data, loading }: SessionsSectionProps) {
   // is the debounced value that triggers table filtering
   const [searchInput, setSearchInput] = useState("");
   const deferredSearch = useDeferredValue(searchInput);
-  const [globalFilter, setGlobalFilter] = useState("");
-
-  // Sync deferred value to table filter
-  useEffect(() => {
-    setGlobalFilter(deferredSearch);
-  }, [deferredSearch]);
 
   const sessions = data?.sessions ?? EMPTY_SESSIONS;
 
@@ -308,10 +302,9 @@ export function SessionsSection({ data, loading }: SessionsSectionProps) {
     getPaginationRowModel: getPaginationRowModel(),
     getSortedRowModel: getSortedRowModel(),
     globalFilterFn,
-    onGlobalFilterChange: setGlobalFilter,
     onPaginationChange: setPagination,
     onSortingChange: setSorting,
-    state: { globalFilter, pagination, sorting },
+    state: { globalFilter: deferredSearch, pagination, sorting },
   });
 
   const totalFiltered = table.getFilteredRowModel().rows.length;

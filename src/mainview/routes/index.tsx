@@ -1,15 +1,19 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useCallback, useEffect, useState, useRef } from "react";
+import {
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useState,
+  useRef,
+} from "react";
 
 import { Header } from "@/components/layout/Header";
 import type { FilterOption } from "@/components/layout/Header";
-import { AutomationSection } from "@/components/sections/AutomationSection";
-import { CostSection } from "@/components/sections/CostSection";
-import { EfficiencySection } from "@/components/sections/EfficiencySection";
 import { OverviewSection } from "@/components/sections/OverviewSection";
-import { ProjectsSection } from "@/components/sections/ProjectsSection";
 import { SessionsSection } from "@/components/sections/SessionsSection";
 import { ToolsSection } from "@/components/sections/ToolsSection";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useActiveSection, scrollToSection } from "@/hooks/useActiveSection";
 import { useIsDesktop } from "@/hooks/useApi";
 import { queryClient } from "@/lib/query-client";
@@ -18,6 +22,28 @@ import {
   useSyncMutation,
   dashboardQueryOptions,
 } from "@/queries/dashboard";
+
+// Lazy load chart-heavy sections to reduce initial bundle
+const CostSection = lazy(() =>
+  import("@/components/sections/CostSection").then((m) => ({
+    default: m.CostSection,
+  }))
+);
+const EfficiencySection = lazy(() =>
+  import("@/components/sections/EfficiencySection").then((m) => ({
+    default: m.EfficiencySection,
+  }))
+);
+const AutomationSection = lazy(() =>
+  import("@/components/sections/AutomationSection").then((m) => ({
+    default: m.AutomationSection,
+  }))
+);
+const ProjectsSection = lazy(() =>
+  import("@/components/sections/ProjectsSection").then((m) => ({
+    default: m.ProjectsSection,
+  }))
+);
 
 export const Route = createFileRoute("/")({
   loader: async () => {
@@ -123,15 +149,23 @@ function Dashboard() {
             onNavigateToSection={handleNavigateToSection}
           />
 
-          <CostSection data={data ?? null} loading={isLoading} />
+          <Suspense fallback={<Skeleton className="h-64 w-full" />}>
+            <CostSection data={data ?? null} loading={isLoading} />
+          </Suspense>
 
-          <EfficiencySection data={data ?? null} loading={isLoading} />
+          <Suspense fallback={<Skeleton className="h-64 w-full" />}>
+            <EfficiencySection data={data ?? null} loading={isLoading} />
+          </Suspense>
 
           <ToolsSection data={data ?? null} loading={isLoading} />
 
-          <AutomationSection data={data ?? null} loading={isLoading} />
+          <Suspense fallback={<Skeleton className="h-64 w-full" />}>
+            <AutomationSection data={data ?? null} loading={isLoading} />
+          </Suspense>
 
-          <ProjectsSection data={data ?? null} loading={isLoading} />
+          <Suspense fallback={<Skeleton className="h-64 w-full" />}>
+            <ProjectsSection data={data ?? null} loading={isLoading} />
+          </Suspense>
 
           <SessionsSection data={data ?? null} loading={isLoading} />
         </div>
