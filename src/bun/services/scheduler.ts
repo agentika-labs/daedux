@@ -685,5 +685,3 @@ export class SchedulerService extends Effect.Service<SchedulerService>()(
   }
 ) {}
 
-/** @deprecated Use SchedulerService.Default instead */
-export const SchedulerServiceLive = SchedulerService.Default;

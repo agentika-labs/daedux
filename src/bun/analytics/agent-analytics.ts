@@ -1017,5 +1017,3 @@ export class AgentAnalyticsService extends Effect.Service<AgentAnalyticsService>
   },
 ) {}
 
-/** @deprecated Use AgentAnalyticsService.Default instead */
-export const AgentAnalyticsServiceLive = AgentAnalyticsService.Default;

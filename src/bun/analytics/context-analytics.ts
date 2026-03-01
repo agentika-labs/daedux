@@ -413,5 +413,3 @@ export class ContextAnalyticsService extends Effect.Service<ContextAnalyticsServ
   },
 ) {}
 
-/** @deprecated Use ContextAnalyticsService.Default instead */
-export const ContextAnalyticsServiceLive = ContextAnalyticsService.Default;
