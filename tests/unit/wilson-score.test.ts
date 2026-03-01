@@ -8,7 +8,7 @@ import {
   wilsonScoreInterval,
   percentile,
   getConfidenceLevel,
-} from "../../src/bun/analytics/tool-analytics";
+} from "../../src/bun/utils/statistics";
 
 describe("wilsonScoreInterval", () => {
   it("returns [0, 1] for zero total", () => {
