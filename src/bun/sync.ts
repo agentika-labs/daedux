@@ -616,5 +616,3 @@ export class SyncService extends Effect.Service<SyncService>()("SyncService", {
   }),
 }) {}
 
-/** @deprecated Use SyncService.Default instead */
-export const SyncServiceLive = SyncService.Default;

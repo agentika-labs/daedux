@@ -173,5 +173,3 @@ export class ModelAnalyticsService extends Effect.Service<ModelAnalyticsService>
   }
 ) {}
 
-/** @deprecated Use ModelAnalyticsService.Default instead */
-export const ModelAnalyticsServiceLive = ModelAnalyticsService.Default;

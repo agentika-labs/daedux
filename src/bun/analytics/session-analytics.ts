@@ -1197,5 +1197,3 @@ export class SessionAnalyticsService extends Effect.Service<SessionAnalyticsServ
   }
 ) {}
 
-/** @deprecated Use SessionAnalyticsService.Default instead */
-export const SessionAnalyticsServiceLive = SessionAnalyticsService.Default;

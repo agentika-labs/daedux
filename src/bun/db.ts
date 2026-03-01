@@ -139,8 +139,6 @@ export class DatabaseService extends Effect.Service<DatabaseService>()(
   }
 ) {}
 
-/** @deprecated Use DatabaseService.Default instead */
-export const DatabaseServiceLive = DatabaseService.Default;
 
 // ─── Helper: Execute SQL with Effect Error Handling ─────────────────────────
 
