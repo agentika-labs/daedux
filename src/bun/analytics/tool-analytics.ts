@@ -2,14 +2,11 @@ import { sql, desc, eq, and, count } from "drizzle-orm";
 import type { SQL } from "drizzle-orm";
 import type { SQLiteBunDatabase } from "drizzle-orm/bun-sqlite";
 import { Effect } from "effect";
-
 import { DatabaseService } from "../db";
 import * as schema from "../db/schema";
 import { DatabaseError } from "../errors";
 import type { DateFilter } from "./shared";
 import { buildDateConditions } from "./shared";
-
-// ─── Types ───────────────────────────────────────────────────────────────────
 
 export interface ToolUsageStat {
   readonly name: string;
@@ -92,7 +89,7 @@ export interface ApiErrorStat {
 export function wilsonScoreInterval(
   successes: number,
   total: number,
-  z = 1.96
+  z = 1.96,
 ): { lower: number; upper: number } {
   if (total === 0) {
     return { lower: 0, upper: 1 };
@@ -276,7 +273,7 @@ const FIX_SUGGESTIONS: Record<
 // ─── Helper Functions ────────────────────────────────────────────────────────
 
 function categorizeErrorsByPattern(
-  errors: { errorMessage: string | null; count: number }[]
+  errors: { errorMessage: string | null; count: number }[],
 ): Record<string, { message: string; count: number }[]> {
   const result: Record<string, { message: string; count: number }[]> = {
     build_test: [],
@@ -316,7 +313,7 @@ function categorizeErrorsByPattern(
 
 function getFixSuggestions(
   category: string,
-  errors: { message: string; count: number }[]
+  errors: { message: string; count: number }[],
 ): string[] {
   const patterns = FIX_SUGGESTIONS[category] ?? FIX_SUGGESTIONS.other ?? [];
   const suggestions: string[] = [];
@@ -335,7 +332,7 @@ function getFixSuggestions(
 
 async function getBashCategoryHealthInternal(
   db: SQLiteBunDatabase<typeof schema>,
-  dateConditions: SQL[]
+  dateConditions: SQL[],
 ): Promise<BashCategoryHealth[]> {
   // Get category counts
   let categoryData;
@@ -357,7 +354,7 @@ async function getBashCategoryHealthInternal(
       .from(schema.bashCommands)
       .innerJoin(
         schema.sessions,
-        eq(schema.bashCommands.sessionId, schema.sessions.sessionId)
+        eq(schema.bashCommands.sessionId, schema.sessions.sessionId),
       )
       .where(and(...dateConditions))
       .groupBy(schema.bashCommands.category)
@@ -376,8 +373,8 @@ async function getBashCategoryHealthInternal(
       .where(
         and(
           eq(schema.toolUses.toolName, "Bash"),
-          eq(schema.toolUses.hasError, true)
-        )
+          eq(schema.toolUses.hasError, true),
+        ),
       )
       .groupBy(schema.toolUses.errorMessage)
       .orderBy(desc(count()))
@@ -391,14 +388,14 @@ async function getBashCategoryHealthInternal(
       .from(schema.toolUses)
       .innerJoin(
         schema.sessions,
-        eq(schema.toolUses.sessionId, schema.sessions.sessionId)
+        eq(schema.toolUses.sessionId, schema.sessions.sessionId),
       )
       .where(
         and(
           eq(schema.toolUses.toolName, "Bash"),
           eq(schema.toolUses.hasError, true),
-          ...dateConditions
-        )
+          ...dateConditions,
+        ),
       )
       .groupBy(schema.toolUses.errorMessage)
       .orderBy(desc(count()))
@@ -412,7 +409,7 @@ async function getBashCategoryHealthInternal(
       .select({
         errors:
           sql<number>`SUM(CASE WHEN ${schema.toolUses.hasError} = 1 THEN 1 ELSE 0 END)`.as(
-            "errors"
+            "errors",
           ),
         total: count(),
       })
@@ -423,14 +420,14 @@ async function getBashCategoryHealthInternal(
       .select({
         errors:
           sql<number>`SUM(CASE WHEN ${schema.toolUses.hasError} = 1 THEN 1 ELSE 0 END)`.as(
-            "errors"
+            "errors",
           ),
         total: count(),
       })
       .from(schema.toolUses)
       .innerJoin(
         schema.sessions,
-        eq(schema.toolUses.sessionId, schema.sessions.sessionId)
+        eq(schema.toolUses.sessionId, schema.sessions.sessionId),
       )
       .where(and(eq(schema.toolUses.toolName, "Bash"), ...dateConditions));
   }
@@ -446,13 +443,13 @@ async function getBashCategoryHealthInternal(
     const categoryErrors = errorsByCategory[cat.category] ?? [];
     const categoryErrorCount = categoryErrors.reduce(
       (sum: number, e: { count: number }) => sum + e.count,
-      0
+      0,
     );
     const categoryErrorRate =
       cat.totalCommands > 0
         ? Math.min(
             categoryErrorCount / cat.totalCommands,
-            overallBashErrorRate * 2
+            overallBashErrorRate * 2,
           )
         : 0;
 
@@ -495,7 +492,7 @@ export class ToolAnalyticsService extends Effect.Service<ToolAnalyticsService>()
                     errorType: schema.apiErrors.errorType,
                     lastOccurred:
                       sql<number>`MAX(${schema.apiErrors.timestamp})`.as(
-                        "last_occurred"
+                        "last_occurred",
                       ),
                   })
                   .from(schema.apiErrors)
@@ -508,13 +505,13 @@ export class ToolAnalyticsService extends Effect.Service<ToolAnalyticsService>()
                     errorType: schema.apiErrors.errorType,
                     lastOccurred:
                       sql<number>`MAX(${schema.apiErrors.timestamp})`.as(
-                        "last_occurred"
+                        "last_occurred",
                       ),
                   })
                   .from(schema.apiErrors)
                   .innerJoin(
                     schema.sessions,
-                    eq(schema.apiErrors.sessionId, schema.sessions.sessionId)
+                    eq(schema.apiErrors.sessionId, schema.sessions.sessionId),
                   )
                   .where(and(...dateConditions))
                   .groupBy(schema.apiErrors.errorType)
@@ -559,7 +556,7 @@ export class ToolAnalyticsService extends Effect.Service<ToolAnalyticsService>()
                     category: schema.bashCommands.category,
                     commands:
                       sql<string>`GROUP_CONCAT(${schema.bashCommands.command}, '|||')`.as(
-                        "commands"
+                        "commands",
                       ),
                     count: count(),
                   })
@@ -572,14 +569,17 @@ export class ToolAnalyticsService extends Effect.Service<ToolAnalyticsService>()
                     category: schema.bashCommands.category,
                     commands:
                       sql<string>`GROUP_CONCAT(${schema.bashCommands.command}, '|||')`.as(
-                        "commands"
+                        "commands",
                       ),
                     count: count(),
                   })
                   .from(schema.bashCommands)
                   .innerJoin(
                     schema.sessions,
-                    eq(schema.bashCommands.sessionId, schema.sessions.sessionId)
+                    eq(
+                      schema.bashCommands.sessionId,
+                      schema.sessions.sessionId,
+                    ),
                   )
                   .where(and(...dateConditions))
                   .groupBy(schema.bashCommands.category)
@@ -628,7 +628,7 @@ export class ToolAnalyticsService extends Effect.Service<ToolAnalyticsService>()
                   .from(schema.toolUses)
                   .innerJoin(
                     schema.sessions,
-                    eq(schema.toolUses.sessionId, schema.sessions.sessionId)
+                    eq(schema.toolUses.sessionId, schema.sessions.sessionId),
                   )
                   .where(and(...dateConditions))
                   .groupBy(schema.toolUses.sessionId, schema.toolUses.toolName);
@@ -664,7 +664,7 @@ export class ToolAnalyticsService extends Effect.Service<ToolAnalyticsService>()
                   .select({
                     errorCount:
                       sql<number>`SUM(CASE WHEN ${schema.toolUses.hasError} = 1 THEN 1 ELSE 0 END)`.as(
-                        "error_count"
+                        "error_count",
                       ),
                     sessionId: schema.toolUses.sessionId,
                   })
@@ -675,14 +675,14 @@ export class ToolAnalyticsService extends Effect.Service<ToolAnalyticsService>()
                   .select({
                     errorCount:
                       sql<number>`SUM(CASE WHEN ${schema.toolUses.hasError} = 1 THEN 1 ELSE 0 END)`.as(
-                        "error_count"
+                        "error_count",
                       ),
                     sessionId: schema.toolUses.sessionId,
                   })
                   .from(schema.toolUses)
                   .innerJoin(
                     schema.sessions,
-                    eq(schema.toolUses.sessionId, schema.sessions.sessionId)
+                    eq(schema.toolUses.sessionId, schema.sessions.sessionId),
                   )
                   .where(and(...dateConditions))
                   .groupBy(schema.toolUses.sessionId);
@@ -709,11 +709,11 @@ export class ToolAnalyticsService extends Effect.Service<ToolAnalyticsService>()
                   .select({
                     errorCount:
                       sql<number>`SUM(CASE WHEN ${schema.toolUses.hasError} = 1 THEN 1 ELSE 0 END)`.as(
-                        "error_count"
+                        "error_count",
                       ),
                     sessions:
                       sql<number>`COUNT(DISTINCT ${schema.toolUses.sessionId})`.as(
-                        "sessions"
+                        "sessions",
                       ),
                     toolName: schema.toolUses.toolName,
                     totalUses: count(),
@@ -726,11 +726,11 @@ export class ToolAnalyticsService extends Effect.Service<ToolAnalyticsService>()
                   .select({
                     errorCount:
                       sql<number>`SUM(CASE WHEN ${schema.toolUses.hasError} = 1 THEN 1 ELSE 0 END)`.as(
-                        "error_count"
+                        "error_count",
                       ),
                     sessions:
                       sql<number>`COUNT(DISTINCT ${schema.toolUses.sessionId})`.as(
-                        "sessions"
+                        "sessions",
                       ),
                     toolName: schema.toolUses.toolName,
                     totalUses: count(),
@@ -738,7 +738,7 @@ export class ToolAnalyticsService extends Effect.Service<ToolAnalyticsService>()
                   .from(schema.toolUses)
                   .innerJoin(
                     schema.sessions,
-                    eq(schema.toolUses.sessionId, schema.sessions.sessionId)
+                    eq(schema.toolUses.sessionId, schema.sessions.sessionId),
                   )
                   .where(and(...dateConditions))
                   .groupBy(schema.toolUses.toolName)
@@ -774,7 +774,7 @@ export class ToolAnalyticsService extends Effect.Service<ToolAnalyticsService>()
                   .select({
                     errorCount:
                       sql<number>`SUM(CASE WHEN ${schema.toolUses.hasError} = 1 THEN 1 ELSE 0 END)`.as(
-                        "error_count"
+                        "error_count",
                       ),
                     toolName: schema.toolUses.toolName,
                     totalUses: count(),
@@ -787,7 +787,7 @@ export class ToolAnalyticsService extends Effect.Service<ToolAnalyticsService>()
                   .select({
                     errorCount:
                       sql<number>`SUM(CASE WHEN ${schema.toolUses.hasError} = 1 THEN 1 ELSE 0 END)`.as(
-                        "error_count"
+                        "error_count",
                       ),
                     toolName: schema.toolUses.toolName,
                     totalUses: count(),
@@ -795,7 +795,7 @@ export class ToolAnalyticsService extends Effect.Service<ToolAnalyticsService>()
                   .from(schema.toolUses)
                   .innerJoin(
                     schema.sessions,
-                    eq(schema.toolUses.sessionId, schema.sessions.sessionId)
+                    eq(schema.toolUses.sessionId, schema.sessions.sessionId),
                   )
                   .where(and(...dateConditions))
                   .groupBy(schema.toolUses.toolName)
@@ -815,7 +815,7 @@ export class ToolAnalyticsService extends Effect.Service<ToolAnalyticsService>()
                   .where(eq(schema.toolUses.hasError, true))
                   .groupBy(
                     schema.toolUses.toolName,
-                    schema.toolUses.errorMessage
+                    schema.toolUses.errorMessage,
                   )
                   .orderBy(desc(count()))
                   .limit(100);
@@ -829,14 +829,14 @@ export class ToolAnalyticsService extends Effect.Service<ToolAnalyticsService>()
                   .from(schema.toolUses)
                   .innerJoin(
                     schema.sessions,
-                    eq(schema.toolUses.sessionId, schema.sessions.sessionId)
+                    eq(schema.toolUses.sessionId, schema.sessions.sessionId),
                   )
                   .where(
-                    and(eq(schema.toolUses.hasError, true), ...dateConditions)
+                    and(eq(schema.toolUses.hasError, true), ...dateConditions),
                   )
                   .groupBy(
                     schema.toolUses.toolName,
-                    schema.toolUses.errorMessage
+                    schema.toolUses.errorMessage,
                   )
                   .orderBy(desc(count()))
                   .limit(100);
@@ -864,11 +864,11 @@ export class ToolAnalyticsService extends Effect.Service<ToolAnalyticsService>()
                 // Wilson score intervals provide confidence bounds
                 const successInterval = wilsonScoreInterval(
                   successes,
-                  tool.totalUses
+                  tool.totalUses,
                 );
                 const errorInterval = wilsonScoreInterval(
                   errorCount,
-                  tool.totalUses
+                  tool.totalUses,
                 );
 
                 return {
@@ -890,7 +890,7 @@ export class ToolAnalyticsService extends Effect.Service<ToolAnalyticsService>()
 
               // Percentile-based thresholds adapt to actual data distribution
               const reliabilityScores = toolMetrics.map(
-                (t) => t.reliabilityScore
+                (t) => t.reliabilityScore,
               );
               const frictionScores = toolMetrics.map((t) => t.frictionScore);
 
@@ -904,7 +904,7 @@ export class ToolAnalyticsService extends Effect.Service<ToolAnalyticsService>()
                 .filter(
                   (t) =>
                     t.reliabilityScore >= reliableThreshold &&
-                    t.totalCalls >= 10
+                    t.totalCalls >= 10,
                 )
                 .toSorted((a, b) => b.reliabilityScore - a.reliabilityScore)
                 .slice(0, 5)
@@ -922,7 +922,7 @@ export class ToolAnalyticsService extends Effect.Service<ToolAnalyticsService>()
                   (t) =>
                     (t.frictionScore >= frictionThreshold ||
                       t.errorCount > 0) &&
-                    t.totalCalls >= 3
+                    t.totalCalls >= 3,
                 )
                 .toSorted((a, b) => b.frictionScore - a.frictionScore)
                 .slice(0, 5)
@@ -938,13 +938,13 @@ export class ToolAnalyticsService extends Effect.Service<ToolAnalyticsService>()
               // Get bash category health for deep dive
               const bashCategoryData = await getBashCategoryHealthInternal(
                 db,
-                dateConditions
+                dateConditions,
               );
 
               // Generate headline and recommendation
               const totalErrors = toolMetrics.reduce(
                 (sum, t) => sum + t.errorCount,
-                0
+                0,
               );
 
               const topFriction = frictionPoints[0];
@@ -961,10 +961,10 @@ export class ToolAnalyticsService extends Effect.Service<ToolAnalyticsService>()
                   Math.round(
                     (frictionPoints.reduce(
                       (sum, f) => sum + (f.errorRate / 100) * f.totalCalls,
-                      0
+                      0,
                     ) /
                       totalErrors) *
-                      100
+                      100,
                   ) || 0;
                 headline = `${frictionPoints.length} tool${frictionPoints.length > 1 ? "s" : ""} ${frictionPoints.length > 1 ? "are" : "is"} causing ${frictionPercent > 50 ? "most" : "significant"} workflow friction`;
 
@@ -1005,7 +1005,7 @@ export class ToolAnalyticsService extends Effect.Service<ToolAnalyticsService>()
                     name: schema.toolUses.toolName,
                     sessions:
                       sql<number>`COUNT(DISTINCT ${schema.toolUses.sessionId})`.as(
-                        "sessions"
+                        "sessions",
                       ),
                   })
                   .from(schema.toolUses)
@@ -1018,13 +1018,13 @@ export class ToolAnalyticsService extends Effect.Service<ToolAnalyticsService>()
                     name: schema.toolUses.toolName,
                     sessions:
                       sql<number>`COUNT(DISTINCT ${schema.toolUses.sessionId})`.as(
-                        "sessions"
+                        "sessions",
                       ),
                   })
                   .from(schema.toolUses)
                   .innerJoin(
                     schema.sessions,
-                    eq(schema.toolUses.sessionId, schema.sessions.sessionId)
+                    eq(schema.toolUses.sessionId, schema.sessions.sessionId),
                   )
                   .where(and(...dateConditions))
                   .groupBy(schema.toolUses.toolName)
@@ -1040,8 +1040,5 @@ export class ToolAnalyticsService extends Effect.Service<ToolAnalyticsService>()
           }),
       } as const;
     }),
-  }
+  },
 ) {}
-
-/** @deprecated Use ToolAnalyticsService.Default instead */
-export const ToolAnalyticsServiceLive = ToolAnalyticsService.Default;

@@ -1,13 +1,10 @@
 import { sql, desc, eq, and, count } from "drizzle-orm";
 import { Effect } from "effect";
-
 import { DatabaseService } from "../db";
 import * as schema from "../db/schema";
 import { DatabaseError } from "../errors";
 import type { DateFilter } from "./shared";
 import { buildDateConditions } from "./shared";
-
-// ─── Types ───────────────────────────────────────────────────────────────────
 
 export interface FileActivityStat {
   readonly filePath: string;
@@ -29,8 +26,6 @@ export interface SessionFileOperation {
   readonly tool: string;
   readonly extension: string;
 }
-
-// ─── Service Definition ──────────────────────────────────────────────────────
 
 /**
  * FileAnalyticsService provides file operation statistics.
@@ -56,18 +51,18 @@ export class FileAnalyticsService extends Effect.Service<FileAnalyticsService>()
                   .select({
                     edits:
                       sql<number>`SUM(CASE WHEN ${schema.fileOperations.operation} = 'edit' THEN 1 ELSE 0 END)`.as(
-                        "edits"
+                        "edits",
                       ),
                     fileExtension: schema.fileOperations.fileExtension,
                     filePath: schema.fileOperations.filePath,
                     reads:
                       sql<number>`SUM(CASE WHEN ${schema.fileOperations.operation} = 'read' THEN 1 ELSE 0 END)`.as(
-                        "reads"
+                        "reads",
                       ),
                     totalOps: count(),
                     writes:
                       sql<number>`SUM(CASE WHEN ${schema.fileOperations.operation} = 'write' THEN 1 ELSE 0 END)`.as(
-                        "writes"
+                        "writes",
                       ),
                   })
                   .from(schema.fileOperations)
@@ -79,18 +74,18 @@ export class FileAnalyticsService extends Effect.Service<FileAnalyticsService>()
                   .select({
                     edits:
                       sql<number>`SUM(CASE WHEN ${schema.fileOperations.operation} = 'edit' THEN 1 ELSE 0 END)`.as(
-                        "edits"
+                        "edits",
                       ),
                     fileExtension: schema.fileOperations.fileExtension,
                     filePath: schema.fileOperations.filePath,
                     reads:
                       sql<number>`SUM(CASE WHEN ${schema.fileOperations.operation} = 'read' THEN 1 ELSE 0 END)`.as(
-                        "reads"
+                        "reads",
                       ),
                     totalOps: count(),
                     writes:
                       sql<number>`SUM(CASE WHEN ${schema.fileOperations.operation} = 'write' THEN 1 ELSE 0 END)`.as(
-                        "writes"
+                        "writes",
                       ),
                   })
                   .from(schema.fileOperations)
@@ -98,8 +93,8 @@ export class FileAnalyticsService extends Effect.Service<FileAnalyticsService>()
                     schema.sessions,
                     eq(
                       schema.fileOperations.sessionId,
-                      schema.sessions.sessionId
-                    )
+                      schema.sessions.sessionId,
+                    ),
                   )
                   .where(and(...dateConditions))
                   .groupBy(schema.fileOperations.filePath)
@@ -151,8 +146,8 @@ export class FileAnalyticsService extends Effect.Service<FileAnalyticsService>()
                     schema.sessions,
                     eq(
                       schema.fileOperations.sessionId,
-                      schema.sessions.sessionId
-                    )
+                      schema.sessions.sessionId,
+                    ),
                   )
                   .where(and(extensionNotEmpty, ...dateConditions))
                   .groupBy(schema.fileOperations.fileExtension)
@@ -203,8 +198,8 @@ export class FileAnalyticsService extends Effect.Service<FileAnalyticsService>()
                     schema.sessions,
                     eq(
                       schema.fileOperations.sessionId,
-                      schema.sessions.sessionId
-                    )
+                      schema.sessions.sessionId,
+                    ),
                   )
                   .where(and(operationCondition, ...dateConditions));
               }
@@ -235,8 +230,5 @@ export class FileAnalyticsService extends Effect.Service<FileAnalyticsService>()
           }),
       } as const;
     }),
-  }
+  },
 ) {}
-
-/** @deprecated Use FileAnalyticsService.Default instead */
-export const FileAnalyticsServiceLive = FileAnalyticsService.Default;

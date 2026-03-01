@@ -1,13 +1,6 @@
 import { gte, lte } from "drizzle-orm";
 import type { SQL } from "drizzle-orm";
-
 import * as schema from "../db/schema";
-
-// Re-export shared utilities from metrics
-export { cacheHitRatio, totalInputWithCache } from "../metrics";
-export type { TokenInputBreakdown, TokenBreakdown } from "../metrics";
-
-// ─── Date Filter Types ───────────────────────────────────────────────────────
 
 /**
  * Date filter for server-side filtering of analytics queries.
@@ -18,8 +11,6 @@ export interface DateFilter {
   endTime?: number; // Unix ms - sessions starting on or before this time
 }
 
-// ─── Comparison Windows ──────────────────────────────────────────────────────
-
 export interface ComparisonWindows {
   readonly currentStart: number;
   readonly currentEnd: number;
@@ -27,9 +18,8 @@ export interface ComparisonWindows {
   readonly previousEnd: number;
 }
 
-/** Build comparable current/previous windows, honoring explicit date filters when present. */
 export const buildComparisonWindows = (
-  dateFilter: DateFilter = {}
+  dateFilter: DateFilter = {},
 ): ComparisonWindows => {
   const now = Date.now();
   const hasFilter =
@@ -57,8 +47,6 @@ export const buildComparisonWindows = (
   };
 };
 
-// ─── Date Condition Builder ──────────────────────────────────────────────────
-
 /**
  * Build SQL conditions for date filtering on session startTime.
  * Returns an array of conditions that can be spread into `and(...)`.
@@ -69,7 +57,7 @@ export const buildComparisonWindows = (
  */
 export const buildDateConditions = (
   dateFilter: DateFilter,
-  timeColumn: typeof schema.sessions.startTime = schema.sessions.startTime
+  timeColumn: typeof schema.sessions.startTime = schema.sessions.startTime,
 ): SQL[] => {
   const conditions: SQL[] = [];
   if (dateFilter.startTime) {
@@ -80,8 +68,6 @@ export const buildDateConditions = (
   }
   return conditions;
 };
-
-// ─── Common Constants ────────────────────────────────────────────────────────
 
 /** One day in milliseconds */
 export const DAY_MS = 86_400_000;
