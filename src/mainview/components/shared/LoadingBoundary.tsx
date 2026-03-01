@@ -81,10 +81,11 @@ export function ListSkeleton({
 }: ListSkeletonProps) {
   return (
     <div className={cn("space-y-2", className)}>
-      {/* oxlint-disable-next-line react/no-array-index-key -- skeleton loaders have no natural key */}
+      {/* eslint-disable react/no-array-index-key -- skeleton placeholders have no data identity */}
       {Array.from({ length: count }).map((_, i) => (
         <Skeleton key={i} className={cn("w-full", itemHeight)} />
       ))}
+      {/* eslint-enable react/no-array-index-key */}
     </div>
   );
 }
@@ -101,10 +102,11 @@ export function GridSkeleton({
 }: GridSkeletonProps) {
   return (
     <div className={cn(`grid grid-cols-${cols} gap-4`, className)}>
-      {/* oxlint-disable-next-line react/no-array-index-key -- skeleton loaders have no natural key */}
+      {/* eslint-disable react/no-array-index-key -- skeleton placeholders have no data identity */}
       {Array.from({ length: count }).map((_, i) => (
         <Skeleton key={i} className="h-20" />
       ))}
+      {/* eslint-enable react/no-array-index-key */}
     </div>
   );
 }

@@ -10,10 +10,12 @@ import { describe, test, expect, beforeEach, afterEach } from "bun:test";
 import { Effect } from "effect";
 
 import { ContextAnalyticsService } from "../../src/bun/analytics/context-analytics";
+import type { FileActivityStat } from "../../src/bun/analytics/file-analytics";
 import { FileAnalyticsService } from "../../src/bun/analytics/file-analytics";
 import { InsightsAnalyticsService } from "../../src/bun/analytics/insights-analytics";
 import { ModelAnalyticsService } from "../../src/bun/analytics/model-analytics";
 import { SessionAnalyticsService } from "../../src/bun/analytics/session-analytics";
+import type { ToolHealthStat } from "../../src/bun/analytics/tool-analytics";
 import { ToolAnalyticsService } from "../../src/bun/analytics/tool-analytics";
 import type { DatabaseService } from "../../src/bun/db";
 import * as schema from "../../src/bun/db/schema";
@@ -225,7 +227,9 @@ describe("getAnalytics tools flow", () => {
     expect(toolHealth.length).toBeGreaterThan(0);
 
     // Check that Bash tool appears in health with errors tracked
-    const bashHealth = toolHealth.find((t: any) => t.name === "Bash");
+    const bashHealth = toolHealth.find(
+      (t: ToolHealthStat) => t.name === "Bash"
+    );
     expect(bashHealth).toBeDefined();
     // The health report tracks errors
     expect(bashHealth!.errors).toBeGreaterThan(0);
@@ -276,7 +280,9 @@ describe("getAnalytics files flow", () => {
     );
 
     expect(fileActivity.length).toBe(2); // 2 unique files
-    const mainTs = fileActivity.find((f: any) => f.filePath === "/src/main.ts");
+    const mainTs = fileActivity.find(
+      (f: FileActivityStat) => f.filePath === "/src/main.ts"
+    );
     expect(mainTs?.reads).toBe(1);
     expect(mainTs?.edits).toBe(1);
 

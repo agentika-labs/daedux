@@ -257,10 +257,11 @@ function AgentsTab({ agents, loading }: AgentsTabProps) {
 
                   {/* Productivity Rating - split into fixed columns */}
                   <div className="flex items-center gap-2">
+                    {/* eslint-disable react/no-array-index-key -- fixed 5-star rating, no data identity */}
                     <div className="flex items-center">
                       {Array.from({ length: 5 }).map((_, i) => (
                         <HugeiconsIcon
-                          key={i}
+                          key={`star-${i}`}
                           icon={StarIcon}
                           className={cn(
                             "h-3 w-3",
@@ -269,6 +270,7 @@ function AgentsTab({ agents, loading }: AgentsTabProps) {
                         />
                       ))}
                     </div>
+                    {/* eslint-enable react/no-array-index-key */}
                     <span
                       className={cn("w-24 text-xs", `text-${rating.variant}`)}
                     >

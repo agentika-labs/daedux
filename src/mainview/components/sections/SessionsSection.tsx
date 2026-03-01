@@ -641,6 +641,7 @@ function SessionDetail({ session }: { session: SessionRow }) {
           <div className="space-y-3">
             <h4 className="text-sm font-medium">File Activity</h4>
             <div className="max-h-[200px] space-y-1 overflow-y-auto">
+              {/* eslint-disable react/no-array-index-key -- filePath+tool may have duplicates, index ensures uniqueness */}
               {session.fileActivityDetails.slice(0, 20).map((file, index) => (
                 <div
                   key={`${file.filePath}-${file.tool}-${index}`}
@@ -654,6 +655,7 @@ function SessionDetail({ session }: { session: SessionRow }) {
                   </Badge>
                 </div>
               ))}
+              {/* eslint-enable react/no-array-index-key */}
               {session.fileActivityDetails.length > 20 && (
                 <p className="text-muted-foreground pt-2 text-xs">
                   +{session.fileActivityDetails.length - 20} more files
