@@ -45,7 +45,6 @@ interface ToolsSectionProps {
 }
 
 export function ToolsSection({ data, loading }: ToolsSectionProps) {
-  const frictionExpansion = useExpandedIndex();
   const bashExpansion = useExpandedIndex();
 
   const toolHealthReport = data?.toolHealthReportCard;
@@ -149,21 +148,8 @@ export function ToolsSection({ data, loading }: ToolsSectionProps) {
                         (b.frictionScore ?? b.errorRate) -
                         (a.frictionScore ?? a.errorRate)
                     )
-                    .map((tool, index) => (
-                      <FrictionPointCard
-                        key={tool.name}
-                        name={tool.name}
-                        totalCalls={tool.totalCalls}
-                        errorRate={tool.errorRate}
-                        topError={tool.topError}
-                        errorCount={Math.round(
-                          tool.totalCalls * tool.errorRate
-                        )}
-                        expanded={frictionExpansion.isExpanded(index)}
-                        onToggle={() => frictionExpansion.toggle(index)}
-                        confidence={tool.confidence}
-                        frictionScore={tool.frictionScore}
-                      />
+                    .map((tool) => (
+                      <FrictionPointCard key={tool.name} tool={tool} />
                     ))}
                 </div>
               ) : (
@@ -273,38 +259,34 @@ const SEVERITY_BADGE_BORDER: Record<string, string> = {
 
 // ─── Friction Point Card ─────────────────────────────────────────────────────
 
-interface FrictionPointCardProps {
+interface FrictionPoint {
   name: string;
   totalCalls: number;
   errorRate: number;
   topError: string;
-  errorCount: number;
-  expanded: boolean;
-  onToggle: () => void;
-  confidence?: ConfidenceLevel;
-  frictionScore?: number;
+  frictionScore: number;
+  confidence: ConfidenceLevel;
 }
 
-function FrictionPointCard({
-  name,
-  totalCalls,
-  errorRate,
-  topError,
-  errorCount,
-  expanded,
-  onToggle,
-  confidence,
-  frictionScore,
-}: FrictionPointCardProps) {
+interface FrictionPointCardProps {
+  tool: FrictionPoint;
+}
+
+function FrictionPointCard({ tool }: FrictionPointCardProps) {
+  const [expanded, setExpanded] = useState(false);
+  const { copied, copy } = useCopyToClipboard();
+
+  const { name, totalCalls, errorRate, topError, frictionScore, confidence } =
+    tool;
+  const errorCount = Math.round(totalCalls * errorRate);
   const severity = getSeverityFromErrorRate(errorRate);
   const parsed = parseError(topError);
   const Icon = CATEGORY_ICONS[parsed.category];
   const cleanedError = stripXmlTags(topError);
   const cleanedSummary = stripXmlTags(parsed.summary);
-  const { copied, copy } = useCopyToClipboard();
 
   return (
-    <Collapsible open={expanded} onOpenChange={onToggle}>
+    <Collapsible open={expanded} onOpenChange={setExpanded}>
       <div
         className={cn(
           "rounded-lg border",

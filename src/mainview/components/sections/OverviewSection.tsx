@@ -1,6 +1,7 @@
 import type { DashboardData } from "@shared/rpc-types";
 
 import { Section } from "@/components/layout/Section";
+import { ChartSkeletonGrid } from "@/components/shared/ChartSkeletonGrid";
 import { ComparisonCard } from "@/components/shared/ComparisonCard";
 import { InfoTooltip } from "@/components/shared/InfoTooltip";
 import { InsightsPanel } from "@/components/shared/InsightsPanel";
@@ -255,7 +256,9 @@ export function OverviewSection({
             <CardTitle>This Week vs Last Week</CardTitle>
           </CardHeader>
           <CardContent>
-            <LoadingBoundary loading={loading} skeleton="grid">
+            {loading ? (
+              <ChartSkeletonGrid columns={3} rows={1} />
+            ) : (
               <>
                 <div className="mb-4 grid grid-cols-3 gap-4">
                   <ComparisonCard

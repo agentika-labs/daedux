@@ -20,6 +20,7 @@ import {
 
 import { Section } from "@/components/layout/Section";
 import { ChartCard } from "@/components/shared/ChartCard";
+import { ChartSkeletonGrid } from "@/components/shared/ChartSkeletonGrid";
 import { EmptyChartState } from "@/components/shared/EmptyChartState";
 import { InfoTooltip } from "@/components/shared/InfoTooltip";
 import { LoadingBoundary } from "@/components/shared/LoadingBoundary";
@@ -32,6 +33,7 @@ import {
   ChartTooltipContent,
 } from "@/components/ui/chart";
 import type { ChartConfig } from "@/components/ui/chart";
+import { ChartSkeletonGrid } from "@/components/shared/ChartSkeletonGrid";
 import { formatDateTick, formatPercentAxisTick } from "@/lib/chart-formatters";
 import {
   calculateDailyRate,
@@ -319,7 +321,9 @@ export function EfficiencySection({
           <CardTitle>Context Compaction Analysis</CardTitle>
         </CardHeader>
         <CardContent>
-          <LoadingBoundary loading={loading} skeleton="grid">
+          {loading ? (
+            <ChartSkeletonGrid columns={3} rows={1} />
+          ) : (
             <div className="grid grid-cols-3 gap-6">
               <CompactionStat
                 label="Sessions with Compactions"
