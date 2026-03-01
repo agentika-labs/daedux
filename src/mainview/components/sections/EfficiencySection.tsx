@@ -38,6 +38,7 @@ import {
   getDaysInRange,
   getVcsRateVariant,
 } from "@/lib/metric-rates";
+import { formatDateTick, formatPercentAxisTick } from "@/lib/chart-formatters";
 import { formatPercent } from "@/lib/utils";
 import type { FilterOption } from "@/queries/dashboard";
 
@@ -46,17 +47,6 @@ interface EfficiencySectionProps {
   loading?: boolean;
   filter: FilterOption;
 }
-
-// ─── Hoisted Formatters (stable references, no re-creation on render) ─────────
-
-/** Format date for X-axis ticks */
-const formatDateTick = (value: string) => {
-  const date = new Date(value);
-  return date.toLocaleDateString("en-US", { day: "numeric", month: "short" });
-};
-
-/** Format percentage for Y-axis ticks */
-const formatPercentAxisTick = (value: number) => `${value.toFixed(0)}%`;
 
 const cacheConfig = {
   cacheHitRate: {

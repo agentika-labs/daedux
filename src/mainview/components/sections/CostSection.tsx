@@ -28,6 +28,11 @@ import {
   ChartTooltipContent,
 } from "@/components/ui/chart";
 import type { ChartConfig } from "@/components/ui/chart";
+import {
+  formatCurrencyAxisTick,
+  formatCurrencyAxisTickRounded,
+  formatDateTick,
+} from "@/lib/chart-formatters";
 import { formatCurrency, formatTokens } from "@/lib/utils";
 
 // ─── Stable Empty Arrays (prevent useMemo dep changes on rerenders) ──────────
@@ -38,20 +43,6 @@ interface CostSectionProps {
   data: DashboardData | null;
   loading?: boolean;
 }
-
-// ─── Hoisted Formatters (stable references, no re-creation on render) ─────────
-
-/** Format date for X-axis ticks */
-const formatDateTick = (value: string) => {
-  const date = new Date(value);
-  return date.toLocaleDateString("en-US", { day: "numeric", month: "short" });
-};
-
-/** Format currency for Y-axis ticks (2 decimal places) */
-const formatCurrencyAxisTick = (value: number) => `$${value.toFixed(2)}`;
-
-/** Format currency for Y-axis ticks (0 decimal places) */
-const formatCurrencyAxisTickRounded = (value: number) => `$${value.toFixed(0)}`;
 
 const dailyCostConfig = {
   cost: {
