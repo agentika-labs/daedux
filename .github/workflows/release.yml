@@ -34,7 +34,7 @@ jobs:
         run: bun run check
 
       - name: Format check
-        run: bun run format:check
+        run: bunx oxfmt --check .
 
   build-desktop:
     needs: ci

@@ -25,10 +25,10 @@ jobs:
         run: bun run typecheck
 
       - name: Lint
-        run: bun run lint
+        run: bun run check
 
       - name: Format check
-        run: bun run format:check
+        run: bunx oxfmt --check .
 
   react-doctor:
     runs-on: ubuntu-latest
