@@ -52,7 +52,3 @@ export function ChartCard({
     </Card>
   );
 }
-
-export function ChartSkeleton({ height = 200 }: { height?: number }) {
-  return <Skeleton className="w-full" style={{ height }} />;
-}

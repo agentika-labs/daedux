@@ -10,7 +10,6 @@ export interface StatCardProps {
   value: string | number;
   subtext?: string;
   trend?: { value: number; direction: TrendDirection };
-  comparison?: { label: string; value: string };
   variant?: "default" | "success" | "warning" | "destructive";
   loading?: boolean;
   className?: string;
@@ -23,7 +22,6 @@ export function StatCard({
   value,
   subtext,
   trend,
-  comparison,
   variant = "default",
   loading = false,
   className,
@@ -63,11 +61,6 @@ export function StatCard({
         <p className={cn("text-2xl font-semibold", valueColorClass)}>{value}</p>
         {subtext && (
           <p className="text-muted-foreground mt-1 text-xs">{subtext}</p>
-        )}
-        {comparison && (
-          <p className="text-muted-foreground mt-1 text-xs">
-            {comparison.label}: {comparison.value}
-          </p>
         )}
       </CardContent>
     </Card>
