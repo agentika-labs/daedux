@@ -17,7 +17,6 @@ import Electrobun, {
 import { modelDisplayNameWithVersion } from "../shared/model-utils";
 import type {
   UsageMonitorRPC,
-  DashboardData,
   TrayStats,
   AppSettings,
   SyncResult,
@@ -33,10 +32,10 @@ import { ToolAnalyticsService } from "./analytics/tool-analytics";
 import { FileAnalyticsService } from "./analytics/file-analytics";
 import { AgentAnalyticsService } from "./analytics/agent-analytics";
 import { ContextAnalyticsService } from "./analytics/context-analytics";
-import { InsightsAnalyticsService } from "./analytics/insights-analytics";
 import { initializeDatabase } from "./db/migrate";
 import { AppLive } from "./main";
 import { AnthropicUsageService } from "./services/anthropic-usage";
+import { loadDashboardData } from "./services/dashboard-loader";
 import { SchedulerService, parseDaysOfWeek } from "./services/scheduler";
 import { SyncService } from "./sync";
 import { toDateString } from "./utils/formatting";
@@ -306,177 +305,6 @@ const runEffect = <A, E>(
       })
     )
   );
-
-// ─── Dashboard Data Loading ─────────────────────────────────────────────────
-
-const loadDashboardData = (dateFilter: DateFilter = {}) =>
-  Effect.gen(function* loadDashboardData() {
-    yield* Effect.logDebug("Loading dashboard data");
-    // DEBUG: Log incoming dateFilter
-    console.log("[dashboard] dateFilter input:", JSON.stringify(dateFilter));
-    const sessions = yield* SessionAnalyticsService;
-    const models = yield* ModelAnalyticsService;
-    const tools = yield* ToolAnalyticsService;
-    const files = yield* FileAnalyticsService;
-    const agents = yield* AgentAnalyticsService;
-    const insightsService = yield* InsightsAnalyticsService;
-
-    const [
-      totals,
-      extendedTotals,
-      dailyStats,
-      sessionList,
-      projects,
-      modelBreakdown,
-      toolUsage,
-      topPrompts,
-      insights,
-      toolHealth,
-      sessionToolCounts,
-      sessionPrimaryModels,
-      sessionFileOperations,
-      sessionAgentCounts,
-      sessionToolErrorCounts,
-      efficiencyScoreBase,
-      weeklyComparison,
-      agentROI,
-      toolHealthReportCard,
-      skillROI,
-      hookStats,
-      skillImpact,
-      outcomeMetrics,
-    ] = yield* Effect.all([
-      sessions.getTotals(dateFilter),
-      sessions.getExtendedTotals(dateFilter),
-      sessions.getDailyStats(undefined, dateFilter),
-      sessions.getSessionSummaries({ dateFilter, includeSubagents: false }),
-      sessions.getProjectSummaries(dateFilter),
-      models.getModelBreakdown(dateFilter),
-      tools.getToolUsage(dateFilter),
-      sessions.getTopPrompts(30, dateFilter),
-      insightsService.generateInsights(dateFilter),
-      tools.getToolHealth(dateFilter),
-      tools.getSessionToolCounts(dateFilter),
-      sessions.getSessionPrimaryModels(dateFilter),
-      files.getSessionFileOperations(dateFilter),
-      sessions.getSessionAgentCounts(dateFilter),
-      tools.getSessionToolErrorCounts(dateFilter),
-      insightsService.getEfficiencyScore(dateFilter),
-      insightsService.getWeeklyComparison(dateFilter),
-      agents.getAgentROI(dateFilter),
-      tools.getToolHealthReportCard(dateFilter),
-      agents.getSkillROI(dateFilter),
-      agents.getHookStats(dateFilter),
-      agents.getSkillImpactComparison(dateFilter),
-      insightsService.getOutcomeMetrics(dateFilter),
-    ]);
-
-    // Merge outcome metrics into efficiency score
-    const efficiencyScore = {
-      ...efficiencyScoreBase,
-      ...outcomeMetrics,
-    };
-
-    // DEBUG: Log outcome metrics to diagnose zero values
-    console.log("[dashboard] outcomeMetrics:", JSON.stringify(outcomeMetrics));
-    console.log(
-      "[dashboard] efficiencyScore.vcsActivityCount:",
-      efficiencyScore.vcsActivityCount
-    );
-    console.log(
-      "[dashboard] efficiencyScore.prsCreated:",
-      efficiencyScore.prsCreated
-    );
-
-    // Transform data for dashboard
-    const totalTokens = totals.totalInputTokens + totals.totalOutputTokens;
-
-    const dashboardTotals = {
-      ...totals,
-      agentLeverageRatio: extendedTotals.agentLeverageRatio,
-      avgContextUtilization: extendedTotals.cacheEfficiencyRatio,
-      avgCostPerQuery: extendedTotals.avgCostPerQuery,
-      avgCostPerSession: extendedTotals.avgCostPerSession,
-      avgSessionDurationMs: extendedTotals.avgSessionDurationMs,
-      avgTurnsPerSession:
-        sessionList.length > 0
-          ? sessionList.reduce((sum, s) => sum + (s.turnCount ?? 0), 0) /
-            sessionList.length
-          : 0,
-      cacheCreation: totals.totalCacheWrite,
-      cacheEfficiencyRatio: extendedTotals.cacheEfficiencyRatio,
-      cacheRead: totals.totalCacheRead,
-      cacheSavingsUsd: extendedTotals.savedByCaching,
-      contextEfficiencyScore: extendedTotals.cacheEfficiencyRatio * 100,
-      costPerEdit:
-        extendedTotals.totalFileOperations > 0
-          ? totals.totalCost / extendedTotals.totalFileOperations
-          : 0,
-      dateRange: extendedTotals.dateRange,
-      output: totals.totalOutputTokens,
-      promptEfficiencyRatio: (() => {
-        // Exclude cacheRead - we want output relative to NEW tokens sent
-        // (fresh input + newly cached content), not efficiently reused cached context
-        const newTokensSent = totals.totalInputTokens + totals.totalCacheWrite;
-        return newTokensSent > 0 ? totals.totalOutputTokens / newTokensSent : 0;
-      })(),
-      savedByCaching: extendedTotals.savedByCaching,
-      totalAgentSpawns: extendedTotals.totalAgentSpawns,
-      totalFileOperations: extendedTotals.totalFileOperations,
-      totalSkillInvocations: extendedTotals.totalSkillInvocations,
-      totalTokens,
-      totalTurns: sessionList.reduce((sum, s) => sum + (s.turnCount ?? 0), 0),
-      uncachedInput: totals.totalInputTokens,
-    };
-
-    // Transform sessions
-    const dashboardSessions = sessionList.map((s) =>
-      transformSessionToRPC({
-        session: s,
-        sessionTools: sessionToolCounts.get(s.sessionId) ?? {},
-        sessionFileOps: sessionFileOperations.get(s.sessionId) ?? [],
-        sessionModel:
-          sessionPrimaryModels.get(s.sessionId) ?? "claude-sonnet-4-5-20251022",
-        agentCount: sessionAgentCounts.get(s.sessionId) ?? 0,
-        errorCount: sessionToolErrorCounts.get(s.sessionId) ?? 0,
-      })
-    );
-
-    // Transform insights
-    const transformedInsights = insights.map((i) => ({
-      action: i.action ?? "",
-      actionLabel: i.actionLabel,
-      actionTarget: i.actionTarget,
-      comparison: i.comparison,
-      description: i.message,
-      dollarImpact: i.dollarImpact,
-      priority: i.priority,
-      title: i.title,
-      type: (i.type === "tip" ? "info" : i.type) as
-        | "success"
-        | "warning"
-        | "info",
-    }));
-
-    return {
-      agentROI,
-      dailyUsage: dailyStats,
-      efficiencyScore,
-      hookStats,
-      insights: transformedInsights,
-      modelBreakdown,
-      projects,
-      sessions: dashboardSessions,
-      skillImpact,
-      skillROI,
-      toolHealth,
-      toolHealthReportCard,
-      toolUsage,
-      topPrompts,
-      totals: dashboardTotals,
-      weeklyComparison,
-    } as DashboardData;
-  }).pipe(Effect.withSpan("rpc.loadDashboardData"));
 
 // ─── Sync Operations ────────────────────────────────────────────────────────
 

@@ -8,6 +8,7 @@ const EMPTY_PROJECTS: ProjectSummary[] = [];
 import { Section } from "@/components/layout/Section";
 import { ChartCard } from "@/components/shared/ChartCard";
 import { EmptyChartState } from "@/components/shared/EmptyChartState";
+import { LoadingBoundary } from "@/components/shared/LoadingBoundary";
 import { SectionHeader } from "@/components/shared/SectionHeader";
 import { StatCard } from "@/components/shared/StatCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,7 +18,6 @@ import {
   ChartTooltipContent,
 } from "@/components/ui/chart";
 import type { ChartConfig } from "@/components/ui/chart";
-import { Skeleton } from "@/components/ui/skeleton";
 import {
   formatCurrency,
   formatNumber,
@@ -240,29 +240,24 @@ export function ProjectsSection({ data, loading }: ProjectsSectionProps) {
             <CardTitle>All Projects</CardTitle>
           </CardHeader>
           <CardContent>
-            {loading ? (
-              <div className="space-y-2">
-                <Skeleton className="h-12 w-full" />
-                <Skeleton className="h-12 w-full" />
-                <Skeleton className="h-12 w-full" />
-                <Skeleton className="h-12 w-full" />
-              </div>
-            ) : sortedProjects.length > 0 ? (
-              <div className="max-h-[300px] space-y-1 overflow-y-auto">
-                {sortedProjects.map((project, i) => (
-                  <ProjectRow
-                    key={project.projectPath}
-                    project={project}
-                    rank={i + 1}
-                    smartName={smartNames.get(project.projectPath)!}
-                  />
-                ))}
-              </div>
-            ) : (
-              <p className="text-muted-foreground py-8 text-center">
-                No projects found
-              </p>
-            )}
+            <LoadingBoundary loading={loading} skeleton="list" count={4}>
+              {sortedProjects.length > 0 ? (
+                <div className="max-h-[300px] space-y-1 overflow-y-auto">
+                  {sortedProjects.map((project, i) => (
+                    <ProjectRow
+                      key={project.projectPath}
+                      project={project}
+                      rank={i + 1}
+                      smartName={smartNames.get(project.projectPath)!}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <p className="text-muted-foreground py-8 text-center">
+                  No projects found
+                </p>
+              )}
+            </LoadingBoundary>
           </CardContent>
         </Card>
       </div>

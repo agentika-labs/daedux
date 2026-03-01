@@ -4,11 +4,11 @@ import { Section } from "@/components/layout/Section";
 import { ComparisonCard } from "@/components/shared/ComparisonCard";
 import { InfoTooltip } from "@/components/shared/InfoTooltip";
 import { InsightsPanel } from "@/components/shared/InsightsPanel";
+import { LoadingBoundary } from "@/components/shared/LoadingBoundary";
 import { ScoreBar } from "@/components/shared/ScoreBar";
 import { SectionHeader } from "@/components/shared/SectionHeader";
 import { StatCard } from "@/components/shared/StatCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
 import {
   formatCurrency,
   formatTokens,
@@ -150,16 +150,20 @@ export function OverviewSection({
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {loading ? (
-              <div className="space-y-4">
-                <Skeleton className="mx-auto h-24 w-24 rounded-full" />
-                <div className="space-y-2">
-                  <Skeleton className="h-4 w-full" />
-                  <Skeleton className="h-4 w-full" />
-                  <Skeleton className="h-4 w-full" />
+            <LoadingBoundary
+              loading={loading}
+              fallback={
+                <div className="space-y-4">
+                  <div className="bg-muted mx-auto h-24 w-24 animate-pulse rounded-full" />
+                  <div className="space-y-2">
+                    <div className="bg-muted h-4 w-full animate-pulse rounded" />
+                    <div className="bg-muted h-4 w-full animate-pulse rounded" />
+                    <div className="bg-muted h-4 w-full animate-pulse rounded" />
+                  </div>
                 </div>
-              </div>
-            ) : efficiencyScore ? (
+              }
+            >
+              {efficiencyScore ? (
               <div className="space-y-4">
                 {/* Circular gauge */}
                 <div className="flex items-center justify-center py-4">
@@ -226,9 +230,10 @@ export function OverviewSection({
                   </p>
                 )}
               </div>
-            ) : (
-              <p className="text-muted-foreground py-8 text-center">No data</p>
-            )}
+              ) : (
+                <p className="text-muted-foreground py-8 text-center">No data</p>
+              )}
+            </LoadingBoundary>
           </CardContent>
         </Card>
 
@@ -248,13 +253,7 @@ export function OverviewSection({
             <CardTitle>This Week vs Last Week</CardTitle>
           </CardHeader>
           <CardContent>
-            {loading ? (
-              <div className="grid grid-cols-3 gap-4">
-                <Skeleton className="h-20" />
-                <Skeleton className="h-20" />
-                <Skeleton className="h-20" />
-              </div>
-            ) : (
+            <LoadingBoundary loading={loading} skeleton="grid">
               <>
                 <div className="mb-4 grid grid-cols-3 gap-4">
                   <ComparisonCard
@@ -312,7 +311,7 @@ export function OverviewSection({
                   </div>
                 )}
               </>
-            )}
+            </LoadingBoundary>
           </CardContent>
         </Card>
       )}

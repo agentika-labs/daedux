@@ -17,6 +17,7 @@ import { useState } from "react";
 
 import { Section } from "@/components/layout/Section";
 import { InsightCard } from "@/components/shared/InsightCard";
+import { LoadingBoundary } from "@/components/shared/LoadingBoundary";
 import { SectionHeader } from "@/components/shared/SectionHeader";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -25,7 +26,6 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { Skeleton } from "@/components/ui/skeleton";
 import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
 import { useExpandedIndex } from "@/hooks/useExpandedIndex";
 import {
@@ -91,42 +91,38 @@ export function ToolsSection({ data, loading }: ToolsSectionProps) {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {loading ? (
-              <div className="space-y-2">
-                <Skeleton className="h-10 w-full" />
-                <Skeleton className="h-10 w-full" />
-                <Skeleton className="h-10 w-full" />
-              </div>
-            ) : toolHealthReport?.reliableTools &&
+            <LoadingBoundary loading={loading} skeleton="list">
+              {toolHealthReport?.reliableTools &&
               toolHealthReport.reliableTools.length > 0 ? (
-              <div className="max-h-[300px] space-y-2 overflow-y-auto pr-3">
-                {toolHealthReport.reliableTools.map((tool) => (
-                  <div
-                    key={tool.name}
-                    className="bg-success/5 border-success/20 flex items-center justify-between rounded-lg border px-3 py-2"
-                  >
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium">{tool.name}</span>
-                      <span className="text-muted-foreground text-xs">
-                        {tool.totalCalls} calls
-                      </span>
-                      <ConfidenceBadge confidence={tool.confidence} />
-                    </div>
-                    <Badge
-                      variant="outline"
-                      className="bg-success/10 text-success border-success/30"
-                      title={`Wilson lower bound: ${tool.reliabilityScore?.toFixed(1)}%`}
+                <div className="max-h-[300px] space-y-2 overflow-y-auto pr-3">
+                  {toolHealthReport.reliableTools.map((tool) => (
+                    <div
+                      key={tool.name}
+                      className="bg-success/5 border-success/20 flex items-center justify-between rounded-lg border px-3 py-2"
                     >
-                      {formatPercent(tool.successRate)} success
-                    </Badge>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-muted-foreground py-8 text-center">
-                No reliable tools found
-              </p>
-            )}
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium">{tool.name}</span>
+                        <span className="text-muted-foreground text-xs">
+                          {tool.totalCalls} calls
+                        </span>
+                        <ConfidenceBadge confidence={tool.confidence} />
+                      </div>
+                      <Badge
+                        variant="outline"
+                        className="bg-success/10 text-success border-success/30"
+                        title={`Wilson lower bound: ${tool.reliabilityScore?.toFixed(1)}%`}
+                      >
+                        {formatPercent(tool.successRate)} success
+                      </Badge>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-muted-foreground py-8 text-center">
+                  No reliable tools found
+                </p>
+              )}
+            </LoadingBoundary>
           </CardContent>
         </Card>
 
@@ -142,42 +138,38 @@ export function ToolsSection({ data, loading }: ToolsSectionProps) {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {loading ? (
-              <div className="space-y-2">
-                <Skeleton className="h-10 w-full" />
-                <Skeleton className="h-10 w-full" />
-                <Skeleton className="h-10 w-full" />
-              </div>
-            ) : toolHealthReport?.frictionPoints &&
+            <LoadingBoundary loading={loading} skeleton="list">
+              {toolHealthReport?.frictionPoints &&
               toolHealthReport.frictionPoints.length > 0 ? (
-              <div className="max-h-[400px] space-y-2 overflow-y-auto pr-3">
-                {/* Sort by friction score descending (worst first) */}
-                {[...toolHealthReport.frictionPoints]
-                  .toSorted(
-                    (a, b) =>
-                      (b.frictionScore ?? b.errorRate) -
-                      (a.frictionScore ?? a.errorRate)
-                  )
-                  .map((tool, index) => (
-                    <FrictionPointCard
-                      key={tool.name}
-                      name={tool.name}
-                      totalCalls={tool.totalCalls}
-                      errorRate={tool.errorRate}
-                      topError={tool.topError}
-                      errorCount={Math.round(tool.totalCalls * tool.errorRate)}
-                      expanded={frictionExpansion.isExpanded(index)}
-                      onToggle={() => frictionExpansion.toggle(index)}
-                      confidence={tool.confidence}
-                      frictionScore={tool.frictionScore}
-                    />
-                  ))}
-              </div>
-            ) : (
-              <p className="text-muted-foreground py-8 text-center">
-                No friction points - all tools are working well
-              </p>
-            )}
+                <div className="max-h-[400px] space-y-2 overflow-y-auto pr-3">
+                  {/* Sort by friction score descending (worst first) */}
+                  {[...toolHealthReport.frictionPoints]
+                    .toSorted(
+                      (a, b) =>
+                        (b.frictionScore ?? b.errorRate) -
+                        (a.frictionScore ?? a.errorRate)
+                    )
+                    .map((tool, index) => (
+                      <FrictionPointCard
+                        key={tool.name}
+                        name={tool.name}
+                        totalCalls={tool.totalCalls}
+                        errorRate={tool.errorRate}
+                        topError={tool.topError}
+                        errorCount={Math.round(tool.totalCalls * tool.errorRate)}
+                        expanded={frictionExpansion.isExpanded(index)}
+                        onToggle={() => frictionExpansion.toggle(index)}
+                        confidence={tool.confidence}
+                        frictionScore={tool.frictionScore}
+                      />
+                    ))}
+                </div>
+              ) : (
+                <p className="text-muted-foreground py-8 text-center">
+                  No friction points - all tools are working well
+                </p>
+              )}
+            </LoadingBoundary>
           </CardContent>
         </Card>
       </div>
@@ -188,29 +180,25 @@ export function ToolsSection({ data, loading }: ToolsSectionProps) {
           <CardTitle>Bash Command Analysis</CardTitle>
         </CardHeader>
         <CardContent>
-          {loading ? (
-            <div className="space-y-3">
-              <Skeleton className="h-12 w-full" />
-              <Skeleton className="h-12 w-full" />
-              <Skeleton className="h-12 w-full" />
-            </div>
-          ) : toolHealthReport?.bashDeepDive &&
+          <LoadingBoundary loading={loading} skeleton="list">
+            {toolHealthReport?.bashDeepDive &&
             toolHealthReport.bashDeepDive.length > 0 ? (
-            <div className="space-y-2">
-              {toolHealthReport.bashDeepDive.map((category, index) => (
-                <BashCategoryAccordion
-                  key={category.category}
-                  category={category}
-                  expanded={bashExpansion.isExpanded(index)}
-                  onToggle={() => bashExpansion.toggle(index)}
-                />
-              ))}
-            </div>
-          ) : (
-            <p className="text-muted-foreground py-8 text-center">
-              No bash commands analyzed
-            </p>
-          )}
+              <div className="space-y-2">
+                {toolHealthReport.bashDeepDive.map((category, index) => (
+                  <BashCategoryAccordion
+                    key={category.category}
+                    category={category}
+                    expanded={bashExpansion.isExpanded(index)}
+                    onToggle={() => bashExpansion.toggle(index)}
+                  />
+                ))}
+              </div>
+            ) : (
+              <p className="text-muted-foreground py-8 text-center">
+                No bash commands analyzed
+              </p>
+            )}
+          </LoadingBoundary>
         </CardContent>
       </Card>
     </Section>

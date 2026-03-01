@@ -31,7 +31,7 @@ import {
   ChartTooltipContent,
 } from "@/components/ui/chart";
 import type { ChartConfig } from "@/components/ui/chart";
-import { Skeleton } from "@/components/ui/skeleton";
+import { LoadingBoundary } from "@/components/shared/LoadingBoundary";
 import {
   calculateDailyRate,
   formatRate,
@@ -319,13 +319,7 @@ export function EfficiencySection({
           <CardTitle>Context Compaction Analysis</CardTitle>
         </CardHeader>
         <CardContent>
-          {loading ? (
-            <div className="grid grid-cols-3 gap-4">
-              <Skeleton className="h-20" />
-              <Skeleton className="h-20" />
-              <Skeleton className="h-20" />
-            </div>
-          ) : (
+          <LoadingBoundary loading={loading} skeleton="grid">
             <div className="grid grid-cols-3 gap-6">
               <CompactionStat
                 label="Sessions with Compactions"
@@ -344,7 +338,7 @@ export function EfficiencySection({
                 description="How long until limit"
               />
             </div>
-          )}
+          </LoadingBoundary>
           {!loading && compactionStats.hasAny && (
             <p className="text-muted-foreground border-border mt-4 border-t pt-4 text-xs">
               Tip: Sessions with compactions indicate the context window was

@@ -32,6 +32,7 @@ import type {
 import { useState, useMemo, useDeferredValue, useEffect } from "react";
 
 import { Section } from "@/components/layout/Section";
+import { LoadingBoundary } from "@/components/shared/LoadingBoundary";
 import { SectionHeader } from "@/components/shared/SectionHeader";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -52,7 +53,6 @@ import {
   SheetTitle,
   SheetDescription,
 } from "@/components/ui/sheet";
-import { Skeleton } from "@/components/ui/skeleton";
 import {
   formatCurrency,
   formatTokens,
@@ -352,15 +352,13 @@ export function SessionsSection({ data, loading }: SessionsSectionProps) {
       {/* Sessions Table */}
       <Card>
         <CardContent className="p-0">
-          {loading ? (
-            <div className="space-y-3 p-6">
-              <Skeleton className="h-10 w-full" />
-              <Skeleton className="h-10 w-full" />
-              <Skeleton className="h-10 w-full" />
-              <Skeleton className="h-10 w-full" />
-              <Skeleton className="h-10 w-full" />
-            </div>
-          ) : tableData.length > 0 ? (
+          <LoadingBoundary
+            loading={loading}
+            skeleton="list"
+            count={5}
+            className="p-6"
+          >
+            {tableData.length > 0 ? (
             <>
               <div className="overflow-x-auto">
                 <table className="w-full">
@@ -492,11 +490,12 @@ export function SessionsSection({ data, loading }: SessionsSectionProps) {
                 </div>
               )}
             </>
-          ) : (
-            <p className="text-muted-foreground py-12 text-center">
-              No sessions found
-            </p>
-          )}
+            ) : (
+              <p className="text-muted-foreground py-12 text-center">
+                No sessions found
+              </p>
+            )}
+          </LoadingBoundary>
         </CardContent>
       </Card>
 
