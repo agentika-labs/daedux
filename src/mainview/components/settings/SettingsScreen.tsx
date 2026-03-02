@@ -116,7 +116,7 @@ export const SettingsScreen = () => {
     <div className="bg-background text-foreground flex h-screen flex-col">
       <header
         ref={headerRef}
-        className="bg-background/80 supports-[backdrop-filter]:bg-background/60 border-border sticky top-0 z-50 border-b backdrop-blur"
+        className="bg-background desktop:bg-background/60 border-border sticky top-0 z-50 border-b desktop:backdrop-blur"
       >
         <div className={`px-6 py-3 ${isMacOS && isDesktop ? "pl-24" : ""}`}>
           <div className="flex items-center gap-4">

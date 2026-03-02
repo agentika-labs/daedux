@@ -4,6 +4,7 @@
 @import "@fontsource-variable/figtree";
 
 @custom-variant dark (&:is(.dark *));
+@custom-variant desktop (&:is(.desktop *));
 
 :root {
   --background: oklch(1 0 0);
@@ -138,39 +139,29 @@
   }
 }
 
-/* ─── macOS Vibrancy Support ─────────────────────────────────────────────── */
-/* Native blur (NSVisualEffectView) sits behind all content.
-   Semi-transparent CSS backgrounds let the blur show through while
-   maintaining visual hierarchy and text readability.
+/* ─── Desktop Mode: Native Vibrancy Support ─────────────────────────────── */
+/* Only applies when .desktop class is present on document root.
+   Native blur (NSVisualEffectView) sits behind all content in Electrobun. */
 
-   Visual Hierarchy (opacity values tuned for beauty):
-   - --background: Most transparent - blur shows through clearly
-   - --card: Slightly more opaque - cards "float" above background
-   - --popover: Nearly opaque - dropdowns/sheets need contrast for readability
-   - --muted: Subtle elements blend smoothly */
+.desktop,
+.desktop body {
+  background: transparent !important;
+}
 
-@supports (-webkit-backdrop-filter: blur(1px)) {
-  /* Only html/body transparent - #root needs stacking context */
-  html,
-  body {
-    background: transparent !important;
-  }
+.desktop {
+  /* Light mode - subtle frosted glass */
+  --background: oklch(1 0 0 / 80%);
+  --card: oklch(1 0 0 / 85%);
+  --popover: oklch(1 0 0 / 90%);
+  --muted: oklch(0.967 0.001 286.375 / 90%);
+}
 
-  :root {
-    /* Light mode - subtle frosted glass */
-    --background: oklch(1 0 0 / 80%);
-    --card: oklch(1 0 0 / 85%);
-    --popover: oklch(1 0 0 / 90%);
-    --muted: oklch(0.967 0.001 286.375 / 90%);
-  }
-
-  .dark {
-    /* Dark mode - rich frosted glass with depth */
-    --background: oklch(0.141 0.005 285.823 / 70%);
-    --card: oklch(0.21 0.006 285.885 / 80%);
-    --popover: oklch(0.21 0.006 285.885 / 88%);
-    --muted: oklch(0.274 0.006 286.033 / 85%);
-  }
+.desktop.dark {
+  /* Dark mode - rich frosted glass with depth */
+  --background: oklch(0.141 0.005 285.823 / 70%);
+  --card: oklch(0.21 0.006 285.885 / 80%);
+  --popover: oklch(0.21 0.006 285.885 / 88%);
+  --muted: oklch(0.274 0.006 286.033 / 85%);
 }
 
 /* Custom scrollbar styling */

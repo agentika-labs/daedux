@@ -68,15 +68,20 @@ const applyTheme = (theme: ThemeMode) => {
 const App = () => {
   const isDesktop = useIsDesktop();
 
-  // Initialize theme
+  // Initialize theme and desktop class
   useEffect(() => {
+    const root = document.documentElement;
+
+    // Set desktop class based on environment (runs once)
+    root.classList.toggle("desktop", isDesktop);
+
     applyTheme("system");
 
     const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
     const handleChange = () => applyTheme("system");
     mediaQuery.addEventListener("change", handleChange);
     return () => mediaQuery.removeEventListener("change", handleChange);
-  }, []);
+  }, [isDesktop]);
 
   // Listen for theme changes from main process (desktop only)
   useEffect(() => {
