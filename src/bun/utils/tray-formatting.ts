@@ -82,11 +82,11 @@ export const formatSubscriptionHeader = (subscriptionType: string): string => {
  * Format daily stats line combining sessions and cost.
  * @param sessions - Number of sessions today
  * @param cost - Total cost today in USD
- * @returns Formatted string like "166 sessions · $207 today"
+ * @returns Formatted string like "166 sessions · $207"
  */
 export const formatDailyStats = (sessions: number, cost: number): string => {
   const sessionsStr = sessions === 1 ? "session" : "sessions";
   // Round large amounts (>=100) to reduce visual noise
   const costStr = cost >= 100 ? `$${Math.round(cost)}` : `$${cost.toFixed(2)}`;
-  return `${sessions} ${sessionsStr} · ${costStr} today`;
+  return `${sessions} ${sessionsStr} · ${costStr}`;
 };

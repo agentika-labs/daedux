@@ -95,23 +95,23 @@ describe("formatSubscriptionHeader", () => {
 
 describe("formatDailyStats", () => {
   it("formats single session correctly", () => {
-    expect(formatDailyStats(1, 5.5)).toBe("1 session · $5.50 today");
+    expect(formatDailyStats(1, 5.5)).toBe("1 session · $5.50");
   });
 
   it("formats multiple sessions with large cost (rounds to whole number)", () => {
-    expect(formatDailyStats(166, 207)).toBe("166 sessions · $207 today");
+    expect(formatDailyStats(166, 207)).toBe("166 sessions · $207");
   });
 
   it("formats multiple sessions with small cost (keeps decimals)", () => {
-    expect(formatDailyStats(10, 45.67)).toBe("10 sessions · $45.67 today");
+    expect(formatDailyStats(10, 45.67)).toBe("10 sessions · $45.67");
   });
 
   it("formats zero sessions", () => {
-    expect(formatDailyStats(0, 0)).toBe("0 sessions · $0.00 today");
+    expect(formatDailyStats(0, 0)).toBe("0 sessions · $0.00");
   });
 
   it("formats cost at boundary (100 rounds)", () => {
-    expect(formatDailyStats(50, 100)).toBe("50 sessions · $100 today");
-    expect(formatDailyStats(50, 99.99)).toBe("50 sessions · $99.99 today");
+    expect(formatDailyStats(50, 100)).toBe("50 sessions · $100");
+    expect(formatDailyStats(50, 99.99)).toBe("50 sessions · $99.99");
   });
 });

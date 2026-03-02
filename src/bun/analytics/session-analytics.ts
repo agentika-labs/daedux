@@ -1,15 +1,12 @@
 import { sql, desc, eq, and, gte, count } from "drizzle-orm";
 import type { SQL } from "drizzle-orm";
 import { Effect } from "effect";
-
 import { DatabaseService } from "../db";
 import * as schema from "../db/schema";
 import { DatabaseError } from "../errors";
 import { cacheHitRatio, totalInputWithCache } from "../metrics";
 import { buildDateConditions } from "./shared";
 import type { DateFilter } from "./shared";
-
-// ─── Types ───────────────────────────────────────────────────────────────────
 
 export interface Totals {
   readonly totalSessions: number;
@@ -178,31 +175,31 @@ export class SessionAnalyticsService extends Effect.Service<SessionAnalyticsServ
                   sessionCount: count(),
                   queryCount:
                     sql<number>`SUM(${schema.sessions.queryCount})`.as(
-                      "query_count"
+                      "query_count",
                     ),
                   totalCost: sql<number>`SUM(${schema.sessions.totalCost})`.as(
-                    "total_cost"
+                    "total_cost",
                   ),
                   totalTokens:
                     sql<number>`SUM(${schema.sessions.totalInputTokens} + ${schema.sessions.totalOutputTokens})`.as(
-                      "total_tokens"
+                      "total_tokens",
                     ),
                   // Token breakdown for daily usage chart
                   uncachedInput:
                     sql<number>`SUM(${schema.sessions.totalInputTokens})`.as(
-                      "uncached_input"
+                      "uncached_input",
                     ),
                   cacheRead:
                     sql<number>`SUM(${schema.sessions.totalCacheRead})`.as(
-                      "cache_read"
+                      "cache_read",
                     ),
                   cacheCreation:
                     sql<number>`SUM(${schema.sessions.totalCacheWrite})`.as(
-                      "cache_creation"
+                      "cache_creation",
                     ),
                   output:
                     sql<number>`SUM(${schema.sessions.totalOutputTokens})`.as(
-                      "output"
+                      "output",
                     ),
                 })
                 .from(schema.sessions);
@@ -219,12 +216,12 @@ export class SessionAnalyticsService extends Effect.Service<SessionAnalyticsServ
 
               const result = await query
                 .groupBy(
-                  sql`date(${schema.sessions.startTime} / 1000, 'unixepoch', 'localtime')`
+                  sql`date(${schema.sessions.startTime} / 1000, 'unixepoch', 'localtime')`,
                 )
                 .orderBy(
                   desc(
-                    sql`date(${schema.sessions.startTime} / 1000, 'unixepoch', 'localtime')`
-                  )
+                    sql`date(${schema.sessions.startTime} / 1000, 'unixepoch', 'localtime')`,
+                  ),
                 );
 
               return result.map((row) => ({
@@ -263,14 +260,17 @@ export class SessionAnalyticsService extends Effect.Service<SessionAnalyticsServ
                   .where(
                     and(
                       eq(schema.sessions.isSubagent, false),
-                      ...dateConditions
-                    )
+                      ...dateConditions,
+                    ),
                   );
                 subagentSessionsResult = await db
                   .select({ count: count() })
                   .from(schema.sessions)
                   .where(
-                    and(eq(schema.sessions.isSubagent, true), ...dateConditions)
+                    and(
+                      eq(schema.sessions.isSubagent, true),
+                      ...dateConditions,
+                    ),
                   );
               } else {
                 mainSessionsResult = await db
@@ -295,7 +295,7 @@ export class SessionAnalyticsService extends Effect.Service<SessionAnalyticsServ
                   .from(schema.agentSpawns)
                   .innerJoin(
                     schema.sessions,
-                    eq(schema.agentSpawns.sessionId, schema.sessions.sessionId)
+                    eq(schema.agentSpawns.sessionId, schema.sessions.sessionId),
                   )
                   .where(and(...dateConditions));
               } else {
@@ -314,33 +314,36 @@ export class SessionAnalyticsService extends Effect.Service<SessionAnalyticsServ
                   .select({
                     total:
                       sql<number>`SUM(COALESCE(${schema.sessions.totalInputTokens}, 0) + COALESCE(${schema.sessions.totalOutputTokens}, 0))`.as(
-                        "total"
+                        "total",
                       ),
                   })
                   .from(schema.sessions)
                   .where(
                     and(
                       eq(schema.sessions.isSubagent, false),
-                      ...dateConditions
-                    )
+                      ...dateConditions,
+                    ),
                   );
                 subagentTokensResult = await db
                   .select({
                     total:
                       sql<number>`SUM(COALESCE(${schema.sessions.totalInputTokens}, 0) + COALESCE(${schema.sessions.totalOutputTokens}, 0))`.as(
-                        "total"
+                        "total",
                       ),
                   })
                   .from(schema.sessions)
                   .where(
-                    and(eq(schema.sessions.isSubagent, true), ...dateConditions)
+                    and(
+                      eq(schema.sessions.isSubagent, true),
+                      ...dateConditions,
+                    ),
                   );
               } else {
                 mainTokensResult = await db
                   .select({
                     total:
                       sql<number>`SUM(COALESCE(${schema.sessions.totalInputTokens}, 0) + COALESCE(${schema.sessions.totalOutputTokens}, 0))`.as(
-                        "total"
+                        "total",
                       ),
                   })
                   .from(schema.sessions)
@@ -349,7 +352,7 @@ export class SessionAnalyticsService extends Effect.Service<SessionAnalyticsServ
                   .select({
                     total:
                       sql<number>`SUM(COALESCE(${schema.sessions.totalInputTokens}, 0) + COALESCE(${schema.sessions.totalOutputTokens}, 0))`.as(
-                        "total"
+                        "total",
                       ),
                   })
                   .from(schema.sessions)
@@ -366,15 +369,15 @@ export class SessionAnalyticsService extends Effect.Service<SessionAnalyticsServ
                   .select({
                     cacheRead:
                       sql<number>`SUM(COALESCE(${schema.sessions.totalCacheRead}, 0))`.as(
-                        "cache_read"
+                        "cache_read",
                       ),
                     cacheWrite:
                       sql<number>`SUM(COALESCE(${schema.sessions.totalCacheWrite}, 0))`.as(
-                        "cache_write"
+                        "cache_write",
                       ),
                     totalInput:
                       sql<number>`SUM(COALESCE(${schema.sessions.totalInputTokens}, 0))`.as(
-                        "total_input"
+                        "total_input",
                       ),
                   })
                   .from(schema.sessions)
@@ -384,15 +387,15 @@ export class SessionAnalyticsService extends Effect.Service<SessionAnalyticsServ
                   .select({
                     cacheRead:
                       sql<number>`SUM(COALESCE(${schema.sessions.totalCacheRead}, 0))`.as(
-                        "cache_read"
+                        "cache_read",
                       ),
                     cacheWrite:
                       sql<number>`SUM(COALESCE(${schema.sessions.totalCacheWrite}, 0))`.as(
-                        "cache_write"
+                        "cache_write",
                       ),
                     totalInput:
                       sql<number>`SUM(COALESCE(${schema.sessions.totalInputTokens}, 0))`.as(
-                        "total_input"
+                        "total_input",
                       ),
                   })
                   .from(schema.sessions);
@@ -434,14 +437,14 @@ export class SessionAnalyticsService extends Effect.Service<SessionAnalyticsServ
                   .select({
                     errors:
                       sql<number>`SUM(CASE WHEN ${schema.toolUses.hasError} = 1 THEN 1 ELSE 0 END)`.as(
-                        "errors"
+                        "errors",
                       ),
                     total: count(),
                   })
                   .from(schema.toolUses)
                   .innerJoin(
                     schema.sessions,
-                    eq(schema.toolUses.sessionId, schema.sessions.sessionId)
+                    eq(schema.toolUses.sessionId, schema.sessions.sessionId),
                   )
                   .where(and(...dateConditions));
               } else {
@@ -449,7 +452,7 @@ export class SessionAnalyticsService extends Effect.Service<SessionAnalyticsServ
                   .select({
                     errors:
                       sql<number>`SUM(CASE WHEN ${schema.toolUses.hasError} = 1 THEN 1 ELSE 0 END)`.as(
-                        "errors"
+                        "errors",
                       ),
                     total: count(),
                   })
@@ -469,7 +472,7 @@ export class SessionAnalyticsService extends Effect.Service<SessionAnalyticsServ
                 queryCountResult = await db
                   .select({
                     total: sql<number>`SUM(${schema.sessions.queryCount})`.as(
-                      "total"
+                      "total",
                     ),
                   })
                   .from(schema.sessions)
@@ -478,7 +481,7 @@ export class SessionAnalyticsService extends Effect.Service<SessionAnalyticsServ
                 queryCountResult = await db
                   .select({
                     total: sql<number>`SUM(${schema.sessions.queryCount})`.as(
-                      "total"
+                      "total",
                     ),
                   })
                   .from(schema.sessions);
@@ -495,7 +498,7 @@ export class SessionAnalyticsService extends Effect.Service<SessionAnalyticsServ
                 avgQueriesPerSession !== null
                   ? Math.max(
                       0,
-                      Math.min(100, 100 - (avgQueriesPerSession - 10) * 2)
+                      Math.min(100, 100 - (avgQueriesPerSession - 10) * 2),
                     )
                   : null;
 
@@ -505,7 +508,7 @@ export class SessionAnalyticsService extends Effect.Service<SessionAnalyticsServ
               const overallScore = Math.round(
                 cacheScore * 0.4 +
                   toolSuccessRate * 0.4 +
-                  (sessionEfficiency ?? 50) * 0.2
+                  (sessionEfficiency ?? 50) * 0.2,
               );
 
               return {
@@ -562,58 +565,58 @@ export class SessionAnalyticsService extends Effect.Service<SessionAnalyticsServ
                 .select({
                   avgDuration:
                     sql<number>`AVG(${schema.sessions.durationMs})`.as(
-                      "avg_duration"
+                      "avg_duration",
                     ),
                   maxStartTime:
                     sql<number>`MAX(${schema.sessions.startTime})`.as(
-                      "max_start"
+                      "max_start",
                     ),
                   minStartTime:
                     sql<number>`MIN(${schema.sessions.startTime})`.as(
-                      "min_start"
+                      "min_start",
                     ),
                   totalCacheRead:
                     sql<number>`SUM(${schema.sessions.totalCacheRead})`.as(
-                      "total_cache_read"
+                      "total_cache_read",
                     ),
                   totalCacheWrite:
                     sql<number>`SUM(${schema.sessions.totalCacheWrite})`.as(
-                      "total_cache_write"
+                      "total_cache_write",
                     ),
                   totalCost: sql<number>`SUM(${schema.sessions.totalCost})`.as(
-                    "total_cost"
+                    "total_cost",
                   ),
                   totalInputTokens:
                     sql<number>`SUM(${schema.sessions.totalInputTokens})`.as(
-                      "total_input"
+                      "total_input",
                     ),
                   totalOutputTokens:
                     sql<number>`SUM(${schema.sessions.totalOutputTokens})`.as(
-                      "total_output"
+                      "total_output",
                     ),
                   totalQueries:
                     sql<number>`SUM(${schema.sessions.queryCount})`.as(
-                      "total_queries"
+                      "total_queries",
                     ),
                   totalSavedByCaching:
                     sql<number>`SUM(COALESCE(${schema.sessions.savedByCaching}, 0))`.as(
-                      "total_saved"
+                      "total_saved",
                     ),
                   totalSessions: count(),
                   totalSubagents:
                     sql<number>`SUM(CASE WHEN ${schema.sessions.isSubagent} = 1 THEN 1 ELSE 0 END)`.as(
-                      "total_subagents"
+                      "total_subagents",
                     ),
                   totalToolUses:
                     sql<number>`SUM(${schema.sessions.toolUseCount})`.as(
-                      "total_tool_uses"
+                      "total_tool_uses",
                     ),
                 })
                 .from(schema.sessions);
 
               if (dateConditions.length > 0) {
                 baseQuery = baseQuery.where(
-                  and(...dateConditions)
+                  and(...dateConditions),
                 ) as typeof baseQuery;
               }
 
@@ -626,7 +629,7 @@ export class SessionAnalyticsService extends Effect.Service<SessionAnalyticsServ
                   .select({
                     totalErrors:
                       sql<number>`SUM(CASE WHEN ${schema.toolUses.hasError} = 1 THEN 1 ELSE 0 END)`.as(
-                        "total_errors"
+                        "total_errors",
                       ),
                   })
                   .from(schema.toolUses);
@@ -635,13 +638,13 @@ export class SessionAnalyticsService extends Effect.Service<SessionAnalyticsServ
                   .select({
                     totalErrors:
                       sql<number>`SUM(CASE WHEN ${schema.toolUses.hasError} = 1 THEN 1 ELSE 0 END)`.as(
-                        "total_errors"
+                        "total_errors",
                       ),
                   })
                   .from(schema.toolUses)
                   .innerJoin(
                     schema.sessions,
-                    eq(schema.toolUses.sessionId, schema.sessions.sessionId)
+                    eq(schema.toolUses.sessionId, schema.sessions.sessionId),
                   )
                   .where(and(...dateConditions));
               }
@@ -667,8 +670,8 @@ export class SessionAnalyticsService extends Effect.Service<SessionAnalyticsServ
                         schema.sessions,
                         eq(
                           schema.bashCommands.sessionId,
-                          schema.sessions.sessionId
-                        )
+                          schema.sessions.sessionId,
+                        ),
                       )
                       .where(and(...dateConditions)),
                     db
@@ -678,8 +681,8 @@ export class SessionAnalyticsService extends Effect.Service<SessionAnalyticsServ
                         schema.sessions,
                         eq(
                           schema.fileOperations.sessionId,
-                          schema.sessions.sessionId
-                        )
+                          schema.sessions.sessionId,
+                        ),
                       )
                       .where(and(...dateConditions)),
                     db
@@ -689,8 +692,8 @@ export class SessionAnalyticsService extends Effect.Service<SessionAnalyticsServ
                         schema.sessions,
                         eq(
                           schema.hookEvents.sessionId,
-                          schema.sessions.sessionId
-                        )
+                          schema.sessions.sessionId,
+                        ),
                       )
                       .where(and(...dateConditions)),
                     db
@@ -700,8 +703,8 @@ export class SessionAnalyticsService extends Effect.Service<SessionAnalyticsServ
                         schema.sessions,
                         eq(
                           schema.skillInvocations.sessionId,
-                          schema.sessions.sessionId
-                        )
+                          schema.sessions.sessionId,
+                        ),
                       )
                       .where(and(...dateConditions)),
                     db
@@ -711,8 +714,8 @@ export class SessionAnalyticsService extends Effect.Service<SessionAnalyticsServ
                         schema.sessions,
                         eq(
                           schema.agentSpawns.sessionId,
-                          schema.sessions.sessionId
-                        )
+                          schema.sessions.sessionId,
+                        ),
                       )
                       .where(and(...dateConditions)),
                   ]);
@@ -802,19 +805,19 @@ export class SessionAnalyticsService extends Effect.Service<SessionAnalyticsServ
                   projectPath: schema.sessions.projectPath,
                   sessionCount: count(),
                   totalCost: sql<number>`SUM(${schema.sessions.totalCost})`.as(
-                    "total_cost"
+                    "total_cost",
                   ),
                   totalQueries:
                     sql<number>`SUM(${schema.sessions.queryCount})`.as(
-                      "total_queries"
+                      "total_queries",
                     ),
                   lastActivity:
                     sql<number>`MAX(${schema.sessions.startTime})`.as(
-                      "last_activity"
+                      "last_activity",
                     ),
                   // Pick shortest cwd (project root) - MIN returns shortest path since subdirs are longer
                   cwd: sql<string | null>`MIN(${schema.sessions.cwd})`.as(
-                    "cwd"
+                    "cwd",
                   ),
                 })
                 .from(schema.sessions);
@@ -902,7 +905,7 @@ export class SessionAnalyticsService extends Effect.Service<SessionAnalyticsServ
                   .from(schema.agentSpawns)
                   .innerJoin(
                     schema.sessions,
-                    eq(schema.agentSpawns.sessionId, schema.sessions.sessionId)
+                    eq(schema.agentSpawns.sessionId, schema.sessions.sessionId),
                   )
                   .where(and(...dateConditions))
                   .groupBy(schema.agentSpawns.sessionId);
@@ -949,7 +952,7 @@ export class SessionAnalyticsService extends Effect.Service<SessionAnalyticsServ
                   .from(schema.queries)
                   .innerJoin(
                     schema.sessions,
-                    eq(schema.queries.sessionId, schema.sessions.sessionId)
+                    eq(schema.queries.sessionId, schema.sessions.sessionId),
                   )
                   .where(and(modelNotNull, ...dateConditions))
                   .groupBy(schema.queries.sessionId, schema.queries.model)
@@ -1055,16 +1058,16 @@ export class SessionAnalyticsService extends Effect.Service<SessionAnalyticsServ
                 result = await db
                   .select({
                     model: sql<string>`MAX(${schema.queries.model})`.as(
-                      "model"
+                      "model",
                     ),
                     prompt: schema.queries.userMessagePreview,
                     queryCount: sql<number>`COUNT(*)`.as("query_count"),
                     sessionId: schema.queries.sessionId,
                     timestamp: sql<number>`MAX(${schema.queries.timestamp})`.as(
-                      "timestamp"
+                      "timestamp",
                     ),
                     totalCost: sql<number>`SUM(${schema.queries.cost})`.as(
-                      "total_cost"
+                      "total_cost",
                     ),
                     totalTokens: sql<number>`SUM(
                     COALESCE(${schema.queries.inputTokens}, 0) +
@@ -1077,7 +1080,7 @@ export class SessionAnalyticsService extends Effect.Service<SessionAnalyticsServ
                   .where(and(...baseConditions))
                   .groupBy(
                     schema.queries.sessionId,
-                    schema.queries.userMessagePreview
+                    schema.queries.userMessagePreview,
                   )
                   .orderBy(sql`total_cost DESC`)
                   .limit(limit);
@@ -1085,16 +1088,16 @@ export class SessionAnalyticsService extends Effect.Service<SessionAnalyticsServ
                 result = await db
                   .select({
                     model: sql<string>`MAX(${schema.queries.model})`.as(
-                      "model"
+                      "model",
                     ),
                     prompt: schema.queries.userMessagePreview,
                     queryCount: sql<number>`COUNT(*)`.as("query_count"),
                     sessionId: schema.queries.sessionId,
                     timestamp: sql<number>`MAX(${schema.queries.timestamp})`.as(
-                      "timestamp"
+                      "timestamp",
                     ),
                     totalCost: sql<number>`SUM(${schema.queries.cost})`.as(
-                      "total_cost"
+                      "total_cost",
                     ),
                     totalTokens: sql<number>`SUM(
                     COALESCE(${schema.queries.inputTokens}, 0) +
@@ -1106,12 +1109,12 @@ export class SessionAnalyticsService extends Effect.Service<SessionAnalyticsServ
                   .from(schema.queries)
                   .innerJoin(
                     schema.sessions,
-                    eq(schema.queries.sessionId, schema.sessions.sessionId)
+                    eq(schema.queries.sessionId, schema.sessions.sessionId),
                   )
                   .where(and(...baseConditions, ...dateConditions))
                   .groupBy(
                     schema.queries.sessionId,
-                    schema.queries.userMessagePreview
+                    schema.queries.userMessagePreview,
                   )
                   .orderBy(sql`total_cost DESC`)
                   .limit(limit);
@@ -1140,35 +1143,35 @@ export class SessionAnalyticsService extends Effect.Service<SessionAnalyticsServ
                 .select({
                   totalCacheRead:
                     sql<number>`SUM(${schema.sessions.totalCacheRead})`.as(
-                      "total_cache_read"
+                      "total_cache_read",
                     ),
                   totalCacheWrite:
                     sql<number>`SUM(${schema.sessions.totalCacheWrite})`.as(
-                      "total_cache_write"
+                      "total_cache_write",
                     ),
                   totalCost: sql<number>`SUM(${schema.sessions.totalCost})`.as(
-                    "total_cost"
+                    "total_cost",
                   ),
                   totalInputTokens:
                     sql<number>`SUM(${schema.sessions.totalInputTokens})`.as(
-                      "total_input"
+                      "total_input",
                     ),
                   totalOutputTokens:
                     sql<number>`SUM(${schema.sessions.totalOutputTokens})`.as(
-                      "total_output"
+                      "total_output",
                     ),
                   totalQueries:
                     sql<number>`SUM(${schema.sessions.queryCount})`.as(
-                      "total_queries"
+                      "total_queries",
                     ),
                   totalSessions: count(),
                   totalSubagents:
                     sql<number>`SUM(CASE WHEN ${schema.sessions.isSubagent} = 1 THEN 1 ELSE 0 END)`.as(
-                      "total_subagents"
+                      "total_subagents",
                     ),
                   totalToolUses:
                     sql<number>`SUM(${schema.sessions.toolUseCount})`.as(
-                      "total_tool_uses"
+                      "total_tool_uses",
                     ),
                 })
                 .from(schema.sessions);
@@ -1194,5 +1197,5 @@ export class SessionAnalyticsService extends Effect.Service<SessionAnalyticsServ
           }),
       } as const;
     }),
-  }
+  },
 ) {}

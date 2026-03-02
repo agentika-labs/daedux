@@ -587,6 +587,11 @@ const buildTrayMenu = (stats: TrayStats) => {
   // ── Daily Stats Section ──
   items.push({
     enabled: false,
+    label: "Today",
+    type: "normal" as const,
+  });
+  items.push({
+    enabled: false,
     label: formatDailyStats(stats.todaySessions, stats.todayCost),
     type: "normal" as const,
   });

@@ -52,6 +52,17 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
+      - name: Cache Electrobun CLI
+        uses: actions/cache@v4
+        with:
+          path: node_modules/electrobun/.cache
+          key: electrobun-cli-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('package.json') }}
+          restore-keys: |
+            electrobun-cli-${{ runner.os }}-${{ runner.arch }}-
+
+      - name: Warm Electrobun CLI cache
+        run: bun run electrobun --version || true
+
       - name: Get version
         id: version
         run: |
@@ -162,7 +173,7 @@ jobs:
 
       - name: Publish to NPM
         run: |
-          npm publish --access public --provenance 2>&1 | tee /tmp/npm-out.txt || {
+          npm publish --access public 2>&1 | tee /tmp/npm-out.txt || {
             if grep -q "You cannot publish over the previously published versions" /tmp/npm-out.txt; then
               echo "Version already published, skipping..."
             else
