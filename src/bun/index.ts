@@ -14,7 +14,6 @@ import Electrobun, {
   Utils,
 } from "electrobun/bun";
 
-import { modelDisplayNameWithVersion } from "../shared/model-utils";
 import type {
   UsageMonitorRPC,
   TrayStats,
@@ -39,7 +38,6 @@ import { loadDashboardData } from "./services/dashboard-loader";
 import { SchedulerService, parseDaysOfWeek } from "./services/scheduler";
 import { SyncService } from "./sync";
 import { toDateString } from "./utils/formatting";
-import { transformSessionToRPC } from "./utils/session-transformer";
 import {
   formatRateLimitItem,
   formatExtraUsage,

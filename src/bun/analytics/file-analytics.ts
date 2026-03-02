@@ -1,4 +1,4 @@
-import { sql, desc, eq, and, count } from "drizzle-orm";
+import { sql, desc, and, count } from "drizzle-orm";
 import { Effect } from "effect";
 
 import { DatabaseService } from "../db";

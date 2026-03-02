@@ -1,5 +1,6 @@
 import { sql, desc, eq, and, count } from "drizzle-orm";
 import { Effect } from "effect";
+
 import {
   modelDisplayNameWithVersion,
   modelFamily,
@@ -59,10 +60,10 @@ export class ModelAnalyticsService extends Effect.Service<ModelAnalyticsService>
                     queryCount: count(),
                     sessionCount:
                       sql<number>`COUNT(DISTINCT ${schema.queries.sessionId})`.as(
-                        "session_count",
+                        "session_count"
                       ),
                     totalCost: sql<number>`SUM(${schema.queries.cost})`.as(
-                      "total_cost",
+                      "total_cost"
                     ),
                     totalTokens: sql<number>`SUM(
                     COALESCE(${schema.queries.inputTokens}, 0) +
@@ -73,7 +74,7 @@ export class ModelAnalyticsService extends Effect.Service<ModelAnalyticsService>
                   })
                   .from(schema.queries)
                   .where(
-                    sql`${schema.queries.model} IS NOT NULL AND ${schema.queries.model} != '<synthetic>'`,
+                    sql`${schema.queries.model} IS NOT NULL AND ${schema.queries.model} != '<synthetic>'`
                   )
                   .groupBy(schema.queries.model)
                   .orderBy(desc(sql`SUM(${schema.queries.cost})`));
@@ -90,10 +91,10 @@ export class ModelAnalyticsService extends Effect.Service<ModelAnalyticsService>
                     queryCount: count(),
                     sessionCount:
                       sql<number>`COUNT(DISTINCT ${schema.queries.sessionId})`.as(
-                        "session_count",
+                        "session_count"
                       ),
                     totalCost: sql<number>`SUM(${schema.queries.cost})`.as(
-                      "total_cost",
+                      "total_cost"
                     ),
                     totalTokens: sql<number>`SUM(
                     COALESCE(${schema.queries.inputTokens}, 0) +
@@ -105,7 +106,7 @@ export class ModelAnalyticsService extends Effect.Service<ModelAnalyticsService>
                   .from(schema.queries)
                   .innerJoin(
                     schema.sessions,
-                    eq(schema.queries.sessionId, schema.sessions.sessionId),
+                    eq(schema.queries.sessionId, schema.sessions.sessionId)
                   )
                   .where(and(...conditions))
                   .groupBy(schema.queries.model)
@@ -167,5 +168,5 @@ export class ModelAnalyticsService extends Effect.Service<ModelAnalyticsService>
           }),
       } as const;
     }),
-  },
+  }
 ) {}
