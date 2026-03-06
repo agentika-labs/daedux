@@ -1011,6 +1011,7 @@ const rpc = BrowserView.defineRPC<UsageMonitorRPC>({
               fileReadCount: 0,
               fileWriteCount: 0,
               firstPrompt: session.displayName ?? "Session",
+              harness: (session.harness ?? "claude-code") as "claude-code" | "codex" | "opencode" | "unknown",
               isSubagent: session.isSubagent ?? false,
               model: "claude-sonnet-4-5-20251022",
               modelShort: "Sonnet",

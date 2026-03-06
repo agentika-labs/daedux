@@ -75,7 +75,8 @@ export function initializeDatabase(): void {
       saved_by_caching REAL DEFAULT 0,
       total_ephemeral_5m_tokens INTEGER DEFAULT 0,
       total_ephemeral_1h_tokens INTEGER DEFAULT 0,
-      turn_count INTEGER DEFAULT 0
+      turn_count INTEGER DEFAULT 0,
+      harness TEXT DEFAULT 'claude-code'
     )
   `);
 
@@ -110,6 +111,13 @@ export function initializeDatabase(): void {
   }
   try {
     sqlite.exec(`ALTER TABLE sessions ADD COLUMN turn_count INTEGER DEFAULT 0`);
+  } catch {
+    /* column may already exist */
+  }
+  try {
+    sqlite.exec(
+      `ALTER TABLE sessions ADD COLUMN harness TEXT DEFAULT 'claude-code'`
+    );
   } catch {
     /* column may already exist */
   }
@@ -403,6 +411,14 @@ export function initializeDatabase(): void {
   );
   sqlite.exec(
     `CREATE INDEX IF NOT EXISTS schedule_exec_time_idx ON schedule_executions(executed_at)`
+  );
+
+  // Harness indexes
+  sqlite.exec(
+    `CREATE INDEX IF NOT EXISTS sessions_harness_idx ON sessions(harness)`
+  );
+  sqlite.exec(
+    `CREATE INDEX IF NOT EXISTS sessions_harness_time_idx ON sessions(harness, start_time)`
   );
 
   sqlite.close();

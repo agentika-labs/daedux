@@ -10,6 +10,7 @@ import type { RPCSchema } from "electrobun/bun";
 export interface DateFilter {
   startTime?: number;
   endTime?: number;
+  harness?: HarnessId | HarnessId[];
 }
 
 // ─── Dashboard Data Types ───────────────────────────────────────────────────
@@ -60,6 +61,9 @@ export interface DailyStat {
   output: number;
 }
 
+/** Supported harness identifiers */
+export type HarnessId = "claude-code" | "codex" | "opencode" | "unknown";
+
 export interface SessionSummary {
   sessionId: string;
   project: string;
@@ -72,6 +76,7 @@ export interface SessionSummary {
   toolUseCount: number;
   turnCount: number;
   isSubagent: boolean;
+  harness: HarnessId;
   model: string;
   modelShort: string;
   firstPrompt: string;

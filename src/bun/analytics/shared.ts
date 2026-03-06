@@ -1,7 +1,8 @@
-import { gte, lte, eq, and } from "drizzle-orm";
+import { gte, lte, eq, and, inArray } from "drizzle-orm";
 import type { SQL } from "drizzle-orm";
 
 import * as schema from "../db/schema";
+import type { HarnessId } from "../parsers/types";
 
 /**
  * Date filter for server-side filtering of analytics queries.
@@ -75,6 +76,40 @@ export const DAY_MS = 86_400_000;
 
 /** One week in milliseconds */
 export const WEEK_MS = 7 * DAY_MS;
+
+// ─── Harness Filtering ───────────────────────────────────────────────────────
+
+/**
+ * Filter options for harness-based queries.
+ */
+export interface HarnessFilter {
+  harness?: HarnessId | HarnessId[];
+}
+
+/**
+ * Build SQL conditions for harness filtering on sessions table.
+ * Returns an array of conditions that can be spread into `and(...)`.
+ *
+ * @param filter - The harness filter (single ID or array)
+ * @param harnessColumn - The column to filter on (defaults to sessions.harness)
+ * @returns Array of SQL conditions (empty if no filter specified)
+ */
+export const buildHarnessConditions = (
+  filter: HarnessFilter,
+  harnessColumn: typeof schema.sessions.harness = schema.sessions.harness
+): SQL[] => {
+  const conditions: SQL[] = [];
+  if (filter.harness) {
+    if (Array.isArray(filter.harness)) {
+      if (filter.harness.length > 0) {
+        conditions.push(inArray(harnessColumn, filter.harness));
+      }
+    } else {
+      conditions.push(eq(harnessColumn, filter.harness));
+    }
+  }
+  return conditions;
+};
 
 // ─── Child Table Helpers ─────────────────────────────────────────────────────
 

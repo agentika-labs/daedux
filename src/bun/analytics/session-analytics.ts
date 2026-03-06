@@ -6,6 +6,7 @@ import { DatabaseService } from "../db";
 import * as schema from "../db/schema";
 import { DatabaseError } from "../errors";
 import { cacheHitRatio, totalInputWithCache } from "../metrics";
+import type { HarnessId } from "../parsers/types";
 import { buildDateConditions } from "./shared";
 import type { DateFilter } from "./shared";
 
@@ -45,6 +46,7 @@ export interface SessionSummary {
   readonly toolUseCount: number | null;
   readonly turnCount: number | null;
   readonly isSubagent: boolean | null;
+  readonly harness: HarnessId;
   // Token fields for per-session aggregation
   readonly totalInputTokens: number | null;
   readonly totalOutputTokens: number | null;
@@ -989,6 +991,7 @@ export class SessionAnalyticsService extends Effect.Service<SessionAnalyticsServ
                   compactions: schema.sessions.compactions,
                   displayName: schema.sessions.displayName,
                   durationMs: schema.sessions.durationMs,
+                  harness: schema.sessions.harness,
                   isSubagent: schema.sessions.isSubagent,
                   projectPath: schema.sessions.projectPath,
                   queryCount: schema.sessions.queryCount,
