@@ -30,6 +30,10 @@ async function getRpcRequest() {
   return rpcRequest;
 }
 
+// Check if running in Electrobun desktop mode
+const isElectrobun = () =>
+  typeof window !== "undefined" && "__electrobun" in window;
+
 // ─── Query Options ───────────────────────────────────────────────────────────
 // These are reusable query definitions that can be used in hooks and route loaders
 
@@ -53,10 +57,15 @@ export const anthropicUsageQueryOptions = queryOptions({
 /**
  * Auth status is cached aggressively since it spawns a subprocess (~50-200ms).
  * Fresh for 1 minute to avoid refetching on every navigation.
+ * In web/CLI mode, returns a default "not logged in" state since the scheduler is disabled.
  */
 export const authStatusQueryOptions = queryOptions({
   queryKey: ["authStatus"],
   queryFn: async (): Promise<AuthStatus> => {
+    // Auth status only meaningful in desktop mode (for scheduler)
+    if (!isElectrobun()) {
+      return { loggedIn: false };
+    }
     const rpcRequest = await getRpcRequest();
     return rpcRequest("getAuthStatus", {});
   },
@@ -68,6 +77,10 @@ export const authStatusQueryOptions = queryOptions({
 export const schedulesQueryOptions = queryOptions({
   queryKey: ["schedules"],
   queryFn: async (): Promise<SessionSchedule[]> => {
+    // Scheduler only available in desktop mode
+    if (!isElectrobun()) {
+      return [];
+    }
     const rpcRequest = await getRpcRequest();
     return rpcRequest("getSchedules", {});
   },

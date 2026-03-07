@@ -9,7 +9,7 @@ import { DatabaseService } from "../db";
 import * as schema from "../db/schema";
 import { DatabaseError } from "../errors";
 import type { DateFilter } from "./shared";
-import { buildDateConditions } from "./shared";
+import { buildDateConditions, buildHarnessConditions } from "./shared";
 
 export interface ModelUsage {
   readonly model: string;
@@ -50,10 +50,12 @@ export class ModelAnalyticsService extends Effect.Service<ModelAnalyticsService>
               }),
             try: async () => {
               const dateConditions = buildDateConditions(dateFilter);
+              const harnessConditions = buildHarnessConditions(dateFilter);
+              const allConditions = [...dateConditions, ...harnessConditions];
 
               let result;
-              if (dateConditions.length === 0) {
-                // Original query without date filter - no join needed
+              if (allConditions.length === 0) {
+                // Original query without filter - no join needed
                 result = await db
                   .select({
                     model: schema.queries.model,
@@ -79,10 +81,10 @@ export class ModelAnalyticsService extends Effect.Service<ModelAnalyticsService>
                   .groupBy(schema.queries.model)
                   .orderBy(desc(sql`SUM(${schema.queries.cost})`));
               } else {
-                // Filtered query - join with sessions for date range
+                // Filtered query - join with sessions for date range and/or harness
                 const conditions = [
                   sql`${schema.queries.model} IS NOT NULL AND ${schema.queries.model} != '<synthetic>'`,
-                  ...dateConditions,
+                  ...allConditions,
                 ];
 
                 result = await db

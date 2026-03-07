@@ -50,11 +50,14 @@ CREATE TABLE IF NOT EXISTS sessions (
   saved_by_caching REAL DEFAULT 0,
   total_ephemeral_5m_tokens INTEGER DEFAULT 0,
   total_ephemeral_1h_tokens INTEGER DEFAULT 0,
-  turn_count INTEGER DEFAULT 0
+  turn_count INTEGER DEFAULT 0,
+  harness TEXT DEFAULT 'claude-code'
 );
 CREATE INDEX IF NOT EXISTS sessions_project_idx ON sessions(project_path);
 CREATE INDEX IF NOT EXISTS sessions_start_time_idx ON sessions(start_time);
 CREATE INDEX IF NOT EXISTS sessions_parent_idx ON sessions(parent_session_id);
+CREATE INDEX IF NOT EXISTS sessions_harness_idx ON sessions(harness);
+CREATE INDEX IF NOT EXISTS sessions_harness_time_idx ON sessions(harness, start_time);
 
 -- Queries
 CREATE TABLE IF NOT EXISTS queries (

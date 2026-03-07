@@ -1,26 +1,16 @@
-import * as os from "node:os";
-import * as path from "node:path";
-
 import { eq } from "drizzle-orm";
 import { Effect } from "effect";
 
 import { DatabaseService, runInTransaction } from "./db";
 import * as schema from "./db/schema";
 import type { ParseError } from "./errors";
-import { FileSystemError, DatabaseError } from "./errors";
-import { parseSessionFile } from "./parser";
-import type { ParsedRecords, FileInfo as ParserFileInfo } from "./parser";
+import { DatabaseError } from "./errors";
+import { ParserRegistry } from "./parsers";
+import type { ParsedRecords, SessionFileInfo } from "./parsers";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
-export interface FileInfo {
-  readonly filePath: string;
-  readonly mtimeMs: number;
-  readonly sessionId: string;
-  readonly project: string;
-  readonly isSubagent: boolean;
-  readonly parentSessionId: string | null;
-}
+export type { SessionFileInfo as FileInfo } from "./parsers";
 
 export interface SyncResult {
   readonly synced: number;
@@ -43,7 +33,7 @@ const SQLITE_PARAM_LIMIT = 999;
  * SQLite limit is ~999 params, so max batch = floor(999 / columnCount).
  */
 const TABLE_COLUMN_COUNTS: Record<string, number> = {
-  sessions: 20, // Safe batch: 49 (added turnCount column)
+  sessions: 21, // Safe batch: 47 (added harness column)
   queries: 15, // Safe batch: 66 (added ephemeral columns)
   toolUses: 10, // Safe batch: 99 (added callerType)
   fileOperations: 6, // Safe batch: 166
@@ -62,161 +52,6 @@ const getSafeBatchSize = (tableName: string): number => {
   const columns = TABLE_COLUMN_COUNTS[tableName] ?? 10;
   return Math.floor(SQLITE_PARAM_LIMIT / columns);
 };
-
-// ─── Implementation ─────────────────────────────────────────────────────────
-
-const claudeDir = () => path.join(os.homedir(), ".claude");
-
-/** Discover all session JSONL files with mtime info */
-const discoverFilesImpl = (): Effect.Effect<FileInfo[], FileSystemError> =>
-  Effect.try({
-    catch: (error) =>
-      new FileSystemError({
-        cause: error,
-        path: path.join(claudeDir(), "projects"),
-      }),
-    try: () => {
-      const projectsDir = path.join(claudeDir(), "projects");
-      const results: FileInfo[] = [];
-      const fs = require("node:fs") as typeof import("node:fs");
-
-      let projectDirs: string[];
-      try {
-        projectDirs = [
-          ...new Bun.Glob("*").scanSync({
-            cwd: projectsDir,
-            onlyFiles: false,
-          }),
-        ];
-      } catch {
-        return results;
-      }
-
-      for (const projectDir of projectDirs) {
-        const projectPath = path.join(projectsDir, projectDir);
-
-        let mainFiles: string[];
-        try {
-          mainFiles = [
-            ...new Bun.Glob("*.jsonl").scanSync({
-              cwd: projectPath,
-              onlyFiles: true,
-            }),
-          ];
-        } catch {
-          continue;
-        }
-
-        for (const file of mainFiles) {
-          const filePath = path.join(projectPath, file);
-          const sessionId = path.basename(file, ".jsonl");
-
-          try {
-            const stat = fs.statSync(filePath);
-            results.push({
-              filePath,
-              isSubagent: false,
-              mtimeMs: stat.mtimeMs,
-              parentSessionId: null,
-              project: projectDir,
-              sessionId,
-            });
-          } catch {
-            continue;
-          }
-
-          // Check for subagent files
-          const subagentDir = path.join(projectPath, sessionId, "subagents");
-          try {
-            const subagentFiles = [
-              ...new Bun.Glob("agent-*.jsonl").scanSync({
-                cwd: subagentDir,
-                onlyFiles: true,
-              }),
-            ];
-            for (const subFile of subagentFiles) {
-              const subFilePath = path.join(subagentDir, subFile);
-              const subSessionId = path.basename(subFile, ".jsonl");
-              try {
-                const stat = fs.statSync(subFilePath);
-                results.push({
-                  filePath: subFilePath,
-                  isSubagent: true,
-                  mtimeMs: stat.mtimeMs,
-                  parentSessionId: sessionId,
-                  project: projectDir,
-                  sessionId: subSessionId,
-                });
-              } catch {
-                continue;
-              }
-            }
-          } catch {
-            // No subagent directory
-          }
-        }
-
-        // Second pass: Scan for orphaned subagent directories (parent JSONL deleted)
-        // These are session folders that contain subagents/ but no corresponding .jsonl
-        let sessionDirs: string[];
-        try {
-          sessionDirs = [
-            ...new Bun.Glob("*/subagents").scanSync({
-              cwd: projectPath,
-              onlyFiles: false,
-            }),
-          ];
-        } catch {
-          sessionDirs = [];
-        }
-
-        for (const subagentPath of sessionDirs) {
-          const parentSessionId = path.dirname(subagentPath);
-          const parentJsonl = path.join(
-            projectPath,
-            `${parentSessionId}.jsonl`
-          );
-
-          // Skip if parent exists (already processed above)
-          if (fs.existsSync(parentJsonl)) {
-            continue;
-          }
-
-          // Process orphaned subagent files
-          const subagentDir = path.join(projectPath, subagentPath);
-          try {
-            const subagentFiles = [
-              ...new Bun.Glob("agent-*.jsonl").scanSync({
-                cwd: subagentDir,
-                onlyFiles: true,
-              }),
-            ];
-            for (const subFile of subagentFiles) {
-              const subFilePath = path.join(subagentDir, subFile);
-              const subSessionId = path.basename(subFile, ".jsonl");
-              try {
-                const stat = fs.statSync(subFilePath);
-                results.push({
-                  filePath: subFilePath,
-                  isSubagent: true,
-                  mtimeMs: stat.mtimeMs,
-                  parentSessionId: parentSessionId,
-                  project: projectDir,
-                  sessionId: subSessionId, // Parent session was deleted
-                });
-              } catch {
-                continue;
-              }
-            }
-          } catch {
-            // No subagent files
-          }
-        }
-      }
-
-      return results;
-    },
-  }).pipe(Effect.withSpan("sync.discoverFiles"));
 
 // ─── Database Operations ────────────────────────────────────────────────────
 
@@ -364,27 +199,26 @@ const insertRecords = (
  * Process a single file: parse and insert all records.
  */
 const processFile = (
-  fileInfo: FileInfo
+  fileInfo: SessionFileInfo
 ): Effect.Effect<
   "empty" | "synced",
   ParseError | DatabaseError,
-  DatabaseService
+  DatabaseService | ParserRegistry
 > =>
   Effect.gen(function* processFile() {
-    // Convert FileInfo to ParserFileInfo (drop mtimeMs which parser doesn't need)
-    const parserInfo: ParserFileInfo = {
+    const registry = yield* ParserRegistry;
+
+    // Parse file using the appropriate parser
+    const parsed = yield* registry.parseSession({
       filePath: fileInfo.filePath,
+      harness: fileInfo.harness,
       isSubagent: fileInfo.isSubagent,
       parentSessionId: fileInfo.parentSessionId,
       project: fileInfo.project,
       sessionId: fileInfo.sessionId,
-    };
-
-    // Parse file
-    const parsed = yield* parseSessionFile(parserInfo);
+    });
 
     // Persist records + file mtime atomically per file.
-    // This prevents partial writes (records written but mtime not updated, or vice versa).
     yield* runInTransaction(
       parsed
         ? insertRecords(parsed).pipe(
@@ -396,13 +230,13 @@ const processFile = (
     return parsed ? "synced" : "empty";
   }).pipe(
     Effect.withSpan("sync.processFile", {
-      attributes: { sessionId: fileInfo.sessionId },
+      attributes: { sessionId: fileInfo.sessionId, harness: fileInfo.harness },
     })
   );
 
 /** Update file mtime tracking */
 const updateFileMtime = (
-  fileInfo: FileInfo
+  fileInfo: SessionFileInfo
 ): Effect.Effect<void, DatabaseError, DatabaseService> =>
   Effect.gen(function* updateFileMtime() {
     const { db } = yield* DatabaseService;
@@ -457,20 +291,20 @@ const getCachedMtimes = (): Effect.Effect<
     return new Map(rows.map((r) => [r.filePath, r.mtimeMs]));
   });
 
-// ─── Live Layer ─────────────────────────────────────────────────────────────
-
 // ─── Service Definition ──────────────────────────────────────────────────────
 
 /**
  * SyncService handles JSONL file discovery and incremental sync to database.
  *
- * Uses Effect.Service pattern with DatabaseService dependency.
- * Discovers Claude Code session files, parses them, and stores aggregated data.
+ * Uses Effect.Service pattern with DatabaseService and ParserRegistry dependencies.
+ * Discovers session files from all registered parsers and stores aggregated data.
  */
 export class SyncService extends Effect.Service<SyncService>()("SyncService", {
   effect: Effect.gen(function* () {
+    const registry = yield* ParserRegistry;
+
     return {
-      discoverFiles: () => discoverFilesImpl(),
+      discoverFiles: () => registry.discoverAllSessions(),
 
       fullResync: (options?: SyncOptions) =>
         Effect.gen(function* fullResync() {
@@ -503,8 +337,8 @@ export class SyncService extends Effect.Service<SyncService>()("SyncService", {
             })
           );
 
-          // Discover and sync all files
-          const currentFiles = yield* discoverFilesImpl();
+          // Discover and sync all files from all registered parsers
+          const currentFiles = yield* registry.discoverAllSessions();
           yield* Effect.logInfo(
             `Found ${currentFiles.length} files for full resync`
           );
@@ -554,8 +388,8 @@ export class SyncService extends Effect.Service<SyncService>()("SyncService", {
           const verbose = options?.verbose ?? false;
           yield* Effect.logInfo("Starting incremental sync");
 
-          // 1. Discover current files
-          const currentFiles = yield* discoverFilesImpl();
+          // 1. Discover current files from all registered parsers
+          const currentFiles = yield* registry.discoverAllSessions();
 
           // 2. Get cached mtimes
           const cachedMtimes = yield* getCachedMtimes();
@@ -614,4 +448,5 @@ export class SyncService extends Effect.Service<SyncService>()("SyncService", {
         }).pipe(Effect.withSpan("sync.incrementalSync")),
     } as const;
   }),
+  dependencies: [ParserRegistry.Default],
 }) {}

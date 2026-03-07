@@ -4,7 +4,7 @@
  */
 
 import { modelDisplayNameWithVersion } from "../../shared/model-utils";
-import type { SessionSummary } from "../../shared/rpc-types";
+import type { HarnessId, SessionSummary } from "../../shared/rpc-types";
 import { toDateString } from "./formatting";
 
 /**
@@ -38,6 +38,7 @@ export interface SessionData {
   compactions: number | null;
   savedByCaching: number | null;
   turnCount: number | null;
+  harness: string | null;
 }
 
 /**
@@ -79,6 +80,7 @@ export function transformSessionToRPC({
     fileReadCount: sessionFileOps.filter((op) => op.tool === "Read").length,
     fileWriteCount: sessionFileOps.filter((op) => op.tool === "Write").length,
     firstPrompt: s.displayName ?? "Session",
+    harness: (s.harness ?? "claude-code") as HarnessId,
     isSubagent: s.isSubagent ?? false,
     model: sessionModel,
     modelShort: modelDisplayNameWithVersion(sessionModel),

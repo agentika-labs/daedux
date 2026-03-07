@@ -17,6 +17,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useActiveSection, scrollToSection } from "@/hooks/useActiveSection";
 import { useIsDesktop } from "@/hooks/useApi";
 import { queryClient } from "@/lib/query-client";
+import type { HarnessFilterOption } from "@/queries/dashboard";
 import {
   useDashboardQuery,
   useSyncMutation,
@@ -47,7 +48,9 @@ const ProjectsSection = lazy(() =>
 
 export const Route = createFileRoute("/")({
   loader: async () => {
-    await queryClient.ensureQueryData(dashboardQueryOptions("7d"));
+    await queryClient.ensureQueryData(
+      dashboardQueryOptions("7d", "claude-code")
+    );
   },
   component: Dashboard,
 });
@@ -57,10 +60,15 @@ function Dashboard() {
   const activeSection = useActiveSection();
 
   const [filter, setFilter] = useState<FilterOption>("7d");
+  const [harnessFilter, setHarnessFilter] =
+    useState<HarnessFilterOption>("claude-code");
   const [isSyncing, setIsSyncing] = useState(false);
 
-  const { data, isLoading, error, refetch } = useDashboardQuery(filter);
-  const syncMutation = useSyncMutation(filter);
+  const { data, isLoading, error, refetch } = useDashboardQuery(
+    filter,
+    harnessFilter
+  );
+  const syncMutation = useSyncMutation(filter, harnessFilter);
 
   const refetchRef = useRef(refetch);
   refetchRef.current = refetch;
@@ -134,6 +142,8 @@ function Dashboard() {
       <Header
         filter={filter}
         onFilterChange={setFilter}
+        harnessFilter={harnessFilter}
+        onHarnessFilterChange={setHarnessFilter}
         activeSection={activeSection}
         onSync={handleSync}
         isSyncing={isSyncing}

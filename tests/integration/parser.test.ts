@@ -8,7 +8,7 @@ import * as path from "node:path";
 import { Effect } from "effect";
 
 import { parseSessionFile } from "../../src/bun/parser";
-import type { FileInfo } from "../../src/bun/parser";
+import type { ParserInput } from "../../src/bun/parsers";
 
 // ─── Test Helpers ───────────────────────────────────────────────────────────
 
@@ -16,8 +16,8 @@ const FIXTURES_DIR = path.join(import.meta.dir, "../fixtures/jsonl");
 
 const createFileInfo = (
   filename: string,
-  overrides?: Partial<FileInfo>
-): FileInfo => ({
+  overrides?: Partial<ParserInput>
+): Omit<ParserInput, "harness"> => ({
   filePath: path.join(FIXTURES_DIR, filename),
   isSubagent: false,
   parentSessionId: null,

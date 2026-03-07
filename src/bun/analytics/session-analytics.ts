@@ -6,7 +6,8 @@ import { DatabaseService } from "../db";
 import * as schema from "../db/schema";
 import { DatabaseError } from "../errors";
 import { cacheHitRatio, totalInputWithCache } from "../metrics";
-import { buildDateConditions } from "./shared";
+import type { HarnessId } from "../parsers/types";
+import { buildDateConditions, buildHarnessConditions } from "./shared";
 import type { DateFilter } from "./shared";
 
 export interface Totals {
@@ -45,6 +46,7 @@ export interface SessionSummary {
   readonly toolUseCount: number | null;
   readonly turnCount: number | null;
   readonly isSubagent: boolean | null;
+  readonly harness: HarnessId;
   // Token fields for per-session aggregation
   readonly totalInputTokens: number | null;
   readonly totalOutputTokens: number | null;
@@ -205,7 +207,10 @@ export class SessionAnalyticsService extends Effect.Service<SessionAnalyticsServ
                 })
                 .from(schema.sessions);
 
-              const conditions: SQL[] = [...buildDateConditions(dateFilter)];
+              const conditions: SQL[] = [
+                ...buildDateConditions(dateFilter),
+                ...buildHarnessConditions(dateFilter),
+              ];
               if (days !== undefined) {
                 const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
                 conditions.push(gte(schema.sessions.startTime, cutoff));
@@ -248,27 +253,26 @@ export class SessionAnalyticsService extends Effect.Service<SessionAnalyticsServ
               }),
             try: async () => {
               const dateConditions = buildDateConditions(dateFilter);
-              const hasDateFilter = dateConditions.length > 0;
+              const harnessConditions = buildHarnessConditions(dateFilter);
+              const allConditions = [...dateConditions, ...harnessConditions];
+              const hasFilter = allConditions.length > 0;
 
               // ─── Session Counts ─────────────────────────────────────────────
               let mainSessionsResult;
               let subagentSessionsResult;
 
-              if (hasDateFilter) {
+              if (hasFilter) {
                 mainSessionsResult = await db
                   .select({ count: count() })
                   .from(schema.sessions)
                   .where(
-                    and(
-                      eq(schema.sessions.isSubagent, false),
-                      ...dateConditions
-                    )
+                    and(eq(schema.sessions.isSubagent, false), ...allConditions)
                   );
                 subagentSessionsResult = await db
                   .select({ count: count() })
                   .from(schema.sessions)
                   .where(
-                    and(eq(schema.sessions.isSubagent, true), ...dateConditions)
+                    and(eq(schema.sessions.isSubagent, true), ...allConditions)
                   );
               } else {
                 mainSessionsResult = await db
@@ -287,7 +291,7 @@ export class SessionAnalyticsService extends Effect.Service<SessionAnalyticsServ
 
               // ─── Agent Invocations (Task tool calls) ────────────────────────
               let agentInvocationsResult;
-              if (hasDateFilter) {
+              if (hasFilter) {
                 agentInvocationsResult = await db
                   .select({ count: count() })
                   .from(schema.agentSpawns)
@@ -295,7 +299,7 @@ export class SessionAnalyticsService extends Effect.Service<SessionAnalyticsServ
                     schema.sessions,
                     eq(schema.agentSpawns.sessionId, schema.sessions.sessionId)
                   )
-                  .where(and(...dateConditions));
+                  .where(and(...allConditions));
               } else {
                 agentInvocationsResult = await db
                   .select({ count: count() })
@@ -307,7 +311,7 @@ export class SessionAnalyticsService extends Effect.Service<SessionAnalyticsServ
               let mainTokensResult;
               let subagentTokensResult;
 
-              if (hasDateFilter) {
+              if (hasFilter) {
                 mainTokensResult = await db
                   .select({
                     total:
@@ -317,10 +321,7 @@ export class SessionAnalyticsService extends Effect.Service<SessionAnalyticsServ
                   })
                   .from(schema.sessions)
                   .where(
-                    and(
-                      eq(schema.sessions.isSubagent, false),
-                      ...dateConditions
-                    )
+                    and(eq(schema.sessions.isSubagent, false), ...allConditions)
                   );
                 subagentTokensResult = await db
                   .select({
@@ -331,7 +332,7 @@ export class SessionAnalyticsService extends Effect.Service<SessionAnalyticsServ
                   })
                   .from(schema.sessions)
                   .where(
-                    and(eq(schema.sessions.isSubagent, true), ...dateConditions)
+                    and(eq(schema.sessions.isSubagent, true), ...allConditions)
                   );
               } else {
                 mainTokensResult = await db
@@ -359,7 +360,7 @@ export class SessionAnalyticsService extends Effect.Service<SessionAnalyticsServ
 
               // ─── Cache Metrics (single source of truth) ─────────────────────
               let cacheResult;
-              if (hasDateFilter) {
+              if (hasFilter) {
                 cacheResult = await db
                   .select({
                     cacheRead:
@@ -376,7 +377,7 @@ export class SessionAnalyticsService extends Effect.Service<SessionAnalyticsServ
                       ),
                   })
                   .from(schema.sessions)
-                  .where(and(...dateConditions));
+                  .where(and(...allConditions));
               } else {
                 cacheResult = await db
                   .select({
@@ -427,7 +428,7 @@ export class SessionAnalyticsService extends Effect.Service<SessionAnalyticsServ
 
               // ─── Tool Success Rate ──────────────────────────────────────────
               let toolStatsResult;
-              if (hasDateFilter) {
+              if (hasFilter) {
                 toolStatsResult = await db
                   .select({
                     errors:
@@ -441,7 +442,7 @@ export class SessionAnalyticsService extends Effect.Service<SessionAnalyticsServ
                     schema.sessions,
                     eq(schema.toolUses.sessionId, schema.sessions.sessionId)
                   )
-                  .where(and(...dateConditions));
+                  .where(and(...allConditions));
               } else {
                 toolStatsResult = await db
                   .select({
@@ -463,7 +464,7 @@ export class SessionAnalyticsService extends Effect.Service<SessionAnalyticsServ
 
               // ─── Query Count for Session Efficiency ─────────────────────────
               let queryCountResult;
-              if (hasDateFilter) {
+              if (hasFilter) {
                 queryCountResult = await db
                   .select({
                     total: sql<number>`SUM(${schema.sessions.queryCount})`.as(
@@ -471,7 +472,7 @@ export class SessionAnalyticsService extends Effect.Service<SessionAnalyticsServ
                     ),
                   })
                   .from(schema.sessions)
-                  .where(and(...dateConditions));
+                  .where(and(...allConditions));
               } else {
                 queryCountResult = await db
                   .select({
@@ -554,6 +555,8 @@ export class SessionAnalyticsService extends Effect.Service<SessionAnalyticsServ
               }),
             try: async () => {
               const dateConditions = buildDateConditions(dateFilter);
+              const harnessConditions = buildHarnessConditions(dateFilter);
+              const allConditions = [...dateConditions, ...harnessConditions];
 
               // Get base totals
               let baseQuery = db
@@ -609,9 +612,9 @@ export class SessionAnalyticsService extends Effect.Service<SessionAnalyticsServ
                 })
                 .from(schema.sessions);
 
-              if (dateConditions.length > 0) {
+              if (allConditions.length > 0) {
                 baseQuery = baseQuery.where(
-                  and(...dateConditions)
+                  and(...allConditions)
                 ) as typeof baseQuery;
               }
 
@@ -619,7 +622,7 @@ export class SessionAnalyticsService extends Effect.Service<SessionAnalyticsServ
 
               // Get tool errors count (join with sessions for date filter)
               let errorResult;
-              if (dateConditions.length === 0) {
+              if (allConditions.length === 0) {
                 errorResult = await db
                   .select({
                     totalErrors:
@@ -641,12 +644,12 @@ export class SessionAnalyticsService extends Effect.Service<SessionAnalyticsServ
                     schema.sessions,
                     eq(schema.toolUses.sessionId, schema.sessions.sessionId)
                   )
-                  .where(and(...dateConditions));
+                  .where(and(...allConditions));
               }
 
               // Get counts from extended tables (join with sessions for date filter)
               let bashCount, fileOpsCount, hookCount, skillCount, agentCount;
-              if (dateConditions.length === 0) {
+              if (allConditions.length === 0) {
                 [bashCount, fileOpsCount, hookCount, skillCount, agentCount] =
                   await Promise.all([
                     db.select({ count: count() }).from(schema.bashCommands),
@@ -668,7 +671,7 @@ export class SessionAnalyticsService extends Effect.Service<SessionAnalyticsServ
                           schema.sessions.sessionId
                         )
                       )
-                      .where(and(...dateConditions)),
+                      .where(and(...allConditions)),
                     db
                       .select({ count: count() })
                       .from(schema.fileOperations)
@@ -679,7 +682,7 @@ export class SessionAnalyticsService extends Effect.Service<SessionAnalyticsServ
                           schema.sessions.sessionId
                         )
                       )
-                      .where(and(...dateConditions)),
+                      .where(and(...allConditions)),
                     db
                       .select({ count: count() })
                       .from(schema.hookEvents)
@@ -690,7 +693,7 @@ export class SessionAnalyticsService extends Effect.Service<SessionAnalyticsServ
                           schema.sessions.sessionId
                         )
                       )
-                      .where(and(...dateConditions)),
+                      .where(and(...allConditions)),
                     db
                       .select({ count: count() })
                       .from(schema.skillInvocations)
@@ -701,7 +704,7 @@ export class SessionAnalyticsService extends Effect.Service<SessionAnalyticsServ
                           schema.sessions.sessionId
                         )
                       )
-                      .where(and(...dateConditions)),
+                      .where(and(...allConditions)),
                     db
                       .select({ count: count() })
                       .from(schema.agentSpawns)
@@ -712,7 +715,7 @@ export class SessionAnalyticsService extends Effect.Service<SessionAnalyticsServ
                           schema.sessions.sessionId
                         )
                       )
-                      .where(and(...dateConditions)),
+                      .where(and(...allConditions)),
                   ]);
               }
 
@@ -794,6 +797,8 @@ export class SessionAnalyticsService extends Effect.Service<SessionAnalyticsServ
               }),
             try: async () => {
               const dateConditions = buildDateConditions(dateFilter);
+              const harnessConditions = buildHarnessConditions(dateFilter);
+              const allConditions = [...dateConditions, ...harnessConditions];
 
               let query = db
                 .select({
@@ -817,8 +822,8 @@ export class SessionAnalyticsService extends Effect.Service<SessionAnalyticsServ
                 })
                 .from(schema.sessions);
 
-              if (dateConditions.length > 0) {
-                query = query.where(and(...dateConditions)) as typeof query;
+              if (allConditions.length > 0) {
+                query = query.where(and(...allConditions)) as typeof query;
               }
 
               const result = await query
@@ -881,9 +886,11 @@ export class SessionAnalyticsService extends Effect.Service<SessionAnalyticsServ
               }),
             try: async () => {
               const dateConditions = buildDateConditions(dateFilter);
+              const harnessConditions = buildHarnessConditions(dateFilter);
+              const allConditions = [...dateConditions, ...harnessConditions];
 
               let result;
-              if (dateConditions.length === 0) {
+              if (allConditions.length === 0) {
                 result = await db
                   .select({
                     count: count(),
@@ -902,7 +909,7 @@ export class SessionAnalyticsService extends Effect.Service<SessionAnalyticsServ
                     schema.sessions,
                     eq(schema.agentSpawns.sessionId, schema.sessions.sessionId)
                   )
-                  .where(and(...dateConditions))
+                  .where(and(...allConditions))
                   .groupBy(schema.agentSpawns.sessionId);
               }
 
@@ -923,10 +930,12 @@ export class SessionAnalyticsService extends Effect.Service<SessionAnalyticsServ
               }),
             try: async () => {
               const dateConditions = buildDateConditions(dateFilter);
+              const harnessConditions = buildHarnessConditions(dateFilter);
+              const allConditions = [...dateConditions, ...harnessConditions];
               const modelNotNull = sql`${schema.queries.model} IS NOT NULL`;
 
               let result;
-              if (dateConditions.length === 0) {
+              if (allConditions.length === 0) {
                 result = await db
                   .select({
                     count: count(),
@@ -949,7 +958,7 @@ export class SessionAnalyticsService extends Effect.Service<SessionAnalyticsServ
                     schema.sessions,
                     eq(schema.queries.sessionId, schema.sessions.sessionId)
                   )
-                  .where(and(modelNotNull, ...dateConditions))
+                  .where(and(modelNotNull, ...allConditions))
                   .groupBy(schema.queries.sessionId, schema.queries.model)
                   .orderBy(schema.queries.sessionId, desc(count()));
               }
@@ -989,6 +998,7 @@ export class SessionAnalyticsService extends Effect.Service<SessionAnalyticsServ
                   compactions: schema.sessions.compactions,
                   displayName: schema.sessions.displayName,
                   durationMs: schema.sessions.durationMs,
+                  harness: schema.sessions.harness,
                   isSubagent: schema.sessions.isSubagent,
                   projectPath: schema.sessions.projectPath,
                   queryCount: schema.sessions.queryCount,
@@ -1010,7 +1020,10 @@ export class SessionAnalyticsService extends Effect.Service<SessionAnalyticsServ
                 query = query.limit(limit) as typeof query;
               }
 
-              const conditions: SQL[] = [...buildDateConditions(dateFilter)];
+              const conditions: SQL[] = [
+                ...buildDateConditions(dateFilter),
+                ...buildHarnessConditions(dateFilter),
+              ];
               if (projectPath) {
                 conditions.push(eq(schema.sessions.projectPath, projectPath));
               }
@@ -1032,6 +1045,8 @@ export class SessionAnalyticsService extends Effect.Service<SessionAnalyticsServ
               new DatabaseError({ cause: error, operation: "getTopPrompts" }),
             try: async () => {
               const dateConditions = buildDateConditions(dateFilter);
+              const harnessConditions = buildHarnessConditions(dateFilter);
+              const allConditions = [...dateConditions, ...harnessConditions];
               // Filter out system-generated content that slipped through parse-time filters
               // (needed for historical data parsed before metadata checks were added)
               const baseConditions: SQL[] = [
@@ -1049,7 +1064,7 @@ export class SessionAnalyticsService extends Effect.Service<SessionAnalyticsServ
               // A single user prompt can trigger multiple API calls (agentic turns, tool use, etc.)
               // Group by (sessionId, userMessagePreview) to capture the TOTAL cost of a user prompt
               let result;
-              if (dateConditions.length === 0) {
+              if (allConditions.length === 0) {
                 result = await db
                   .select({
                     model: sql<string>`MAX(${schema.queries.model})`.as(
@@ -1106,7 +1121,7 @@ export class SessionAnalyticsService extends Effect.Service<SessionAnalyticsServ
                     schema.sessions,
                     eq(schema.queries.sessionId, schema.sessions.sessionId)
                   )
-                  .where(and(...baseConditions, ...dateConditions))
+                  .where(and(...baseConditions, ...allConditions))
                   .groupBy(
                     schema.queries.sessionId,
                     schema.queries.userMessagePreview
@@ -1133,6 +1148,8 @@ export class SessionAnalyticsService extends Effect.Service<SessionAnalyticsServ
               new DatabaseError({ cause: error, operation: "getTotals" }),
             try: async () => {
               const dateConditions = buildDateConditions(dateFilter);
+              const harnessConditions = buildHarnessConditions(dateFilter);
+              const allConditions = [...dateConditions, ...harnessConditions];
 
               let query = db
                 .select({
@@ -1171,8 +1188,8 @@ export class SessionAnalyticsService extends Effect.Service<SessionAnalyticsServ
                 })
                 .from(schema.sessions);
 
-              if (dateConditions.length > 0) {
-                query = query.where(and(...dateConditions)) as typeof query;
+              if (allConditions.length > 0) {
+                query = query.where(and(...allConditions)) as typeof query;
               }
 
               const result = await query;
