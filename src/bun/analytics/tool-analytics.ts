@@ -19,6 +19,7 @@ import type { ConfidenceLevel } from "../utils/statistics";
 import type { DateFilter } from "./shared";
 import {
   buildDateConditions,
+  buildHarnessConditions,
   sessionsTable,
   sessionJoinOn,
   withDateFilter,
@@ -93,11 +94,11 @@ export interface ApiErrorStat {
 
 async function getBashCategoryHealthInternal(
   db: SQLiteBunDatabase<typeof schema>,
-  dateConditions: SQL[]
+  allConditions: SQL[]
 ): Promise<BashCategoryHealth[]> {
   // Get category counts
   const categoryData = await withDateFilter(
-    dateConditions,
+    allConditions,
     () =>
       db
         .select({
@@ -115,14 +116,14 @@ async function getBashCategoryHealthInternal(
         })
         .from(schema.bashCommands)
         .innerJoin(sessionsTable, sessionJoinOn(schema.bashCommands))
-        .where(and(...dateConditions))
+        .where(and(...allConditions))
         .groupBy(schema.bashCommands.category)
         .orderBy(desc(count()))
   );
 
   // Get Bash tool errors
   const bashErrors = await withDateFilter(
-    dateConditions,
+    allConditions,
     () =>
       db
         .select({
@@ -151,7 +152,7 @@ async function getBashCategoryHealthInternal(
           and(
             eq(schema.toolUses.toolName, "Bash"),
             eq(schema.toolUses.hasError, true),
-            ...dateConditions
+            ...allConditions
           )
         )
         .groupBy(schema.toolUses.errorMessage)
@@ -161,7 +162,7 @@ async function getBashCategoryHealthInternal(
 
   // Get overall bash error rate
   const bashTotalStats = await withDateFilter(
-    dateConditions,
+    allConditions,
     () =>
       db
         .select({
@@ -184,7 +185,7 @@ async function getBashCategoryHealthInternal(
         })
         .from(schema.toolUses)
         .innerJoin(sessionsTable, sessionJoinOn(schema.toolUses))
-        .where(and(eq(schema.toolUses.toolName, "Bash"), ...dateConditions))
+        .where(and(eq(schema.toolUses.toolName, "Bash"), ...allConditions))
   );
 
   const totalBashUses = bashTotalStats[0]?.total ?? 0;
@@ -238,9 +239,11 @@ export class ToolAnalyticsService extends Effect.Service<ToolAnalyticsService>()
               new DatabaseError({ cause: error, operation: "getApiErrors" }),
             try: async () => {
               const dateConditions = buildDateConditions(dateFilter);
+              const harnessConditions = buildHarnessConditions(dateFilter);
+              const allConditions = [...dateConditions, ...harnessConditions];
 
               const result = await withDateFilter(
-                dateConditions,
+                allConditions,
                 () =>
                   db
                     .select({
@@ -266,7 +269,7 @@ export class ToolAnalyticsService extends Effect.Service<ToolAnalyticsService>()
                     })
                     .from(schema.apiErrors)
                     .innerJoin(sessionsTable, sessionJoinOn(schema.apiErrors))
-                    .where(and(...dateConditions))
+                    .where(and(...allConditions))
                     .groupBy(schema.apiErrors.errorType)
                     .orderBy(desc(count()))
               );
@@ -288,7 +291,9 @@ export class ToolAnalyticsService extends Effect.Service<ToolAnalyticsService>()
               }),
             try: async () => {
               const dateConditions = buildDateConditions(dateFilter);
-              return getBashCategoryHealthInternal(db, dateConditions);
+              const harnessConditions = buildHarnessConditions(dateFilter);
+              const allConditions = [...dateConditions, ...harnessConditions];
+              return getBashCategoryHealthInternal(db, allConditions);
             },
           }),
 
@@ -301,6 +306,8 @@ export class ToolAnalyticsService extends Effect.Service<ToolAnalyticsService>()
               }),
             try: async () => {
               const dateConditions = buildDateConditions(dateFilter);
+              const harnessConditions = buildHarnessConditions(dateFilter);
+              const allConditions = [...dateConditions, ...harnessConditions];
 
               // Use SUBSTR to cap GROUP_CONCAT at 10KB to prevent memory issues
               // We only need ~5 unique commands, and each command is typically <200 chars
@@ -311,7 +318,7 @@ export class ToolAnalyticsService extends Effect.Service<ToolAnalyticsService>()
                 );
 
               const result = await withDateFilter(
-                dateConditions,
+                allConditions,
                 () =>
                   db
                     .select({
@@ -334,7 +341,7 @@ export class ToolAnalyticsService extends Effect.Service<ToolAnalyticsService>()
                       sessionsTable,
                       sessionJoinOn(schema.bashCommands)
                     )
-                    .where(and(...dateConditions))
+                    .where(and(...allConditions))
                     .groupBy(schema.bashCommands.category)
                     .orderBy(desc(count()))
               );
@@ -361,9 +368,11 @@ export class ToolAnalyticsService extends Effect.Service<ToolAnalyticsService>()
               }),
             try: async () => {
               const dateConditions = buildDateConditions(dateFilter);
+              const harnessConditions = buildHarnessConditions(dateFilter);
+              const allConditions = [...dateConditions, ...harnessConditions];
 
               const result = await withDateFilter(
-                dateConditions,
+                allConditions,
                 () =>
                   db
                     .select({
@@ -385,7 +394,7 @@ export class ToolAnalyticsService extends Effect.Service<ToolAnalyticsService>()
                     })
                     .from(schema.toolUses)
                     .innerJoin(sessionsTable, sessionJoinOn(schema.toolUses))
-                    .where(and(...dateConditions))
+                    .where(and(...allConditions))
                     .groupBy(
                       schema.toolUses.sessionId,
                       schema.toolUses.toolName
@@ -415,9 +424,11 @@ export class ToolAnalyticsService extends Effect.Service<ToolAnalyticsService>()
               }),
             try: async () => {
               const dateConditions = buildDateConditions(dateFilter);
+              const harnessConditions = buildHarnessConditions(dateFilter);
+              const allConditions = [...dateConditions, ...harnessConditions];
 
               const result = await withDateFilter(
-                dateConditions,
+                allConditions,
                 () =>
                   db
                     .select({
@@ -440,7 +451,7 @@ export class ToolAnalyticsService extends Effect.Service<ToolAnalyticsService>()
                     })
                     .from(schema.toolUses)
                     .innerJoin(sessionsTable, sessionJoinOn(schema.toolUses))
-                    .where(and(...dateConditions))
+                    .where(and(...allConditions))
                     .groupBy(schema.toolUses.sessionId)
               );
 
@@ -458,9 +469,11 @@ export class ToolAnalyticsService extends Effect.Service<ToolAnalyticsService>()
               new DatabaseError({ cause: error, operation: "getToolHealth" }),
             try: async () => {
               const dateConditions = buildDateConditions(dateFilter);
+              const harnessConditions = buildHarnessConditions(dateFilter);
+              const allConditions = [...dateConditions, ...harnessConditions];
 
               const result = await withDateFilter(
-                dateConditions,
+                allConditions,
                 () =>
                   db
                     .select({
@@ -494,7 +507,7 @@ export class ToolAnalyticsService extends Effect.Service<ToolAnalyticsService>()
                     })
                     .from(schema.toolUses)
                     .innerJoin(sessionsTable, sessionJoinOn(schema.toolUses))
-                    .where(and(...dateConditions))
+                    .where(and(...allConditions))
                     .groupBy(schema.toolUses.toolName)
                     .orderBy(desc(count()))
               );
@@ -520,10 +533,12 @@ export class ToolAnalyticsService extends Effect.Service<ToolAnalyticsService>()
               }),
             try: async () => {
               const dateConditions = buildDateConditions(dateFilter);
+              const harnessConditions = buildHarnessConditions(dateFilter);
+              const allConditions = [...dateConditions, ...harnessConditions];
 
               // Get tool health stats
               const toolHealthData = await withDateFilter(
-                dateConditions,
+                allConditions,
                 () =>
                   db
                     .select({
@@ -549,14 +564,14 @@ export class ToolAnalyticsService extends Effect.Service<ToolAnalyticsService>()
                     })
                     .from(schema.toolUses)
                     .innerJoin(sessionsTable, sessionJoinOn(schema.toolUses))
-                    .where(and(...dateConditions))
+                    .where(and(...allConditions))
                     .groupBy(schema.toolUses.toolName)
                     .orderBy(desc(count()))
               );
 
               // Get top errors per tool
               const topErrorsData = await withDateFilter(
-                dateConditions,
+                allConditions,
                 () =>
                   db
                     .select({
@@ -582,7 +597,7 @@ export class ToolAnalyticsService extends Effect.Service<ToolAnalyticsService>()
                     .from(schema.toolUses)
                     .innerJoin(sessionsTable, sessionJoinOn(schema.toolUses))
                     .where(
-                      and(eq(schema.toolUses.hasError, true), ...dateConditions)
+                      and(eq(schema.toolUses.hasError, true), ...allConditions)
                     )
                     .groupBy(
                       schema.toolUses.toolName,
@@ -746,9 +761,11 @@ export class ToolAnalyticsService extends Effect.Service<ToolAnalyticsService>()
               new DatabaseError({ cause: error, operation: "getToolUsage" }),
             try: async () => {
               const dateConditions = buildDateConditions(dateFilter);
+              const harnessConditions = buildHarnessConditions(dateFilter);
+              const allConditions = [...dateConditions, ...harnessConditions];
 
               const result = await withDateFilter(
-                dateConditions,
+                allConditions,
                 () =>
                   db
                     .select({
@@ -774,7 +791,7 @@ export class ToolAnalyticsService extends Effect.Service<ToolAnalyticsService>()
                     })
                     .from(schema.toolUses)
                     .innerJoin(sessionsTable, sessionJoinOn(schema.toolUses))
-                    .where(and(...dateConditions))
+                    .where(and(...allConditions))
                     .groupBy(schema.toolUses.toolName)
                     .orderBy(desc(count()))
               );

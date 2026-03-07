@@ -38,6 +38,7 @@ import { loadDashboardData } from "./services/dashboard-loader";
 import { SchedulerService, parseDaysOfWeek } from "./services/scheduler";
 import { SyncService } from "./sync";
 import { toDateString } from "./utils/formatting";
+import { log } from "./utils/log";
 import {
   formatRateLimitItem,
   formatExtraUsage,
@@ -128,8 +129,9 @@ function applyMacOSWindowEffects(window: BrowserWindow) {
   const dylibPath = join(import.meta.dir, "libMacWindowEffects.dylib");
 
   if (!existsSync(dylibPath)) {
-    console.warn(
-      `[macos] Native effects lib not found at ${dylibPath}. Falling back to transparent-only mode.`
+    log.warn(
+      "macos",
+      `Native effects lib not found at ${dylibPath}. Falling back to transparent-only mode.`
     );
     return;
   }
@@ -195,11 +197,12 @@ function applyMacOSWindowEffects(window: BrowserWindow) {
       alignButtons();
     });
 
-    console.log(
-      `[macos] Native effects applied (vibrancy=${vibrancyEnabled}, shadow=${shadowEnabled}, toolbar=${toolbarExtended}, trafficLights=${buttonsAlignedNow}, dragRegion=${dragRegionEnabled})`
+    log.info(
+      "macos",
+      `Native effects applied (vibrancy=${vibrancyEnabled}, shadow=${shadowEnabled}, toolbar=${toolbarExtended}, trafficLights=${buttonsAlignedNow}, dragRegion=${dragRegionEnabled})`
     );
   } catch (error) {
-    console.warn("[macos] Failed to apply native window effects:", error);
+    log.warn("macos", "Failed to apply native window effects:", error);
   }
 }
 
@@ -343,7 +346,7 @@ const runSyncWithNotifications = async (
 
     return result;
   } catch (error) {
-    console.error("[scan] Failed", error);
+    log.error("scan", "Failed", error);
     return { errors: 1, synced: 0, total: 0, unchanged: 0 };
   } finally {
     isScanning = false;
@@ -481,7 +484,7 @@ const dispatchToWebview = (send: () => void) => {
   try {
     send();
   } catch (error) {
-    console.warn("[rpc] Failed to send message to webview", error);
+    log.warn("rpc", "Failed to send message to webview", error);
   }
 };
 
@@ -495,7 +498,7 @@ const flushPendingWebviewMessages = () => {
     try {
       send();
     } catch (error) {
-      console.warn("[rpc] Failed to send queued message to webview", error);
+      log.warn("rpc", "Failed to send queued message to webview", error);
     }
   }
 };
@@ -646,7 +649,7 @@ const updateTrayMenu = async () => {
     const stats = await getTrayStats();
     tray.setMenu(buildTrayMenu(stats));
   } catch (error) {
-    console.warn("[tray] Failed to update stats", error);
+    log.warn("tray", "Failed to update stats", error);
   }
 };
 
@@ -663,7 +666,7 @@ const updateTrayMenuQuick = async () => {
     const stats = await getTrayStatsQuick();
     tray.setMenu(buildTrayMenu(stats));
   } catch (error) {
-    console.warn("[tray] Failed to update stats (quick)", error);
+    log.warn("tray", "Failed to update stats (quick)", error);
   }
 };
 
@@ -793,11 +796,11 @@ const configureScheduler = (enabled: boolean) => {
   }
 
   if (!enabled) {
-    console.log("[scheduler] Disabled");
+    log.info("scheduler", "Disabled");
     return;
   }
 
-  console.log("[scheduler] Starting schedule checker (every 60s)");
+  log.info("scheduler", "Starting schedule checker (every 60s)");
 
   // Check schedules every minute
   schedulerIntervalId = setInterval(() => {
@@ -807,7 +810,7 @@ const configureScheduler = (enabled: boolean) => {
         yield* scheduler.checkSchedules();
       })
     ).catch((error) => {
-      console.warn("[scheduler] Check failed:", error);
+      log.warn("scheduler", "Check failed:", error);
     });
   }, 60_000);
 
@@ -817,11 +820,11 @@ const configureScheduler = (enabled: boolean) => {
       const scheduler = yield* SchedulerService;
       const missed = yield* scheduler.checkMissedSchedules();
       if (missed.length > 0) {
-        console.log(`[scheduler] Executed ${missed.length} missed schedule(s)`);
+        log.info("scheduler", `Executed ${missed.length} missed schedule(s)`);
       }
     })
   ).catch((error) => {
-    console.warn("[scheduler] Missed check failed:", error);
+    log.warn("scheduler", "Missed check failed:", error);
   });
 };
 
@@ -837,7 +840,7 @@ const configureUsageRefresh = (intervalMinutes = 5) => {
     usageIntervalId = null;
   }
 
-  console.log(`[usage] Starting usage refresh (every ${intervalMinutes}m)`);
+  log.info("usage", `Starting usage refresh (every ${intervalMinutes}m)`);
 
   usageIntervalId = setInterval(() => {
     void runEffect(
@@ -851,7 +854,7 @@ const configureUsageRefresh = (intervalMinutes = 5) => {
         void updateTrayMenu();
       })
       .catch((error) => {
-        console.warn("[usage] Refresh failed:", error);
+        log.warn("usage", "Refresh failed:", error);
       });
   }, intervalMinutes * 60_000);
 };
@@ -863,18 +866,18 @@ const rpc = BrowserView.defineRPC<UsageMonitorRPC>({
     messages: {
       log: ({ msg, level }) => {
         if (level === "warn") {
-          console.warn(`[webview] ${msg}`);
+          log.warn("webview", msg);
         } else if (level === "error") {
-          console.error(`[webview] ${msg}`);
+          log.error("webview", msg);
         } else {
-          console.info(`[webview] ${msg}`);
+          log.info("webview", msg);
         }
       },
 
       openExternal: ({ url }) => {
         // Only allow specific URL patterns
         if (!url.startsWith("https://")) {
-          console.warn(`[rpc] Rejected openExternal for non-HTTPS URL: ${url}`);
+          log.warn("rpc", `Rejected openExternal for non-HTTPS URL: ${url}`);
           return;
         }
 
@@ -892,14 +895,17 @@ const rpc = BrowserView.defineRPC<UsageMonitorRPC>({
             stdout: "ignore",
           });
         } catch (error) {
-          console.warn(`[rpc] Failed to open URL: ${url}`, error);
+          log.warn("rpc", `Failed to open URL: ${url}`, error);
         }
       },
     },
 
     requests: {
-      getDashboardData: async ({ filter }) => {
-        const dateFilter = parseDateFilter(filter);
+      getDashboardData: async ({ filter, harness }) => {
+        const dateFilter: DateFilter = {
+          ...parseDateFilter(filter),
+          harness,
+        };
         return runEffect(loadDashboardData(dateFilter));
       },
 
@@ -1011,6 +1017,11 @@ const rpc = BrowserView.defineRPC<UsageMonitorRPC>({
               fileReadCount: 0,
               fileWriteCount: 0,
               firstPrompt: session.displayName ?? "Session",
+              harness: (session.harness ?? "claude-code") as
+                | "claude-code"
+                | "codex"
+                | "opencode"
+                | "unknown",
               isSubagent: session.isSubagent ?? false,
               model: "claude-sonnet-4-5-20251022",
               modelShort: "Sonnet",
@@ -1281,7 +1292,7 @@ const toggleDarkMode = () => {
 const createTray = () => {
   const trayIconPath = resolveTrayIconPath();
   if (!trayIconPath) {
-    console.warn("[tray] Icon not found; creating tray without an image");
+    log.warn("tray", "Icon not found; creating tray without an image");
   }
 
   tray = new Tray({
@@ -1401,7 +1412,7 @@ const checkForUpdates = async (silent = true) => {
     if (result.updateAvailable) {
       updateAvailable = true;
       updateVersion = result.version;
-      console.log(`[update] Update available: ${result.version}`);
+      log.info("update", `Update available: ${result.version}`);
 
       // Refresh tray to show update indicator
       void updateTrayMenuQuick();
@@ -1421,7 +1432,7 @@ const checkForUpdates = async (silent = true) => {
     }
   } catch (error) {
     // Silently fail - updates are optional
-    console.warn("[update] Failed to check for updates:", error);
+    log.warn("update", "Failed to check for updates:", error);
   }
 };
 
@@ -1452,7 +1463,7 @@ const downloadAndApplyUpdate = async () => {
       });
     }
   } catch (error) {
-    console.error("[update] Failed to apply update:", error);
+    log.error("update", "Failed to apply update:", error);
     Utils.showNotification({
       body: "Failed to apply update. Please try again later.",
       title: "Update Failed",

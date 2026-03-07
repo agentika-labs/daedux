@@ -66,6 +66,9 @@ export const sessions = sqliteTable(
     // Ephemeral cache totals
     totalEphemeral5mTokens: integer("total_ephemeral_5m_tokens").default(0),
     totalEphemeral1hTokens: integer("total_ephemeral_1h_tokens").default(0),
+
+    // Harness identifier (parser source)
+    harness: text("harness").default("claude-code"),
   },
   (table) => [
     index("sessions_project_idx").on(table.projectPath),
@@ -74,6 +77,9 @@ export const sessions = sqliteTable(
     // Composite indexes for common filtered queries
     index("sessions_project_time_idx").on(table.projectPath, table.startTime),
     index("sessions_subagent_time_idx").on(table.isSubagent, table.startTime),
+    // Harness filtering
+    index("sessions_harness_idx").on(table.harness),
+    index("sessions_harness_time_idx").on(table.harness, table.startTime),
   ]
 );
 
