@@ -37,7 +37,9 @@ export class CodexParser implements HarnessParser {
    * Check if this parser can handle a file based on its path.
    */
   canHandle(filePath: string): boolean {
-    return filePath.includes("/.codex/sessions/") && filePath.endsWith(".jsonl");
+    return (
+      filePath.includes("/.codex/sessions/") && filePath.endsWith(".jsonl")
+    );
   }
 
   /**

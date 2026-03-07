@@ -1,25 +1,30 @@
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 
-import { Duration, Effect, Schedule, Schema } from "effect";
+import { Duration, Effect, Ref, Schedule, Schema } from "effect";
 
 import type {
   AnthropicUsage,
   AnthropicUsageWindow,
 } from "../../shared/rpc-types";
 import { AnthropicUsageError } from "../errors";
+import { debugLog } from "../utils/log";
 
-// ─── Concurrency Control ────────────────────────────────────────────────────
+// ─── Method Preference State ─────────────────────────────────────────────────
 //
-// Mutex to prevent concurrent CLI probes. Multiple getUsage() calls at startup
-// can race and overwrite the cache with stale/fallback data. Using a semaphore
-// with 1 permit ensures only one probe runs at a time - others wait and get
-// cached data.
-//
-// Created synchronously at module load - Effect.runSync is safe here since
-// makeSemaphore has no requirements (returns Effect<Semaphore, never, never>).
+// Tracks which method (OAuth API vs CLI) is currently working.
+// This avoids wasting requests on OAuth when it consistently fails.
 
-const cliProbeMutex = Effect.runSync(Effect.makeSemaphore(1));
+type UsageMethod = "oauth" | "cli" | "unknown";
+
+interface MethodState {
+  method: UsageMethod;
+  /** When the method was determined (for periodic recheck) */
+  determinedAt: number | null;
+}
+
+/** Recheck OAuth availability every 30 minutes */
+const METHOD_RECHECK_MS = 30 * 60_000;
 
 // ─── OAuth Response Schema ──────────────────────────────────────────────────
 
@@ -75,16 +80,8 @@ const KeychainCredentials = Schema.Struct({
 
 // ─── Cache Configuration ────────────────────────────────────────────────────
 
-/** Cache duration in milliseconds (30 seconds for API) */
-const CACHE_TTL_MS = 30_000;
-
-/** Cached usage data with timestamp */
-interface CachedUsage {
-  data: AnthropicUsage;
-  cachedAt: number;
-}
-
-let usageCache: CachedUsage | null = null;
+/** Cache duration for usage data (30 seconds) */
+const CACHE_TTL = Duration.seconds(30);
 
 // ─── Native PTY-Based CLI Probe ──────────────────────────────────────────────
 //
@@ -151,7 +148,7 @@ const parseUsageOutput = (output: string): AnthropicUsage => {
   // Combine and dedupe (dateTime patterns may overlap with time-only patterns)
   const allResetPatterns = [...new Set([...timePatterns, ...dateTimePatterns])];
 
-  console.log("[anthropic-usage] DEBUG - All patterns found:", {
+  debugLog("anthropic-usage", "All patterns found:", {
     dateTimePatterns,
     hasCurrentSession: clean.includes("Current session"),
     hasCurrentWeek: clean.includes("Current week"),
@@ -189,10 +186,7 @@ const parseUsageOutput = (output: string): AnthropicUsage => {
 
   if (allUsedPatterns.length >= 4) {
     // We have all 4 patterns - use positional extraction
-    console.log(
-      "[anthropic-usage] Using positional extraction from:",
-      allUsedPatterns
-    );
+    debugLog("anthropic-usage", "Using positional extraction from:", allUsedPatterns);
     sessionPct = extractPct(allUsedPatterns[0]!);
     weeklyPct = extractPct(allUsedPatterns[1]!);
     sonnetPct = extractPct(allUsedPatterns[2]!);
@@ -268,7 +262,7 @@ const parseUsageOutput = (output: string): AnthropicUsage => {
     source: "cli",
   };
 
-  console.log("[anthropic-usage] Parsed result:", {
+  debugLog("anthropic-usage", "Parsed result:", {
     extraSpending: extraSpendingMatch
       ? `$${extraSpendingMatch[1]}/$${extraSpendingMatch[2]}`
       : null,
@@ -438,8 +432,9 @@ const tryCliUsage = () =>
 
       // Check if claude is available before attempting to spawn
       if (!(await commandExists("claude"))) {
-        console.log(
-          "[anthropic-usage] claude not in PATH. PATH:",
+        debugLog(
+          "anthropic-usage",
+          "claude not in PATH. PATH:",
           process.env.PATH?.split(":").slice(0, 5).join(":"),
           "..."
         );
@@ -450,7 +445,7 @@ const tryCliUsage = () =>
       // The CLI searches parent directories for .mcp.json files - spawning in
       // an isolated temp directory prevents it from finding any project configs.
       const sandboxDir = mkdtempSync(`${tmpdir()}/claude-probe-`);
-      console.log("[anthropic-usage] Created sandbox directory:", sandboxDir);
+      debugLog("anthropic-usage", "Created sandbox directory:", sandboxDir);
 
       let output = "";
       let resolved = false;
@@ -462,9 +457,9 @@ const tryCliUsage = () =>
       const cleanupSandbox = () => {
         try {
           rmSync(sandboxDir, { force: true, recursive: true });
-          console.log("[anthropic-usage] Cleaned up sandbox directory");
+          debugLog("anthropic-usage", "Cleaned up sandbox directory");
         } catch (error) {
-          console.log("[anthropic-usage] Failed to cleanup sandbox:", error);
+          debugLog("anthropic-usage", "Failed to cleanup sandbox:", error);
         }
       };
 
@@ -485,7 +480,7 @@ const tryCliUsage = () =>
               .replaceAll(/[\u0000-\u0008\u000B\u000C\u000E-\u001A]/g, "");
 
             // DEBUG: Log state at timeout with CLEANED output
-            console.log("[anthropic-usage] TIMEOUT DEBUG:", {
+            debugLog("anthropic-usage", "TIMEOUT DEBUG:", {
               cleanedLength: cleanedForDebug.length,
               dataCallbackCount,
               hasCurrentSession: cleanedForDebug.includes("Current session"),
@@ -495,8 +490,9 @@ const tryCliUsage = () =>
               outputLength: output.length,
             });
             // Log first 1000 chars of cleaned output to see actual content
-            console.log(
-              "[anthropic-usage] CLEANED OUTPUT:",
+            debugLog(
+              "anthropic-usage",
+              "CLEANED OUTPUT:",
               cleanedForDebug.slice(0, 1000)
             );
             reject(new Error("CLI probe timed out after 10s"));
@@ -519,8 +515,9 @@ const tryCliUsage = () =>
               output += chunk;
 
               // DEBUG: Log each chunk received (first 100 chars, newlines escaped)
-              console.log(
-                `[anthropic-usage] PTY data #${dataCallbackCount}:`,
+              debugLog(
+                "anthropic-usage",
+                `PTY data #${dataCallbackCount}:`,
                 chunk
                   .slice(0, 100)
                   .replaceAll("\n", "\\n")
@@ -544,9 +541,7 @@ const tryCliUsage = () =>
                 (clean.includes("Continue without") ||
                   clean.includes("without using"))
               ) {
-                console.log(
-                  "[anthropic-usage] MCP prompt detected, bypassing..."
-                );
+                debugLog("anthropic-usage", "MCP prompt detected, bypassing...");
                 terminal.write("3\r"); // Select "Continue without using this MCP server"
                 return; // Wait for next data callback
               }
@@ -568,9 +563,7 @@ const tryCliUsage = () =>
                 clean.includes("Itrustthisfolder") && // "Yes, I trust this folder" without spaces
                 clean.includes("Entertoconfirm") // "Enter to confirm" without spaces
               ) {
-                console.log(
-                  "[anthropic-usage] Trust prompt detected, pressing Enter..."
-                );
+                debugLog("anthropic-usage", "Trust prompt detected, pressing Enter...");
                 output = ""; // Clear output buffer to prevent re-detection
                 terminal.write("\r"); // Press Enter to confirm pre-selected option 1
                 return; // Wait for next data callback
@@ -589,9 +582,7 @@ const tryCliUsage = () =>
                   clean.includes("security")) &&
                 !clean.includes("Claude Code v") // Not yet at REPL (no header)
               ) {
-                console.log(
-                  "[anthropic-usage] Permissions warning detected, selecting 'Yes, I accept'..."
-                );
+                debugLog("anthropic-usage", "Permissions warning detected, selecting 'Yes, I accept'...");
                 output = ""; // Clear buffer to prevent re-detection
                 // Use DOWN ARROW to select "Yes, I accept" (option 1 "No, exit" is pre-selected)
                 // The menu uses arrow-key navigation, not numbered input
@@ -599,9 +590,7 @@ const tryCliUsage = () =>
                 terminal.write("\u001B[B"); // DOWN ARROW
                 setTimeout(() => {
                   if (!resolved && proc.terminal) {
-                    console.log(
-                      "[anthropic-usage] Confirming permissions selection..."
-                    );
+                    debugLog("anthropic-usage", "Confirming permissions selection...");
                     proc.terminal.write("\r"); // Enter to confirm
                   }
                 }, 100); // 100ms delay for menu to register selection
@@ -632,21 +621,39 @@ const tryCliUsage = () =>
                 !inMcpPrompt &&
                 !inMenu
               ) {
-                console.log(
-                  "[anthropic-usage] REPL prompt detected, sending /usage..."
-                );
+                debugLog("anthropic-usage", "REPL prompt detected, sending /usage...");
                 usageCommandSent = true;
                 terminal.write("/usage\r");
                 // After a short delay, press Enter to select the menu item
                 setTimeout(() => {
                   if (!resolved && proc.terminal) {
-                    console.log(
-                      "[anthropic-usage] Pressing Enter to select menu item..."
-                    );
+                    debugLog("anthropic-usage", "Pressing Enter to select menu item...");
                     proc.terminal.write("\r");
                   }
                 }, 300);
                 return; // Wait for usage data
+              }
+
+              // Check for CLI-level errors (rate limits, API failures)
+              // The CLI outputs "Error: Failed to load usage data" when rate limited
+              const hasCliError =
+                (clean.includes("Error:") &&
+                  clean.includes("Failed to load")) ||
+                clean.includes("Rate limit") ||
+                clean.includes("rate limit");
+
+              if (hasCliError && usageCommandSent) {
+                debugLog("anthropic-usage", "CLI error detected (rate limited), exiting probe early");
+                if (!resolved) {
+                  resolved = true;
+                  clearTimeout(timeout);
+                  terminal.write("/exit\r");
+                  cleanupSandbox();
+                  reject(
+                    new Error("CLI rate limited - usage data unavailable")
+                  );
+                }
+                return;
               }
 
               // Check if we have the usage output panel
@@ -665,7 +672,7 @@ const tryCliUsage = () =>
               const hasUsageData = hasUsagePanel || hasPercentPattern;
 
               if (hasUsageData) {
-                console.log("[anthropic-usage] Usage data detected!", {
+                debugLog("anthropic-usage", "Usage data detected!", {
                   hasCurrentSession: clean.includes("Current session"),
                   hasEsc: clean.includes("Esc"),
                   hasPercentPattern,
@@ -697,16 +704,13 @@ const tryCliUsage = () =>
             },
             // DEBUG: Add exit callback to detect unexpected exits
             exit(_terminal, exitCode, signal) {
-              console.log("[anthropic-usage] PTY exit:", { exitCode, signal });
+              debugLog("anthropic-usage", "PTY exit:", { exitCode, signal });
             },
           },
         });
 
         // DEBUG: Check if terminal exists immediately after spawn
-        console.log(
-          "[anthropic-usage] PTY spawned, terminal exists:",
-          !!proc.terminal
-        );
+        debugLog("anthropic-usage", "PTY spawned, terminal exists:", !!proc.terminal);
 
         // NOTE: We no longer use a fixed timeout here. Instead, we detect
         // the REPL prompt (❯) in the data callback and send /usage then.
@@ -725,67 +729,208 @@ const tryCliUsageWithRetry = () =>
       Schedule.recurs(2).pipe(Schedule.addDelay(() => Duration.millis(500)))
     ),
     Effect.catchAll((err) => {
-      console.log("[anthropic-usage] CLI probe failed after retries:", err);
+      debugLog("anthropic-usage", "CLI probe failed after retries:", err);
       return Effect.succeed(null);
     })
   );
+
+/**
+ * Try OAuth API with method preference tracking.
+ * Updates the method ref based on success/failure.
+ */
+const tryOAuthAPIWithMethodTracking = (methodRef: Ref.Ref<MethodState>) =>
+  Effect.gen(function* () {
+    // Read credentials from Keychain
+    debugLog("anthropic-usage", "Reading credentials from Keychain...");
+    const credentials = yield* readKeychainCredentials().pipe(
+      Effect.catchAll((err) => {
+        debugLog("anthropic-usage", "Failed to read credentials:", err);
+        return Effect.succeed(null);
+      })
+    );
+
+    if (!credentials) {
+      return null;
+    }
+
+    debugLog(
+      "anthropic-usage",
+      "Credentials found, subscription:",
+      credentials.claudeAiOauth.subscriptionType
+    );
+
+    // Try to fetch usage from API
+    debugLog("anthropic-usage", "Trying OAuth API...");
+    const apiResult = yield* fetchUsageFromAPI(
+      credentials.claudeAiOauth.accessToken
+    ).pipe(
+      Effect.catchTag("AnthropicUsageError", (error) => {
+        debugLog(
+          "anthropic-usage",
+          "OAuth API error:",
+          error.reason,
+          error.message
+        );
+
+        // If OAuth is not supported or rate limited, switch to CLI mode
+        if (
+          error.reason === "not_supported" ||
+          error.message.includes("Rate limit")
+        ) {
+          debugLog("anthropic-usage", "OAuth API unavailable, switching to CLI-only mode");
+          return Ref.set(methodRef, {
+            method: "cli" as const,
+            determinedAt: Date.now(),
+          }).pipe(Effect.as(null));
+        }
+
+        // If token expired, try to refresh and retry
+        if (error.reason === "token_expired") {
+          return Effect.gen(function* () {
+            debugLog("anthropic-usage", "Token expired, attempting refresh...");
+            yield* refreshOAuthToken().pipe(Effect.catchAll(() => Effect.void));
+            // Re-read credentials (token may have changed)
+            const newCredentials = yield* readKeychainCredentials().pipe(
+              Effect.catchAll(() => Effect.succeed(null))
+            );
+            if (!newCredentials) {
+              return null;
+            }
+            return yield* fetchUsageFromAPI(
+              newCredentials.claudeAiOauth.accessToken
+            ).pipe(Effect.catchAll(() => Effect.succeed(null)));
+          });
+        }
+
+        // For other API errors, return null to trigger CLI fallback
+        return Effect.succeed(null);
+      }),
+      Effect.catchAll(() => Effect.succeed(null))
+    );
+
+    // If API succeeded, update method preference and return
+    if (apiResult) {
+      debugLog("anthropic-usage", "OAuth API succeeded!");
+      yield* Ref.set(methodRef, {
+        method: "oauth",
+        determinedAt: Date.now(),
+      });
+      const usage = transformUsageResponse(apiResult);
+      // Augment with subscription info from credentials
+      return {
+        ...usage,
+        subscription: {
+          expiresAt: credentials.claudeAiOauth.expiresAt ?? null,
+          rateLimitTier: credentials.claudeAiOauth.rateLimitTier ?? "unknown",
+          type: credentials.claudeAiOauth.subscriptionType ?? "unknown",
+        },
+      };
+    }
+
+    return null;
+  });
+
+/**
+ * Try CLI probe with method preference tracking.
+ * Updates the method ref to CLI on success.
+ */
+const tryCliUsageWithMethodTracking = (methodRef: Ref.Ref<MethodState>) =>
+  Effect.gen(function* () {
+    // Read credentials for subscription info
+    const credentials = yield* readKeychainCredentials().pipe(
+      Effect.catchAll(() => Effect.succeed(null))
+    );
+
+    debugLog("anthropic-usage", "Trying CLI probe via native PTY...");
+    const cliResult = yield* tryCliUsageWithRetry();
+
+    if (cliResult) {
+      debugLog("anthropic-usage", "CLI probe succeeded! Source:", cliResult.source);
+      yield* Ref.set(methodRef, {
+        method: "cli",
+        determinedAt: Date.now(),
+      });
+      // Augment CLI result with subscription info from credentials
+      return {
+        ...cliResult,
+        subscription: credentials
+          ? {
+              expiresAt: credentials.claudeAiOauth.expiresAt ?? null,
+              rateLimitTier:
+                credentials.claudeAiOauth.rateLimitTier ?? "unknown",
+              type: credentials.claudeAiOauth.subscriptionType ?? "unknown",
+            }
+          : undefined,
+      };
+    }
+
+    // Final fallback: credentials-only usage (no usage percentages, but subscription info)
+    if (credentials) {
+      debugLog("anthropic-usage", "Falling back to credentials-only (no percentages)");
+      return createCredentialsOnlyUsage(credentials);
+    }
+
+    return createUnavailableUsage();
+  });
 
 // ─── Service Definition ──────────────────────────────────────────────────────
 
 /**
  * AnthropicUsageService provides Anthropic API usage data.
  * Uses OAuth API with CLI fallback, caches results for 30s.
+ *
+ * Key behaviors:
+ * - Learns which method works (OAuth vs CLI) and skips failing methods
+ * - Periodically rechecks OAuth availability (every 30 minutes)
+ * - Concurrent requests share the same computation (Effect's built-in cache)
  */
 export class AnthropicUsageService extends Effect.Service<AnthropicUsageService>()(
   "AnthropicUsageService",
   {
-    succeed: {
-      clearCache: () =>
-        Effect.sync(() => {
-          usageCache = null;
-        }),
+    scoped: Effect.gen(function* () {
+      // State: which method to use (oauth vs cli)
+      const methodRef = yield* Ref.make<MethodState>({
+        method: "unknown",
+        determinedAt: null,
+      });
 
-      getUsage: () =>
-        // Acquire permit - only one caller proceeds, others wait
-        cliProbeMutex.withPermits(1)(
-          Effect.gen(function* () {
-            // Check cache INSIDE mutex to avoid thundering herd
-            // (concurrent callers wait here, then get cached data)
-            const now = Date.now();
-            const cached = usageCache as CachedUsage | null;
-            if (cached && now - cached.cachedAt < CACHE_TTL_MS) {
-              return cached.data;
-            }
+      // Core fetch logic that respects method preference
+      const fetchUsage = Effect.gen(function* () {
+        const state = yield* Ref.get(methodRef);
+        const now = Date.now();
 
-            // Try OAuth API, fall back to unavailable on any error
-            const usage = yield* tryOAuthAPI().pipe(
-              Effect.catchAll(() => Effect.succeed(createUnavailableUsage()))
-            );
+        // Determine if we should try OAuth
+        const shouldTryOAuth =
+          state.method === "unknown" ||
+          state.method === "oauth" ||
+          (state.determinedAt !== null &&
+            now - state.determinedAt > METHOD_RECHECK_MS);
 
-            // Update cache (safe - we hold the mutex)
-            usageCache = { cachedAt: now, data: usage };
+        if (shouldTryOAuth) {
+          const result = yield* tryOAuthAPIWithMethodTracking(methodRef);
+          if (result) {
+            return result;
+          }
+        } else {
+          debugLog("anthropic-usage", "Skipping OAuth (CLI preferred), using CLI directly");
+        }
 
-            return usage;
-          })
-        ),
+        // CLI probe fallback
+        return yield* tryCliUsageWithMethodTracking(methodRef);
+      }).pipe(Effect.catchAll(() => Effect.succeed(createUnavailableUsage())));
 
-      refreshUsage: () =>
-        // Acquire permit for refresh (serialized with getUsage)
-        cliProbeMutex.withPermits(1)(
-          Effect.gen(function* () {
-            // Clear cache and fetch fresh data
-            usageCache = null;
+      // Cached version with TTL and manual invalidation
+      const [cachedFetch, invalidate] = yield* Effect.cachedInvalidateWithTTL(
+        fetchUsage,
+        CACHE_TTL
+      );
 
-            const usage = yield* tryOAuthAPI().pipe(
-              Effect.catchAll(() => Effect.succeed(createUnavailableUsage()))
-            );
-
-            usageCache = { cachedAt: Date.now(), data: usage };
-
-            return usage;
-          })
-        ),
-    },
+      return {
+        getUsage: () => cachedFetch,
+        refreshUsage: () => invalidate.pipe(Effect.andThen(cachedFetch)),
+        clearCache: () => invalidate,
+      } as const;
+    }),
   }
 ) {}
 
@@ -919,9 +1064,7 @@ const fetchUsageFromAPI = (accessToken: string) =>
         // Check if OAuth is not supported (different from token expiry)
         if (errorMessage.includes("not supported")) {
           reason = "not_supported";
-          console.log(
-            "[anthropic-usage] OAuth API not supported by Anthropic yet"
-          );
+          debugLog("anthropic-usage", "OAuth API not supported by Anthropic yet");
         } else if (response.status === 401) {
           reason = "token_expired";
         }
@@ -1041,125 +1184,6 @@ const refreshOAuthToken = () =>
     yield* Effect.promise(
       () => new Promise((resolve) => setTimeout(resolve, 500))
     );
-  });
-
-/**
- * Full usage fetch strategy with fallback chain:
- * 1. OAuth API (instant, if/when Anthropic enables it)
- * 2. CLI /usage via expect (~3-5s, parses TUI output)
- * 3. Credentials metadata (instant, shows subscription tier only)
- */
-const tryOAuthAPI = () =>
-  Effect.gen(function* tryOAuthAPI() {
-    // Read credentials from Keychain
-    console.log("[anthropic-usage] Reading credentials from Keychain...");
-    const credentials = yield* readKeychainCredentials();
-    console.log(
-      "[anthropic-usage] Credentials found, subscription:",
-      credentials.claudeAiOauth.subscriptionType
-    );
-
-    // Try to fetch usage from API
-    console.log("[anthropic-usage] Trying OAuth API...");
-    const apiResult = yield* fetchUsageFromAPI(
-      credentials.claudeAiOauth.accessToken
-    ).pipe(
-      Effect.catchTag("AnthropicUsageError", (error) => {
-        console.log(
-          "[anthropic-usage] OAuth API error:",
-          error.reason,
-          error.message
-        );
-
-        // If OAuth is not supported yet, skip directly to CLI probe (no retry)
-        if (error.reason === "not_supported") {
-          console.log(
-            "[anthropic-usage] OAuth API not available yet, skipping to CLI probe"
-          );
-          return Effect.succeed(null);
-        }
-
-        // If token expired, try to refresh and retry
-        if (error.reason === "token_expired") {
-          return Effect.gen(function* apiResult() {
-            console.log(
-              "[anthropic-usage] Token expired, attempting refresh..."
-            );
-            yield* refreshOAuthToken();
-            // Re-read credentials (token may have changed)
-            const newCredentials = yield* readKeychainCredentials();
-            return yield* fetchUsageFromAPI(
-              newCredentials.claudeAiOauth.accessToken
-            );
-          });
-        }
-
-        // For other API errors, we'll fall back to CLI probe
-        return Effect.fail(error);
-      }),
-      // If API fails, return null to signal fallback
-      Effect.catchAll((err) => {
-        console.log(
-          "[anthropic-usage] OAuth API failed, will try CLI probe. Error:",
-          err
-        );
-        return Effect.succeed(null);
-      })
-    );
-
-    // If API succeeded, transform and return
-    if (apiResult) {
-      console.log("[anthropic-usage] OAuth API succeeded!");
-      const usage = transformUsageResponse(apiResult);
-      // Augment with subscription info from credentials
-      return {
-        ...usage,
-        subscription: {
-          expiresAt: credentials.claudeAiOauth.expiresAt ?? null,
-          rateLimitTier: credentials.claudeAiOauth.rateLimitTier ?? "unknown",
-          type: credentials.claudeAiOauth.subscriptionType ?? "unknown",
-        },
-      };
-    }
-
-    // Fallback to CLI /usage probe with retry
-    console.log("[anthropic-usage] Trying CLI probe via native PTY...");
-    const cliResult = yield* tryCliUsageWithRetry();
-
-    if (cliResult) {
-      console.log(
-        "[anthropic-usage] CLI probe succeeded! Source:",
-        cliResult.source
-      );
-      console.log(
-        "[anthropic-usage] Usage data:",
-        JSON.stringify(
-          {
-            opus: cliResult.opus,
-            session: cliResult.session,
-            sonnet: cliResult.sonnet,
-            weekly: cliResult.weekly,
-          },
-          null,
-          2
-        )
-      );
-      // Augment CLI result with subscription info from credentials
-      return {
-        ...cliResult,
-        subscription: {
-          expiresAt: credentials.claudeAiOauth.expiresAt ?? null,
-          rateLimitTier: credentials.claudeAiOauth.rateLimitTier ?? "unknown",
-          type: credentials.claudeAiOauth.subscriptionType ?? "unknown",
-        },
-      };
-    }
-
-    // Final fallback: credentials-only usage (no usage percentages, but subscription info)
-    console.log(
-      "[anthropic-usage] Falling back to credentials-only (no percentages)"
-    );
-    return createCredentialsOnlyUsage(credentials);
   });
 
 /** @deprecated Use AnthropicUsageService.Default instead */

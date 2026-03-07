@@ -7,6 +7,7 @@ import { DatabaseError } from "../errors";
 import type { DateFilter } from "./shared";
 import {
   buildDateConditions,
+  buildHarnessConditions,
   sessionsTable,
   sessionJoinOn,
   withDateFilter,
@@ -116,6 +117,8 @@ export class AgentAnalyticsService extends Effect.Service<AgentAnalyticsService>
               new DatabaseError({ cause: error, operation: "getSkillROI" }),
             try: async () => {
               const dateConditions = buildDateConditions(dateFilter);
+              const harnessConditions = buildHarnessConditions(dateFilter);
+              const allConditions = [...dateConditions, ...harnessConditions];
 
               // Get skill invocation counts
               const result = await db
@@ -136,7 +139,7 @@ export class AgentAnalyticsService extends Effect.Service<AgentAnalyticsService>
                   )
                 )
                 .where(
-                  dateConditions.length > 0 ? and(...dateConditions) : undefined
+                  allConditions.length > 0 ? and(...allConditions) : undefined
                 )
                 .groupBy(schema.skillInvocations.skillName)
                 .orderBy(desc(count()));
@@ -144,7 +147,7 @@ export class AgentAnalyticsService extends Effect.Service<AgentAnalyticsService>
               // FIX: Get actual Skill tool success rates from tool_uses table
               // This measures whether the Skill tool execution succeeded (not session completion)
               const skillToolErrorsResult =
-                dateConditions.length === 0
+                allConditions.length === 0
                   ? await db
                       .select({
                         errorCalls:
@@ -193,7 +196,7 @@ export class AgentAnalyticsService extends Effect.Service<AgentAnalyticsService>
                           schema.sessions.sessionId
                         )
                       )
-                      .where(and(...dateConditions))
+                      .where(and(...allConditions))
                       .groupBy(schema.skillInvocations.skillName);
 
               // Build error rate map: skillName -> successRate (0-1)
@@ -226,7 +229,7 @@ export class AgentAnalyticsService extends Effect.Service<AgentAnalyticsService>
                   )
                 )
                 .where(
-                  dateConditions.length > 0 ? and(...dateConditions) : undefined
+                  allConditions.length > 0 ? and(...allConditions) : undefined
                 )
                 .groupBy(
                   schema.skillInvocations.skillName,
@@ -256,7 +259,7 @@ export class AgentAnalyticsService extends Effect.Service<AgentAnalyticsService>
 
               // Get tool use counts per skill (separate query for cleaner SQL)
               let toolCountsResult;
-              if (dateConditions.length === 0) {
+              if (allConditions.length === 0) {
                 toolCountsResult = await db
                   .select({
                     skillName: schema.skillInvocations.skillName,
@@ -298,7 +301,7 @@ export class AgentAnalyticsService extends Effect.Service<AgentAnalyticsService>
                       schema.sessions.sessionId
                     )
                   )
-                  .where(and(...dateConditions))
+                  .where(and(...allConditions))
                   .groupBy(schema.skillInvocations.skillName);
               }
 
@@ -390,9 +393,11 @@ export class AgentAnalyticsService extends Effect.Service<AgentAnalyticsService>
               new DatabaseError({ cause: error, operation: "getAgentStats" }),
             try: async () => {
               const dateConditions = buildDateConditions(dateFilter);
+              const harnessConditions = buildHarnessConditions(dateFilter);
+              const allConditions = [...dateConditions, ...harnessConditions];
 
               const result = await withDateFilter(
-                dateConditions,
+                allConditions,
                 () =>
                   db
                     .select({
@@ -418,7 +423,7 @@ export class AgentAnalyticsService extends Effect.Service<AgentAnalyticsService>
                     })
                     .from(schema.agentSpawns)
                     .innerJoin(sessionsTable, sessionJoinOn(schema.agentSpawns))
-                    .where(and(...dateConditions))
+                    .where(and(...allConditions))
                     .groupBy(schema.agentSpawns.agentType)
                     .orderBy(desc(count()))
               );
@@ -438,10 +443,12 @@ export class AgentAnalyticsService extends Effect.Service<AgentAnalyticsService>
               new DatabaseError({ cause: error, operation: "getAgentROI" }),
             try: async () => {
               const dateConditions = buildDateConditions(dateFilter);
+              const harnessConditions = buildHarnessConditions(dateFilter);
+              const allConditions = [...dateConditions, ...harnessConditions];
 
               // Count spawns directly from agent_spawns rows (no tool join).
               const spawnRows =
-                dateConditions.length === 0
+                allConditions.length === 0
                   ? await db
                       .select({
                         agentType: schema.agentSpawns.agentType,
@@ -461,7 +468,7 @@ export class AgentAnalyticsService extends Effect.Service<AgentAnalyticsService>
                           schema.sessions.sessionId
                         )
                       )
-                      .where(and(...dateConditions));
+                      .where(and(...allConditions));
 
               const spawnsByAgent = new Map<string, number>();
               const agentSessions = new Map<string, Set<string>>();
@@ -479,7 +486,7 @@ export class AgentAnalyticsService extends Effect.Service<AgentAnalyticsService>
 
               // Compute tool stats by session once, then attribute to agent types via unique sessions.
               const toolStatsBySessionRows =
-                dateConditions.length === 0
+                allConditions.length === 0
                   ? await db
                       .select({
                         errors:
@@ -505,7 +512,7 @@ export class AgentAnalyticsService extends Effect.Service<AgentAnalyticsService>
                         schema.sessions,
                         eq(schema.toolUses.sessionId, schema.sessions.sessionId)
                       )
-                      .where(and(...dateConditions))
+                      .where(and(...allConditions))
                       .groupBy(schema.toolUses.sessionId);
 
               const toolStatsBySession = new Map<
@@ -521,7 +528,7 @@ export class AgentAnalyticsService extends Effect.Service<AgentAnalyticsService>
 
               // Get total subagent cost for cost allocation (respect date filter)
               const subagentCostResult =
-                dateConditions.length === 0
+                allConditions.length === 0
                   ? await db
                       .select({
                         totalCost:
@@ -542,7 +549,7 @@ export class AgentAnalyticsService extends Effect.Service<AgentAnalyticsService>
                       .where(
                         and(
                           eq(schema.sessions.isSubagent, true),
-                          ...dateConditions
+                          ...allConditions
                         )
                       );
 
@@ -678,9 +685,11 @@ export class AgentAnalyticsService extends Effect.Service<AgentAnalyticsService>
               }),
             try: async () => {
               const dateConditions = buildDateConditions(dateFilter);
+              const harnessConditions = buildHarnessConditions(dateFilter);
+              const allConditions = [...dateConditions, ...harnessConditions];
 
               const result = await withDateFilter(
-                dateConditions,
+                allConditions,
                 () =>
                   db
                     .select({
@@ -697,7 +706,7 @@ export class AgentAnalyticsService extends Effect.Service<AgentAnalyticsService>
                     })
                     .from(schema.agentSpawns)
                     .innerJoin(sessionsTable, sessionJoinOn(schema.agentSpawns))
-                    .where(and(...dateConditions))
+                    .where(and(...allConditions))
                     .groupBy(schema.agentSpawns.sessionId)
               );
 
@@ -715,6 +724,8 @@ export class AgentAnalyticsService extends Effect.Service<AgentAnalyticsService>
               new DatabaseError({ cause: error, operation: "getHookStats" }),
             try: async () => {
               const dateConditions = buildDateConditions(dateFilter);
+              const harnessConditions = buildHarnessConditions(dateFilter);
+              const allConditions = [...dateConditions, ...harnessConditions];
 
               const baseQuery = db
                 .select({
@@ -730,7 +741,7 @@ export class AgentAnalyticsService extends Effect.Service<AgentAnalyticsService>
                 .from(schema.hookEvents);
 
               const result =
-                dateConditions.length === 0
+                allConditions.length === 0
                   ? await baseQuery
                       .groupBy(
                         schema.hookEvents.hookName,
@@ -745,7 +756,7 @@ export class AgentAnalyticsService extends Effect.Service<AgentAnalyticsService>
                           schema.sessions.sessionId
                         )
                       )
-                      .where(and(...dateConditions))
+                      .where(and(...allConditions))
                       .groupBy(
                         schema.hookEvents.hookName,
                         schema.hookEvents.hookType
@@ -768,9 +779,11 @@ export class AgentAnalyticsService extends Effect.Service<AgentAnalyticsService>
               new DatabaseError({ cause: error, operation: "getCommandStats" }),
             try: async () => {
               const dateConditions = buildDateConditions(dateFilter);
+              const harnessConditions = buildHarnessConditions(dateFilter);
+              const allConditions = [...dateConditions, ...harnessConditions];
 
               const result = await withDateFilter(
-                dateConditions,
+                allConditions,
                 () =>
                   db
                     .select({
@@ -791,7 +804,7 @@ export class AgentAnalyticsService extends Effect.Service<AgentAnalyticsService>
                       sessionsTable,
                       sessionJoinOn(schema.slashCommands)
                     )
-                    .where(and(...dateConditions))
+                    .where(and(...allConditions))
                     .groupBy(schema.slashCommands.command)
                     .orderBy(desc(count()))
               );
@@ -813,10 +826,12 @@ export class AgentAnalyticsService extends Effect.Service<AgentAnalyticsService>
               }),
             try: async () => {
               const dateConditions = buildDateConditions(dateFilter);
+              const harnessConditions = buildHarnessConditions(dateFilter);
+              const allConditions = [...dateConditions, ...harnessConditions];
 
               // Get all session IDs that used skills
               const skillSessionsResult =
-                dateConditions.length === 0
+                allConditions.length === 0
                   ? await db
                       .selectDistinct({
                         sessionId: schema.skillInvocations.sessionId,
@@ -834,7 +849,7 @@ export class AgentAnalyticsService extends Effect.Service<AgentAnalyticsService>
                           schema.sessions.sessionId
                         )
                       )
-                      .where(and(...dateConditions));
+                      .where(and(...allConditions));
 
               const skillSessionSet = new Set(
                 skillSessionsResult.map((r) => r.sessionId)
@@ -846,7 +861,7 @@ export class AgentAnalyticsService extends Effect.Service<AgentAnalyticsService>
 
               // Get all sessions with their metrics
               const allSessions =
-                dateConditions.length === 0
+                allConditions.length === 0
                   ? await db
                       .select({
                         endTime: schema.sessions.endTime,
@@ -873,13 +888,13 @@ export class AgentAnalyticsService extends Effect.Service<AgentAnalyticsService>
                       .where(
                         and(
                           eq(schema.sessions.isSubagent, false),
-                          ...dateConditions
+                          ...allConditions
                         )
                       );
 
               // Get tool errors per session
               const toolErrorsResult =
-                dateConditions.length === 0
+                allConditions.length === 0
                   ? await db
                       .select({
                         errors:
@@ -905,7 +920,7 @@ export class AgentAnalyticsService extends Effect.Service<AgentAnalyticsService>
                         schema.sessions,
                         eq(schema.toolUses.sessionId, schema.sessions.sessionId)
                       )
-                      .where(and(...dateConditions))
+                      .where(and(...allConditions))
                       .groupBy(schema.toolUses.sessionId);
 
               const toolErrorMap = new Map(

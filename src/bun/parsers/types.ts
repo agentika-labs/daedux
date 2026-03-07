@@ -1,10 +1,9 @@
 import type { Effect } from "effect";
 
-import type * as schema from "../db/schema";
-import type { FileSystemError, ParseError } from "../errors";
-
 // Import and re-export HarnessId from shared types (single source of truth)
 import type { HarnessId } from "../../shared/rpc-types";
+import type * as schema from "../db/schema";
+import type { FileSystemError, ParseError } from "../errors";
 export type { HarnessId };
 
 // ─── Session File Discovery ──────────────────────────────────────────────────

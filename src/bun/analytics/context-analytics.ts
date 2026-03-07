@@ -8,6 +8,7 @@ import { DatabaseError } from "../errors";
 import type { DateFilter } from "./shared";
 import {
   buildDateConditions,
+  buildHarnessConditions,
   sessionsTable,
   sessionJoinOn,
   withDateFilter,
@@ -72,7 +73,10 @@ export class ContextAnalyticsService extends Effect.Service<ContextAnalyticsServ
                 operation: "getCacheEfficiencyCurve",
               }),
             try: async () => {
-              const conditions: SQL[] = [...buildDateConditions(dateFilter)];
+              const conditions: SQL[] = [
+                ...buildDateConditions(dateFilter),
+                ...buildHarnessConditions(dateFilter),
+              ];
               if (projectPath) {
                 conditions.push(eq(schema.sessions.projectPath, projectPath));
               }
@@ -137,7 +141,10 @@ export class ContextAnalyticsService extends Effect.Service<ContextAnalyticsServ
                 operation: "getCompactionAnalysis",
               }),
             try: async () => {
-              const conditions: SQL[] = [...buildDateConditions(dateFilter)];
+              const conditions: SQL[] = [
+                ...buildDateConditions(dateFilter),
+                ...buildHarnessConditions(dateFilter),
+              ];
               if (projectPath) {
                 conditions.push(eq(schema.sessions.projectPath, projectPath));
               }
@@ -179,7 +186,10 @@ export class ContextAnalyticsService extends Effect.Service<ContextAnalyticsServ
                 operation: "getContextHeatmap",
               }),
             try: async () => {
-              const conditions: SQL[] = [...buildDateConditions(dateFilter)];
+              const conditions: SQL[] = [
+                ...buildDateConditions(dateFilter),
+                ...buildHarnessConditions(dateFilter),
+              ];
               if (projectPath) {
                 conditions.push(eq(schema.sessions.projectPath, projectPath));
               }
@@ -273,7 +283,10 @@ export class ContextAnalyticsService extends Effect.Service<ContextAnalyticsServ
                 operation: "getContextPeakDistribution",
               }),
             try: async () => {
-              const conditions: SQL[] = [...buildDateConditions(dateFilter)];
+              const conditions: SQL[] = [
+                ...buildDateConditions(dateFilter),
+                ...buildHarnessConditions(dateFilter),
+              ];
               if (projectPath) {
                 conditions.push(eq(schema.sessions.projectPath, projectPath));
               }
@@ -341,7 +354,7 @@ export class ContextAnalyticsService extends Effect.Service<ContextAnalyticsServ
                 operation: "getContextWindowFill",
               }),
             try: async () => {
-              // Build WHERE clause for date/project filtering
+              // Build WHERE clause for date/project/harness filtering
               const dateConditions = buildDateConditions(dateFilter);
               const whereFragments: string[] = [
                 "s.is_subagent = 0",
@@ -355,6 +368,21 @@ export class ContextAnalyticsService extends Effect.Service<ContextAnalyticsServ
                 }
                 if (dateFilter.endTime) {
                   whereFragments.push(`s.start_time <= ${dateFilter.endTime}`);
+                }
+              }
+              // Add harness filter
+              if (dateFilter.harness) {
+                if (Array.isArray(dateFilter.harness)) {
+                  if (dateFilter.harness.length > 0) {
+                    const escaped = dateFilter.harness
+                      .map((h) => `'${h.replaceAll("'", "''")}'`)
+                      .join(", ");
+                    whereFragments.push(`s.harness IN (${escaped})`);
+                  }
+                } else {
+                  whereFragments.push(
+                    `s.harness = '${dateFilter.harness.replaceAll("'", "''")}'`
+                  );
                 }
               }
               if (projectPath) {

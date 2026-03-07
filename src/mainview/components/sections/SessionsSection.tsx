@@ -11,6 +11,7 @@ import type {
   SessionSummary,
   ProjectSummary,
 } from "@shared/rpc-types";
+import { HARNESS_LABELS } from "@shared/rpc-types";
 
 // ─── Stable Empty Arrays (prevent useMemo dep changes on rerenders) ──────────
 const EMPTY_SESSIONS: SessionSummary[] = [];
@@ -278,6 +279,17 @@ export function SessionsSection({ data, loading }: SessionsSectionProps) {
         ),
         id: "cost",
         meta: { align: "right" },
+      },
+      {
+        accessorKey: "harness",
+        cell: ({ row }) => (
+          <Badge variant="outline" className="text-xs">
+            {HARNESS_LABELS[row.original.harness]}
+          </Badge>
+        ),
+        enableSorting: false,
+        header: "Agent",
+        id: "agent",
       },
       {
         cell: () => (
@@ -576,6 +588,18 @@ function SessionDetail({ session }: { session: SessionRow }) {
           label="Cost"
           value={formatCurrency(session.totalCost)}
         />
+      </div>
+
+      {/* Session Info */}
+      <div className="space-y-3">
+        <h4 className="text-sm font-medium">Session Info</h4>
+        <div className="grid grid-cols-2 gap-3 text-sm">
+          <MetricRow label="Agent" value={HARNESS_LABELS[session.harness]} />
+          <MetricRow
+            label="Model"
+            value={session.modelShort || session.model}
+          />
+        </div>
       </div>
 
       {/* Metrics */}

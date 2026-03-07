@@ -75,7 +75,9 @@ export class ClaudeCodeParser implements HarnessParser {
    * Discover all Claude Code session files.
    * Delegates to the discovery module.
    */
-  discoverSessions(basePath?: string): Effect.Effect<SessionFileInfo[], FileSystemError> {
+  discoverSessions(
+    basePath?: string
+  ): Effect.Effect<SessionFileInfo[], FileSystemError> {
     return discoverClaudeCodeSessions(basePath);
   }
 
@@ -84,14 +86,18 @@ export class ClaudeCodeParser implements HarnessParser {
    * Claude Code files are in ~/.claude/projects/
    */
   canHandle(filePath: string): boolean {
-    return filePath.includes("/.claude/projects/") && filePath.endsWith(".jsonl");
+    return (
+      filePath.includes("/.claude/projects/") && filePath.endsWith(".jsonl")
+    );
   }
 
   /**
    * Parse a Claude Code session file into database records.
    * Single-pass streaming parser that builds all records efficiently.
    */
-  parseSession(input: ParserInput): Effect.Effect<ParsedRecords | null, ParseError> {
+  parseSession(
+    input: ParserInput
+  ): Effect.Effect<ParsedRecords | null, ParseError> {
     return Effect.gen(function* parseSession() {
       // Stream lines from file (memory efficient - no full file load)
       const lines = yield* Effect.tryPromise({
@@ -253,7 +259,8 @@ export class ClaudeCodeParser implements HarnessParser {
 
           const hasTextBlock = content.some((b) => b.type === "text");
           const hasOnlyToolResults =
-            content.length > 0 && content.every((b) => b.type === "tool_result");
+            content.length > 0 &&
+            content.every((b) => b.type === "tool_result");
 
           if (hasTextBlock && !hasOnlyToolResults) {
             const preview = extractPreview(content);
@@ -380,9 +387,13 @@ export class ClaudeCodeParser implements HarnessParser {
             if (block.type === "tool_use") {
               const apiToolId = block.id as string;
               const toolName = block.name as string;
-              const toolInput = block.input as Record<string, unknown> | undefined;
+              const toolInput = block.input as
+                | Record<string, unknown>
+                | undefined;
 
-              const caller = block.caller as Record<string, unknown> | undefined;
+              const caller = block.caller as
+                | Record<string, unknown>
+                | undefined;
               const callerType = (caller?.type as string) ?? null;
 
               const globalToolId = `${input.sessionId}:${apiToolId}`;
@@ -431,7 +442,9 @@ export class ClaudeCodeParser implements HarnessParser {
 
               if (toolName === "Skill" && toolInput?.skill) {
                 skillInvocations.push({
-                  args: toolInput.args ? String(toolInput.args).slice(0, 500) : null,
+                  args: toolInput.args
+                    ? String(toolInput.args).slice(0, 500)
+                    : null,
                   queryIndex,
                   sessionId: input.sessionId,
                   skillName: String(toolInput.skill),

@@ -7,6 +7,7 @@ import { DatabaseError } from "../errors";
 import type { DateFilter } from "./shared";
 import {
   buildDateConditions,
+  buildHarnessConditions,
   sessionsTable,
   sessionJoinOn,
   withDateFilter,
@@ -50,9 +51,11 @@ export class FileAnalyticsService extends Effect.Service<FileAnalyticsService>()
               new DatabaseError({ cause: error, operation: "getFileActivity" }),
             try: async () => {
               const dateConditions = buildDateConditions(dateFilter);
+              const harnessConditions = buildHarnessConditions(dateFilter);
+              const allConditions = [...dateConditions, ...harnessConditions];
 
               const result = await withDateFilter(
-                dateConditions,
+                allConditions,
                 () =>
                   db
                     .select({
@@ -100,7 +103,7 @@ export class FileAnalyticsService extends Effect.Service<FileAnalyticsService>()
                       sessionsTable,
                       sessionJoinOn(schema.fileOperations)
                     )
-                    .where(and(...dateConditions))
+                    .where(and(...allConditions))
                     .groupBy(schema.fileOperations.filePath)
                     .orderBy(desc(count()))
                     .limit(limit)
@@ -126,11 +129,13 @@ export class FileAnalyticsService extends Effect.Service<FileAnalyticsService>()
               }),
             try: async () => {
               const dateConditions = buildDateConditions(dateFilter);
+              const harnessConditions = buildHarnessConditions(dateFilter);
+              const allConditions = [...dateConditions, ...harnessConditions];
               const extensionNotEmpty = sql`${schema.fileOperations.fileExtension} IS NOT NULL AND ${schema.fileOperations.fileExtension} != ''`;
 
               // Limit to top 100 extensions to avoid unbounded result sets
               const result = await withDateFilter(
-                dateConditions,
+                allConditions,
                 () =>
                   db
                     .select({
@@ -153,7 +158,7 @@ export class FileAnalyticsService extends Effect.Service<FileAnalyticsService>()
                       sessionsTable,
                       sessionJoinOn(schema.fileOperations)
                     )
-                    .where(and(extensionNotEmpty, ...dateConditions))
+                    .where(and(extensionNotEmpty, ...allConditions))
                     .groupBy(schema.fileOperations.fileExtension)
                     .orderBy(desc(count()))
                     .limit(100)
@@ -177,12 +182,14 @@ export class FileAnalyticsService extends Effect.Service<FileAnalyticsService>()
               }),
             try: async () => {
               const dateConditions = buildDateConditions(dateFilter);
+              const harnessConditions = buildHarnessConditions(dateFilter);
+              const allConditions = [...dateConditions, ...harnessConditions];
               const operationCondition = sql`${schema.fileOperations.operation} IN ('read', 'write', 'edit')`;
 
               // Defensive limit to avoid memory issues with large datasets
               const MAX_FILE_OPS = 100_000;
               const result = await withDateFilter(
-                dateConditions,
+                allConditions,
                 () =>
                   db
                     .select({
@@ -207,7 +214,7 @@ export class FileAnalyticsService extends Effect.Service<FileAnalyticsService>()
                       sessionsTable,
                       sessionJoinOn(schema.fileOperations)
                     )
-                    .where(and(operationCondition, ...dateConditions))
+                    .where(and(operationCondition, ...allConditions))
                     .limit(MAX_FILE_OPS)
               );
 

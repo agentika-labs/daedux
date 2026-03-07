@@ -1,4 +1,4 @@
-import { Layer } from "effect";
+import { Layer, Logger, LogLevel } from "effect";
 
 import { AllAnalyticsServicesLive } from "./analytics/index";
 import { DatabaseService } from "./db";
@@ -6,6 +6,13 @@ import { ParserRegistry } from "./parsers";
 import { AnthropicUsageService } from "./services/anthropic-usage";
 import { SchedulerService } from "./services/scheduler";
 import { SyncService } from "./sync";
+
+// Configure log level based on environment
+// When DAEDUX_DEBUG=1, show Debug logs; otherwise only Info and above
+const LoggerLive =
+  process.env.DAEDUX_DEBUG === "1"
+    ? Logger.minimumLogLevel(LogLevel.Debug)
+    : Logger.minimumLogLevel(LogLevel.Info);
 
 // ─── Composed Application Layer ─────────────────────────────────────────────
 
@@ -25,5 +32,6 @@ export const AppLive = Layer.mergeAll(
   AnthropicUsageService.Default
 ).pipe(
   Layer.provideMerge(ParserRegistry.Default),
-  Layer.provideMerge(DatabaseService.Default)
+  Layer.provideMerge(DatabaseService.Default),
+  Layer.provideMerge(LoggerLive)
 );

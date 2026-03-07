@@ -19,8 +19,9 @@ import {
   FIX_SUGGESTIONS,
   getFixSuggestions,
 } from "../utils/error-patterns";
+import { debugLog } from "../utils/log";
 import type { DateFilter } from "./shared";
-import { buildComparisonWindows } from "./shared";
+import { buildComparisonWindows, buildHarnessConditions } from "./shared";
 
 export type InsightActionTarget =
   | "overview"
@@ -126,6 +127,7 @@ export class InsightsAnalyticsService extends Effect.Service<InsightsAnalyticsSe
               const insights: Insight[] = [];
               const { currentStart, currentEnd, previousStart, previousEnd } =
                 buildComparisonWindows(dateFilter);
+              const harnessConditions = buildHarnessConditions(dateFilter);
 
               // Get this week's metrics
               const thisWeekResult = await db
@@ -163,7 +165,8 @@ export class InsightsAnalyticsService extends Effect.Service<InsightsAnalyticsSe
                 .where(
                   and(
                     gte(schema.sessions.startTime, currentStart),
-                    lte(schema.sessions.startTime, currentEnd)
+                    lte(schema.sessions.startTime, currentEnd),
+                    ...harnessConditions
                   )
                 );
 
@@ -195,7 +198,8 @@ export class InsightsAnalyticsService extends Effect.Service<InsightsAnalyticsSe
                 .where(
                   and(
                     gte(schema.sessions.startTime, previousStart),
-                    lte(schema.sessions.startTime, previousEnd)
+                    lte(schema.sessions.startTime, previousEnd),
+                    ...harnessConditions
                   )
                 );
 
@@ -219,7 +223,8 @@ export class InsightsAnalyticsService extends Effect.Service<InsightsAnalyticsSe
                 .where(
                   and(
                     gte(schema.sessions.startTime, currentStart),
-                    lte(schema.sessions.startTime, currentEnd)
+                    lte(schema.sessions.startTime, currentEnd),
+                    ...harnessConditions
                   )
                 );
 
@@ -414,7 +419,8 @@ export class InsightsAnalyticsService extends Effect.Service<InsightsAnalyticsSe
                   .where(
                     and(
                       gte(schema.sessions.startTime, currentStart),
-                      lte(schema.sessions.startTime, currentEnd)
+                      lte(schema.sessions.startTime, currentEnd),
+                      ...harnessConditions
                     )
                   )
                   .groupBy(schema.toolUses.toolName)
@@ -448,7 +454,8 @@ export class InsightsAnalyticsService extends Effect.Service<InsightsAnalyticsSe
                           eq(schema.toolUses.hasError, true),
                           eq(schema.toolUses.toolName, worstTool.toolName),
                           gte(schema.sessions.startTime, currentStart),
-                          lte(schema.sessions.startTime, currentEnd)
+                          lte(schema.sessions.startTime, currentEnd),
+                          ...harnessConditions
                         )
                       )
                       .groupBy(schema.toolUses.errorMessage)
@@ -598,6 +605,7 @@ export class InsightsAnalyticsService extends Effect.Service<InsightsAnalyticsSe
             try: async () => {
               const { currentStart, currentEnd, previousStart, previousEnd } =
                 buildComparisonWindows(dateFilter);
+              const harnessConditions = buildHarnessConditions(dateFilter);
 
               // This week's metrics
               const thisWeekResult = await db
@@ -627,7 +635,8 @@ export class InsightsAnalyticsService extends Effect.Service<InsightsAnalyticsSe
                 .where(
                   and(
                     gte(schema.sessions.startTime, currentStart),
-                    lte(schema.sessions.startTime, currentEnd)
+                    lte(schema.sessions.startTime, currentEnd),
+                    ...harnessConditions
                   )
                 );
 
@@ -655,7 +664,8 @@ export class InsightsAnalyticsService extends Effect.Service<InsightsAnalyticsSe
                 .where(
                   and(
                     gte(schema.sessions.startTime, previousStart),
-                    lte(schema.sessions.startTime, previousEnd)
+                    lte(schema.sessions.startTime, previousEnd),
+                    ...harnessConditions
                   )
                 );
 
@@ -676,7 +686,8 @@ export class InsightsAnalyticsService extends Effect.Service<InsightsAnalyticsSe
                 .where(
                   and(
                     gte(schema.sessions.startTime, currentStart),
-                    lte(schema.sessions.startTime, currentEnd)
+                    lte(schema.sessions.startTime, currentEnd),
+                    ...harnessConditions
                   )
                 );
 
@@ -779,6 +790,7 @@ export class InsightsAnalyticsService extends Effect.Service<InsightsAnalyticsSe
             try: async () => {
               const { currentStart, currentEnd, previousStart, previousEnd } =
                 buildComparisonWindows(dateFilter);
+              const harnessConditions = buildHarnessConditions(dateFilter);
 
               // This week
               const thisWeekResult = await db
@@ -807,7 +819,8 @@ export class InsightsAnalyticsService extends Effect.Service<InsightsAnalyticsSe
                 .where(
                   and(
                     gte(schema.sessions.startTime, currentStart),
-                    lte(schema.sessions.startTime, currentEnd)
+                    lte(schema.sessions.startTime, currentEnd),
+                    ...harnessConditions
                   )
                 );
 
@@ -838,7 +851,8 @@ export class InsightsAnalyticsService extends Effect.Service<InsightsAnalyticsSe
                 .where(
                   and(
                     gte(schema.sessions.startTime, previousStart),
-                    lte(schema.sessions.startTime, previousEnd)
+                    lte(schema.sessions.startTime, previousEnd),
+                    ...harnessConditions
                   )
                 );
 
@@ -859,7 +873,8 @@ export class InsightsAnalyticsService extends Effect.Service<InsightsAnalyticsSe
                 .where(
                   and(
                     gte(schema.sessions.startTime, currentStart),
-                    lte(schema.sessions.startTime, currentEnd)
+                    lte(schema.sessions.startTime, currentEnd),
+                    ...harnessConditions
                   )
                 );
 
@@ -880,7 +895,8 @@ export class InsightsAnalyticsService extends Effect.Service<InsightsAnalyticsSe
                 .where(
                   and(
                     gte(schema.sessions.startTime, previousStart),
-                    lte(schema.sessions.startTime, previousEnd)
+                    lte(schema.sessions.startTime, previousEnd),
+                    ...harnessConditions
                   )
                 );
 
@@ -1019,19 +1035,19 @@ export class InsightsAnalyticsService extends Effect.Service<InsightsAnalyticsSe
             try: async () => {
               const { currentStart, currentEnd } =
                 buildComparisonWindows(dateFilter);
+              const harnessConditions = buildHarnessConditions(dateFilter);
 
               // DEBUG: Log the actual date range being queried
-              console.log(
-                "[getOutcomeMetrics] dateFilter:",
-                JSON.stringify(dateFilter)
-              );
-              console.log(
-                "[getOutcomeMetrics] currentStart:",
+              debugLog("insights", "dateFilter:", JSON.stringify(dateFilter));
+              debugLog(
+                "insights",
+                "currentStart:",
                 currentStart,
                 new Date(currentStart).toISOString()
               );
-              console.log(
-                "[getOutcomeMetrics] currentEnd:",
+              debugLog(
+                "insights",
+                "currentEnd:",
                 currentEnd,
                 new Date(currentEnd).toISOString()
               );
@@ -1087,7 +1103,8 @@ export class InsightsAnalyticsService extends Effect.Service<InsightsAnalyticsSe
                     OR ${schema.bashCommands.command} LIKE 'gh pr close%'
                   )`,
                     gte(schema.sessions.startTime, currentStart),
-                    lte(schema.sessions.startTime, currentEnd)
+                    lte(schema.sessions.startTime, currentEnd),
+                    ...harnessConditions
                   )
                 );
 
@@ -1102,7 +1119,8 @@ export class InsightsAnalyticsService extends Effect.Service<InsightsAnalyticsSe
                 .where(
                   and(
                     gte(schema.sessions.startTime, currentStart),
-                    lte(schema.sessions.startTime, currentEnd)
+                    lte(schema.sessions.startTime, currentEnd),
+                    ...harnessConditions
                   )
                 );
 
@@ -1123,7 +1141,8 @@ export class InsightsAnalyticsService extends Effect.Service<InsightsAnalyticsSe
                 .where(
                   and(
                     gte(schema.sessions.startTime, currentStart),
-                    lte(schema.sessions.startTime, currentEnd)
+                    lte(schema.sessions.startTime, currentEnd),
+                    ...harnessConditions
                   )
                 );
 

@@ -12,6 +12,7 @@ import type {
   AppSettings,
   AppInfo,
   AnthropicUsage,
+  HarnessId,
 } from "@shared/rpc-types";
 
 // ─── Environment Detection ───────────────────────────────────────────────────
@@ -29,6 +30,7 @@ interface ApiClient {
   getDashboardData: (params: {
     filter?: "today" | "7d" | "30d" | "all";
     projectPath?: string;
+    harness?: HarnessId;
   }) => Promise<DashboardData>;
 
   triggerSync: (params: { fullResync?: boolean }) => Promise<SyncResult>;
@@ -65,6 +67,9 @@ const createHttpClient = (): ApiClient => ({
     }
     if (params.projectPath) {
       searchParams.set("projectPath", params.projectPath);
+    }
+    if (params.harness) {
+      searchParams.set("harness", params.harness);
     }
 
     const url = `/api/dashboard${searchParams.toString() ? `?${searchParams}` : ""}`;

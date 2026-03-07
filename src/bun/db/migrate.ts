@@ -3,6 +3,8 @@ import { existsSync, mkdirSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 
+import { log } from "../utils/log";
+
 /**
  * Get the app-specific database path.
  */
@@ -426,7 +428,7 @@ export function initializeDatabase(): void {
 
 // Run if executed directly
 if (import.meta.main) {
-  console.log("Initializing database...");
+  log.info("db", "Initializing database...");
   initializeDatabase();
-  console.log(`Database initialized at ${DB_PATH}`);
+  log.info("db", `Database initialized at ${DB_PATH}`);
 }

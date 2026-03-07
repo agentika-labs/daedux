@@ -64,6 +64,14 @@ export interface DailyStat {
 /** Supported harness identifiers */
 export type HarnessId = "claude-code" | "codex" | "opencode" | "unknown";
 
+/** Human-readable labels for harness IDs */
+export const HARNESS_LABELS: Record<HarnessId, string> = {
+  "claude-code": "Claude Code",
+  codex: "Codex",
+  opencode: "OpenCode",
+  unknown: "Unknown",
+};
+
 export interface SessionSummary {
   sessionId: string;
   project: string;
@@ -452,6 +460,7 @@ export interface UsageMonitorRPC {
         params: {
           filter?: "today" | "7d" | "30d" | "all";
           projectPath?: string;
+          harness?: HarnessId;
         };
         response: DashboardData;
       };

@@ -25,7 +25,7 @@ export class ParserRegistry extends Effect.Service<ParserRegistry>()(
   {
     effect: Effect.gen(function* () {
       // Initialize with built-in parsers
-      const parsers: Map<HarnessId, HarnessParser> = new Map();
+      const parsers = new Map<HarnessId, HarnessParser>();
       parsers.set(claudeCodeParser.harness, claudeCodeParser);
 
       return {
@@ -39,9 +39,7 @@ export class ParserRegistry extends Effect.Service<ParserRegistry>()(
         /**
          * Get all registered parser IDs.
          */
-        getRegisteredHarnesses: (): HarnessId[] => {
-          return Array.from(parsers.keys());
-        },
+        getRegisteredHarnesses: (): HarnessId[] => [...parsers.keys()],
 
         /**
          * Detect harness from a file path.
@@ -91,9 +89,8 @@ export class ParserRegistry extends Effect.Service<ParserRegistry>()(
         /**
          * Get a parser by harness ID.
          */
-        getParser: (harness: HarnessId): HarnessParser | undefined => {
-          return parsers.get(harness);
-        },
+        getParser: (harness: HarnessId): HarnessParser | undefined =>
+          parsers.get(harness),
       } as const;
     }),
   }

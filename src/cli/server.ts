@@ -14,8 +14,9 @@ import { AppLive } from "../bun/main";
 import { AnthropicUsageService } from "../bun/services/anthropic-usage";
 import { loadDashboardData } from "../bun/services/dashboard-loader";
 import { SyncService } from "../bun/sync";
+import { log } from "../bun/utils/log";
 import { transformSessionToRPC } from "../bun/utils/session-transformer";
-import type { DateFilter, SyncResult } from "../shared/rpc-types";
+import type { DateFilter, HarnessId, SyncResult } from "../shared/rpc-types";
 
 export interface ServerOptions {
   port: number;
@@ -138,18 +139,19 @@ export async function startServer(options: ServerOptions): Promise<void> {
 
   // Run initial sync before starting server
   if (verbose) {
-    console.log("Running initial sync...");
+    log.info("cli", "Running initial sync...");
   }
 
   try {
     const syncResult = await runEffect(runSync(resync ?? false));
     if (verbose) {
-      console.log(
+      log.info(
+        "cli",
         `Synced ${syncResult.synced} sessions (${syncResult.unchanged} unchanged, ${syncResult.errors} errors)`
       );
     }
   } catch (error) {
-    console.error("Initial sync failed:", error);
+    log.error("cli", "Initial sync failed:", error);
   }
 
   Bun.serve({
@@ -169,11 +171,15 @@ export async function startServer(options: ServerOptions): Promise<void> {
       if (pathname === "/api/dashboard") {
         try {
           const filter = url.searchParams.get("filter");
-          const dateFilter = parseDateFilter(filter);
+          const harness = url.searchParams.get("harness") as HarnessId | null;
+          const dateFilter: DateFilter = {
+            ...parseDateFilter(filter),
+            harness: harness ?? undefined,
+          };
           const data = await runEffect(loadDashboardData(dateFilter));
           return Response.json(data);
         } catch (error) {
-          console.error("Dashboard data error:", error);
+          log.error("api", "Dashboard data error:", error);
           return Response.json(
             { error: "Failed to load dashboard data" },
             { status: 500 }
@@ -189,7 +195,7 @@ export async function startServer(options: ServerOptions): Promise<void> {
           const result = await runEffect(runSync(fullResync));
           return Response.json(result satisfies SyncResult);
         } catch (error) {
-          console.error("Sync error:", error);
+          log.error("api", "Sync error:", error);
           return Response.json({ error: "Sync failed" }, { status: 500 });
         }
       }
@@ -209,7 +215,7 @@ export async function startServer(options: ServerOptions): Promise<void> {
           );
           return Response.json(status);
         } catch (error) {
-          console.error("Sync status error:", error);
+          log.error("api", "Sync status error:", error);
           return Response.json(
             { error: "Failed to get sync status" },
             { status: 500 }
@@ -263,7 +269,7 @@ export async function startServer(options: ServerOptions): Promise<void> {
             );
             return Response.json(detail);
           } catch (error) {
-            console.error("Session detail error:", error);
+            log.error("api", "Session detail error:", error);
             return Response.json(
               { error: "Failed to load session" },
               { status: 500 }
@@ -289,7 +295,7 @@ export async function startServer(options: ServerOptions): Promise<void> {
             downloadUrl,
           });
         } catch (error) {
-          console.error("App info error:", error);
+          log.error("api", "App info error:", error);
           return Response.json(
             { error: "Failed to get app info" },
             { status: 500 }
@@ -307,7 +313,7 @@ export async function startServer(options: ServerOptions): Promise<void> {
           );
           return Response.json(usage);
         } catch (error) {
-          console.error("Anthropic usage error:", error);
+          log.error("api", "Anthropic usage error:", error);
           return Response.json(
             { error: "Failed to get usage" },
             { status: 500 }
@@ -348,8 +354,8 @@ export async function startServer(options: ServerOptions): Promise<void> {
     },
   });
 
-  console.log(`\nDaedux dashboard running at http://localhost:${port}`);
-  console.log("Press Ctrl+C to stop\n");
+  log.info("cli", `Daedux dashboard running at http://localhost:${port}`);
+  log.info("cli", "Press Ctrl+C to stop");
 
   // Keep the server running
   await new Promise(() => {});

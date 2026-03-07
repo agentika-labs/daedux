@@ -6,11 +6,12 @@ import type { HarnessId } from "../parsers/types";
 
 /**
  * Date filter for server-side filtering of analytics queries.
- * Used by the dashboard to filter data by time range.
+ * Used by the dashboard to filter data by time range and optionally by harness.
  */
 export interface DateFilter {
   startTime?: number; // Unix ms - sessions starting on or after this time
   endTime?: number; // Unix ms - sessions starting on or before this time
+  harness?: HarnessId | HarnessId[]; // Filter by harness (e.g., "claude-code", "opencode")
 }
 
 export interface ComparisonWindows {

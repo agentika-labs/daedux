@@ -20,33 +20,43 @@ describe("ParserRegistry", () => {
     it("detects Claude Code files by path pattern", () => {
       const registry = createRegistry();
 
-      expect(registry.detectHarness("/Users/test/.claude/projects/foo/abc123.jsonl"))
-        .toBe("claude-code");
-      expect(registry.detectHarness("/home/user/.claude/projects/-test-project/session.jsonl"))
-        .toBe("claude-code");
+      expect(
+        registry.detectHarness("/Users/test/.claude/projects/foo/abc123.jsonl")
+      ).toBe("claude-code");
+      expect(
+        registry.detectHarness(
+          "/home/user/.claude/projects/-test-project/session.jsonl"
+        )
+      ).toBe("claude-code");
     });
 
     it("detects Claude Code subagent files", () => {
       const registry = createRegistry();
 
-      expect(registry.detectHarness("/Users/test/.claude/projects/foo/abc123/subagents/agent-xyz.jsonl"))
-        .toBe("claude-code");
+      expect(
+        registry.detectHarness(
+          "/Users/test/.claude/projects/foo/abc123/subagents/agent-xyz.jsonl"
+        )
+      ).toBe("claude-code");
     });
 
     it("returns unknown for unrecognized paths", () => {
       const registry = createRegistry();
 
-      expect(registry.detectHarness("/Users/test/random/path/session.jsonl"))
-        .toBe("unknown");
-      expect(registry.detectHarness("/Users/test/.claude/sessions/foo.jsonl"))
-        .toBe("unknown");
+      expect(
+        registry.detectHarness("/Users/test/random/path/session.jsonl")
+      ).toBe("unknown");
+      expect(
+        registry.detectHarness("/Users/test/.claude/sessions/foo.jsonl")
+      ).toBe("unknown");
     });
 
     it("returns unknown for non-JSONL files", () => {
       const registry = createRegistry();
 
-      expect(registry.detectHarness("/Users/test/.claude/projects/foo/config.json"))
-        .toBe("unknown");
+      expect(
+        registry.detectHarness("/Users/test/.claude/projects/foo/config.json")
+      ).toBe("unknown");
     });
   });
 
@@ -92,25 +102,36 @@ describe("ParserRegistry", () => {
 describe("ClaudeCodeParser", () => {
   describe("canHandle", () => {
     it("returns true for Claude Code project files", () => {
-      expect(claudeCodeParser.canHandle("/Users/test/.claude/projects/foo/session.jsonl"))
-        .toBe(true);
+      expect(
+        claudeCodeParser.canHandle(
+          "/Users/test/.claude/projects/foo/session.jsonl"
+        )
+      ).toBe(true);
     });
 
     it("returns true for Claude Code subagent files", () => {
-      expect(claudeCodeParser.canHandle("/Users/test/.claude/projects/foo/abc/subagents/agent-xyz.jsonl"))
-        .toBe(true);
+      expect(
+        claudeCodeParser.canHandle(
+          "/Users/test/.claude/projects/foo/abc/subagents/agent-xyz.jsonl"
+        )
+      ).toBe(true);
     });
 
     it("returns false for non-Claude Code paths", () => {
-      expect(claudeCodeParser.canHandle("/Users/test/.codex/sessions/foo.jsonl"))
-        .toBe(false);
-      expect(claudeCodeParser.canHandle("/Users/test/projects/foo.jsonl"))
-        .toBe(false);
+      expect(
+        claudeCodeParser.canHandle("/Users/test/.codex/sessions/foo.jsonl")
+      ).toBe(false);
+      expect(claudeCodeParser.canHandle("/Users/test/projects/foo.jsonl")).toBe(
+        false
+      );
     });
 
     it("returns false for non-JSONL files in Claude Code path", () => {
-      expect(claudeCodeParser.canHandle("/Users/test/.claude/projects/foo/config.json"))
-        .toBe(false);
+      expect(
+        claudeCodeParser.canHandle(
+          "/Users/test/.claude/projects/foo/config.json"
+        )
+      ).toBe(false);
     });
   });
 
@@ -130,13 +151,15 @@ describe("ClaudeCodeParser", () => {
 describe("CodexParser", () => {
   describe("canHandle", () => {
     it("returns true for Codex session files", () => {
-      expect(codexParser.canHandle("/Users/test/.codex/sessions/foo.jsonl"))
-        .toBe(true);
+      expect(
+        codexParser.canHandle("/Users/test/.codex/sessions/foo.jsonl")
+      ).toBe(true);
     });
 
     it("returns false for Claude Code paths", () => {
-      expect(codexParser.canHandle("/Users/test/.claude/projects/foo/session.jsonl"))
-        .toBe(false);
+      expect(
+        codexParser.canHandle("/Users/test/.claude/projects/foo/session.jsonl")
+      ).toBe(false);
     });
   });
 
