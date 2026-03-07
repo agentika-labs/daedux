@@ -1,10 +1,10 @@
-import { RefreshIcon, Settings02Icon } from "@hugeicons/core-free-icons";
+import { Settings02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { Link } from "@tanstack/react-router";
 import type { FC, SVGProps } from "react";
 import { useEffect, useRef, useCallback } from "react";
 
-import { Button, buttonVariants } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { SECTIONS, scrollToSection } from "@/hooks/useActiveSection";
 import type { SectionId } from "@/hooks/useActiveSection";
@@ -73,8 +73,6 @@ interface HeaderProps {
   harnessFilter: HarnessFilterOption;
   onHarnessFilterChange: (harness: HarnessFilterOption) => void;
   activeSection: SectionId;
-  onSync?: () => void;
-  isSyncing?: boolean;
 }
 
 type LogoComponent = FC<SVGProps<SVGSVGElement>>;
@@ -102,8 +100,6 @@ export function Header({
   harnessFilter,
   onHarnessFilterChange,
   activeSection,
-  onSync,
-  isSyncing,
 }: HeaderProps) {
   const headerRef = useRef<HTMLElement>(null);
 
@@ -224,23 +220,6 @@ export function Header({
                 </button>
               ))}
             </div>
-            {onSync && (
-              <div className="bg-muted flex items-center rounded-lg p-1">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={onSync}
-                  disabled={isSyncing}
-                  className="gap-2"
-                >
-                  <HugeiconsIcon
-                    icon={RefreshIcon}
-                    className={cn("h-4 w-4", isSyncing && "animate-spin")}
-                  />
-                  Sync
-                </Button>
-              </div>
-            )}
             <div className="bg-muted flex items-center rounded-lg p-1">
               <Link
                 to="/settings"

@@ -16,20 +16,34 @@ import { useSyncMutation } from "@/queries/dashboard";
 export const DataCard = () => {
   const syncMutation = useSyncMutation();
 
-  const handleFullSync = () => {
-    syncMutation.mutate({ fullResync: true });
+  const handleSync = (fullResync: boolean) => {
+    syncMutation.mutate({ fullResync });
   };
 
   return (
     <Card>
       <CardHeader>
         <CardTitle>Data</CardTitle>
-        <CardDescription>Sync all sessions from scratch.</CardDescription>
-        <CardAction>
+        <CardDescription>Sync sessions from Claude Code logs.</CardDescription>
+        <CardAction className="flex gap-2">
           <Button
             variant="outline"
             size="sm"
-            onClick={handleFullSync}
+            onClick={() => handleSync(false)}
+            disabled={syncMutation.isPending}
+            aria-label="Run incremental sync"
+          >
+            <HugeiconsIcon
+              icon={RefreshIcon}
+              className={cn("size-4", syncMutation.isPending && "animate-spin")}
+              data-icon="inline-start"
+            />
+            Sync Now
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => handleSync(true)}
             disabled={syncMutation.isPending}
             aria-label="Run full resync"
           >
@@ -38,15 +52,16 @@ export const DataCard = () => {
               className={cn("size-4", syncMutation.isPending && "animate-spin")}
               data-icon="inline-start"
             />
-            {syncMutation.isPending ? "Syncing..." : "Full Resync"}
+            Full Resync
           </Button>
         </CardAction>
       </CardHeader>
 
       <CardContent>
         <p className="text-muted-foreground text-sm">
-          The dashboard normally syncs incrementally. Use this if costs seem off
-          or you've changed pricing.
+          <strong>Sync Now</strong> picks up new sessions incrementally.{" "}
+          <strong>Full Resync</strong> rebuilds from scratch. Use if costs seem
+          off or you've changed pricing.
         </p>
       </CardContent>
     </Card>

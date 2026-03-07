@@ -18,11 +18,7 @@ import { useActiveSection, scrollToSection } from "@/hooks/useActiveSection";
 import { useIsDesktop } from "@/hooks/useApi";
 import { queryClient } from "@/lib/query-client";
 import type { HarnessFilterOption } from "@/queries/dashboard";
-import {
-  useDashboardQuery,
-  useSyncMutation,
-  dashboardQueryOptions,
-} from "@/queries/dashboard";
+import { useDashboardQuery, dashboardQueryOptions } from "@/queries/dashboard";
 
 // Lazy load chart-heavy sections to reduce initial bundle
 const CostSection = lazy(() =>
@@ -62,13 +58,11 @@ function Dashboard() {
   const [filter, setFilter] = useState<FilterOption>("7d");
   const [harnessFilter, setHarnessFilter] =
     useState<HarnessFilterOption>("claude-code");
-  const [isSyncing, setIsSyncing] = useState(false);
 
   const { data, isLoading, error, refetch } = useDashboardQuery(
     filter,
     harnessFilter
   );
-  const syncMutation = useSyncMutation(filter, harnessFilter);
 
   const refetchRef = useRef(refetch);
   refetchRef.current = refetch;
@@ -93,17 +87,6 @@ function Dashboard() {
 
     return () => cleanup?.();
   }, [isDesktop]);
-
-  const handleSync = async () => {
-    try {
-      setIsSyncing(true);
-      await syncMutation.mutateAsync({ fullResync: false });
-    } catch (error) {
-      console.error("Sync failed:", error);
-    } finally {
-      setIsSyncing(false);
-    }
-  };
 
   const handleNavigateToSection = useCallback((section: string) => {
     scrollToSection(
@@ -145,8 +128,6 @@ function Dashboard() {
         harnessFilter={harnessFilter}
         onHarnessFilterChange={setHarnessFilter}
         activeSection={activeSection}
-        onSync={handleSync}
-        isSyncing={isSyncing}
       />
 
       <main className="flex-1 overflow-auto">
