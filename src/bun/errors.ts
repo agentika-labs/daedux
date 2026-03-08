@@ -55,3 +55,12 @@ export class AnthropicUsageError extends Schema.TaggedError<AnthropicUsageError>
     cause: Schema.optional(Schema.Defect),
   }
 ) {}
+
+/** OTEL storage operation failed */
+export class OtelStorageError extends Schema.TaggedError<OtelStorageError>()(
+  "OtelStorageError",
+  {
+    operation: Schema.String,
+    cause: Schema.Defect,
+  }
+) {}

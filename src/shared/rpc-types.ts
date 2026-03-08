@@ -381,6 +381,59 @@ export interface AppSettings {
   scanIntervalMinutes: number;
   customPaths: Record<string, string>;
   schedulerEnabled: boolean;
+  otel?: OtelSettings;
+}
+
+// ─── OTEL Settings ───────────────────────────────────────────────────────────
+
+export interface OtelSettings {
+  enabled: boolean;
+  retentionDays: number; // Default: 30
+}
+
+// ─── OTEL Status ────────────────────────────────────────────────────────────
+
+export interface OtelStatus {
+  sessionCount: number;
+  eventCount: number;
+  metricCount: number;
+  lastReceivedAt: number | null;
+}
+
+// ─── OTEL Analytics Types ───────────────────────────────────────────────────
+
+export interface OtelAnalytics {
+  sessionCount: number;
+  totalActiveTime: number; // seconds
+  userTime: number; // seconds
+  cliTime: number; // seconds
+  totalApiCalls: number;
+  avgLatencyMs: number;
+  retryRate: number;
+  totalAccepts: number;
+  totalRejects: number;
+}
+
+export interface OtelToolDecision {
+  toolName: string;
+  accepts: number;
+  rejects: number;
+  acceptRate: number;
+}
+
+export interface OtelApiLatency {
+  model: string;
+  avgLatencyMs: number;
+  requestCount: number;
+  retryRate: number;
+  avgCostUsd: number;
+}
+
+export interface OtelDashboardData {
+  analytics: OtelAnalytics;
+  toolDecisions: OtelToolDecision[];
+  apiLatency: OtelApiLatency[];
+  hasData: boolean;
 }
 
 // ─── Session Schedule Types ─────────────────────────────────────────────────
@@ -532,6 +585,17 @@ export interface UsageMonitorRPC {
       getAppInfo: {
         params: Record<string, never>;
         response: AppInfo;
+      };
+      // ─── OTEL Endpoints ──────────────────────────────────────────────
+      getOtelStatus: {
+        params: Record<string, never>;
+        response: OtelStatus;
+      };
+      getOtelAnalytics: {
+        params: {
+          filter?: "today" | "7d" | "30d" | "all";
+        };
+        response: OtelDashboardData;
       };
       updateDragExclusionZones: {
         params: {

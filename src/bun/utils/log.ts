@@ -21,16 +21,24 @@ const shouldLog = (level: LogLevel): boolean =>
 
 export const log = {
   debug: (tag: string, ...args: unknown[]): void => {
-    if (shouldLog("debug")) console.log(`[${tag}]`, ...args);
+    if (shouldLog("debug")) {
+      console.log(`[${tag}]`, ...args);
+    }
   },
   info: (tag: string, ...args: unknown[]): void => {
-    if (shouldLog("info")) console.log(`[${tag}]`, ...args);
+    if (shouldLog("info")) {
+      console.log(`[${tag}]`, ...args);
+    }
   },
   warn: (tag: string, ...args: unknown[]): void => {
-    if (shouldLog("warn")) console.warn(`[${tag}]`, ...args);
+    if (shouldLog("warn")) {
+      console.warn(`[${tag}]`, ...args);
+    }
   },
   error: (tag: string, ...args: unknown[]): void => {
-    if (shouldLog("error")) console.error(`[${tag}]`, ...args);
+    if (shouldLog("error")) {
+      console.error(`[${tag}]`, ...args);
+    }
   },
 };
 

@@ -2,6 +2,7 @@ import type {
   AppSettings,
   SessionSchedule,
   AuthStatus,
+  OtelStatus,
 } from "@shared/rpc-types";
 /**
  * TanStack Query hooks for settings-related data.
@@ -86,6 +87,13 @@ export const schedulesQueryOptions = queryOptions({
   },
 });
 
+export const otelStatusQueryOptions = queryOptions({
+  queryKey: ["otelStatus"],
+  queryFn: async (): Promise<OtelStatus> => api.getOtelStatus(),
+  staleTime: 30_000, // Fresh for 30 seconds
+  retry: false,
+});
+
 // ─── Query Hooks ─────────────────────────────────────────────────────────────
 
 export const useSettingsQuery = () => useQuery(settingsQueryOptions);
@@ -98,6 +106,8 @@ export const useAnthropicUsageQuery = () =>
 export const useAuthStatusQuery = () => useQuery(authStatusQueryOptions);
 
 export const useSchedulesQuery = () => useQuery(schedulesQueryOptions);
+
+export const useOtelStatusQuery = () => useQuery(otelStatusQueryOptions);
 
 // ─── Mutation Hooks ──────────────────────────────────────────────────────────
 

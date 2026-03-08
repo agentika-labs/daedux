@@ -6,6 +6,7 @@ export type SectionId =
   | "efficiency"
   | "tools"
   | "automation"
+  | "otel"
   | "sessions"
   | "projects";
 
@@ -20,6 +21,7 @@ export const SECTIONS: Section[] = [
   { id: "efficiency", label: "Efficiency" },
   { id: "tools", label: "Tools" },
   { id: "automation", label: "Automation" },
+  { id: "otel", label: "OTEL" },
   { id: "projects", label: "Projects" },
   { id: "sessions", label: "Sessions" },
 ];

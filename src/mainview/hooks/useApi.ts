@@ -13,6 +13,8 @@ import type {
   AppInfo,
   AnthropicUsage,
   HarnessId,
+  OtelStatus,
+  OtelDashboardData,
 } from "@shared/rpc-types";
 
 // ─── Environment Detection ───────────────────────────────────────────────────
@@ -50,6 +52,12 @@ interface ApiClient {
   getAppInfo: () => Promise<AppInfo>;
 
   getAnthropicUsage: () => Promise<AnthropicUsage>;
+
+  getOtelStatus: () => Promise<OtelStatus>;
+
+  getOtelAnalytics: (
+    filter: "today" | "7d" | "30d" | "all"
+  ) => Promise<OtelDashboardData>;
 }
 
 // Default timeout for API requests (30 seconds)
@@ -156,6 +164,26 @@ const createHttpClient = (): ApiClient => ({
 
     return response.json();
   },
+
+  getOtelStatus: async () => {
+    const response = await fetch("/api/otel/status");
+
+    if (!response.ok) {
+      throw new Error(`OTEL status error: ${response.status}`);
+    }
+
+    return response.json();
+  },
+
+  getOtelAnalytics: async (filter) => {
+    const response = await fetch(`/api/otel/analytics?filter=${filter}`);
+
+    if (!response.ok) {
+      throw new Error(`OTEL analytics error: ${response.status}`);
+    }
+
+    return response.json();
+  },
 });
 
 // ─── Electrobun RPC Client ───────────────────────────────────────────────────
@@ -203,6 +231,14 @@ const createRpcClient = (): ApiClient => {
     getAnthropicUsage: async () => {
       const { electroview } = await getElectroview();
       return electroview.request.getAnthropicUsage({});
+    },
+    getOtelStatus: async () => {
+      const { electroview } = await getElectroview();
+      return electroview.request.getOtelStatus({});
+    },
+    getOtelAnalytics: async (filter) => {
+      const { electroview } = await getElectroview();
+      return electroview.request.getOtelAnalytics({ filter });
     },
   };
 };

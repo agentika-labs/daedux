@@ -42,6 +42,19 @@ export const useDashboardQuery = (
   harness: HarnessFilterOption = "claude-code"
 ) => useQuery(dashboardQueryOptions(filter, harness));
 
+// ─── OTEL Analytics Query ─────────────────────────────────────────────────────
+
+export const otelAnalyticsQueryOptions = (filter: FilterOption) =>
+  queryOptions({
+    queryKey: ["otelAnalytics", filter],
+    queryFn: () => api.getOtelAnalytics(filter),
+    staleTime: 30_000,
+    retry: false,
+  });
+
+export const useOtelAnalyticsQuery = (filter: FilterOption) =>
+  useQuery(otelAnalyticsQueryOptions(filter));
+
 // ─── Mutation Hooks ──────────────────────────────────────────────────────────
 
 /**

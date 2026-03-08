@@ -18,7 +18,11 @@ import { useActiveSection, scrollToSection } from "@/hooks/useActiveSection";
 import { useIsDesktop } from "@/hooks/useApi";
 import { queryClient } from "@/lib/query-client";
 import type { HarnessFilterOption } from "@/queries/dashboard";
-import { useDashboardQuery, dashboardQueryOptions } from "@/queries/dashboard";
+import {
+  useDashboardQuery,
+  dashboardQueryOptions,
+  useOtelAnalyticsQuery,
+} from "@/queries/dashboard";
 
 // Lazy load chart-heavy sections to reduce initial bundle
 const CostSection = lazy(() =>
@@ -34,6 +38,11 @@ const EfficiencySection = lazy(() =>
 const AutomationSection = lazy(() =>
   import("@/components/sections/AutomationSection").then((m) => ({
     default: m.AutomationSection,
+  }))
+);
+const OtelSection = lazy(() =>
+  import("@/components/sections/OtelSection").then((m) => ({
+    default: m.OtelSection,
   }))
 );
 const ProjectsSection = lazy(() =>
@@ -63,6 +72,8 @@ function Dashboard() {
     filter,
     harnessFilter
   );
+  const { data: otelData, isLoading: otelLoading } =
+    useOtelAnalyticsQuery(filter);
 
   const refetchRef = useRef(refetch);
   refetchRef.current = refetch;
@@ -154,6 +165,10 @@ function Dashboard() {
 
           <Suspense fallback={<Skeleton className="h-64 w-full" />}>
             <AutomationSection data={data ?? null} loading={isLoading} />
+          </Suspense>
+
+          <Suspense fallback={<Skeleton className="h-64 w-full" />}>
+            <OtelSection data={otelData ?? null} loading={otelLoading} />
           </Suspense>
 
           <Suspense fallback={<Skeleton className="h-64 w-full" />}>

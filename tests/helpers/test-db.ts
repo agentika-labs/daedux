@@ -237,6 +237,73 @@ CREATE TABLE IF NOT EXISTS schedule_executions (
 );
 CREATE INDEX IF NOT EXISTS schedule_executions_schedule_idx ON schedule_executions(schedule_id);
 CREATE INDEX IF NOT EXISTS schedule_executions_executed_at_idx ON schedule_executions(executed_at);
+
+-- OTEL sessions
+CREATE TABLE IF NOT EXISTS otel_sessions (
+  session_id TEXT PRIMARY KEY,
+  user_account_uuid TEXT,
+  organization_id TEXT,
+  user_email TEXT,
+  app_version TEXT,
+  terminal_type TEXT,
+  first_seen_at INTEGER NOT NULL,
+  last_seen_at INTEGER NOT NULL,
+  total_tokens INTEGER DEFAULT 0,
+  total_cost_usd REAL DEFAULT 0,
+  event_count INTEGER DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS otel_sessions_time_idx ON otel_sessions(first_seen_at);
+
+-- OTEL metrics
+CREATE TABLE IF NOT EXISTS otel_metrics (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  session_id TEXT NOT NULL REFERENCES otel_sessions(session_id) ON DELETE CASCADE,
+  timestamp_ns INTEGER NOT NULL,
+  metric_name TEXT NOT NULL,
+  value REAL NOT NULL,
+  model TEXT,
+  token_type TEXT,
+  time_type TEXT,
+  tool_name TEXT,
+  decision TEXT,
+  decision_source TEXT,
+  language TEXT,
+  loc_type TEXT
+);
+CREATE INDEX IF NOT EXISTS otel_metrics_session_idx ON otel_metrics(session_id);
+CREATE INDEX IF NOT EXISTS otel_metrics_name_idx ON otel_metrics(metric_name);
+CREATE INDEX IF NOT EXISTS otel_metrics_time_idx ON otel_metrics(timestamp_ns);
+
+-- OTEL events
+CREATE TABLE IF NOT EXISTS otel_events (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  session_id TEXT NOT NULL REFERENCES otel_sessions(session_id) ON DELETE CASCADE,
+  timestamp_ns INTEGER NOT NULL,
+  event_name TEXT NOT NULL,
+  prompt_id TEXT,
+  model TEXT,
+  cost_usd REAL,
+  duration_ms INTEGER,
+  input_tokens INTEGER,
+  output_tokens INTEGER,
+  cache_read_tokens INTEGER,
+  cache_creation_tokens INTEGER,
+  speed TEXT,
+  error_message TEXT,
+  status_code TEXT,
+  attempt INTEGER,
+  tool_name TEXT,
+  tool_success INTEGER,
+  tool_duration_ms INTEGER,
+  tool_decision TEXT,
+  tool_decision_source TEXT,
+  prompt_length INTEGER,
+  prompt_content TEXT
+);
+CREATE INDEX IF NOT EXISTS otel_events_session_idx ON otel_events(session_id);
+CREATE INDEX IF NOT EXISTS otel_events_name_idx ON otel_events(event_name);
+CREATE INDEX IF NOT EXISTS otel_events_prompt_idx ON otel_events(prompt_id);
+CREATE INDEX IF NOT EXISTS otel_events_tool_idx ON otel_events(tool_name);
 `;
 
 // ─── Test Database Factory ───────────────────────────────────────────────────
@@ -256,7 +323,11 @@ export const createTestDb = () => {
 
   const db = drizzle({ client: sqlite, schema });
 
-  return { db, sqlite };
+  const cleanup = () => {
+    sqlite.close();
+  };
+
+  return { db, sqlite, cleanup };
 };
 
 /**

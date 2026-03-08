@@ -24,10 +24,12 @@ import {
   useAppInfoQuery,
   useAnthropicUsageQuery,
   useUpdateSettingsMutation,
+  useOtelStatusQuery,
 } from "@/queries/settings";
 
 import { AboutCard } from "./AboutCard";
 import { DataCard } from "./DataCard";
+import { OtelSettingsCard } from "./OtelSettingsCard";
 import { ScheduleSettings } from "./ScheduleSettings";
 import { ThemeToggle } from "./ThemeToggle";
 import { UsageLimitsCard } from "./UsageLimitsCard";
@@ -49,6 +51,7 @@ export const SettingsScreen = () => {
     refetch: refetchUsage,
     isFetching: isRefreshingUsage,
   } = useAnthropicUsageQuery();
+  const { data: otelStatus } = useOtelStatusQuery();
 
   const updateSettingsMutation = useUpdateSettingsMutation();
 
@@ -172,6 +175,20 @@ export const SettingsScreen = () => {
           <ScheduleSettings />
 
           <DataCard />
+
+          <OtelSettingsCard
+            settings={settings?.otel}
+            status={otelStatus ?? null}
+            isLoading={isLoading}
+            onSettingsChange={(otelSettings) => {
+              const currentOtel = settings?.otel ?? {
+                enabled: true,
+                retentionDays: 30,
+              };
+              const newOtel = { ...currentOtel, ...otelSettings };
+              updateSettingsMutation.mutate({ otel: newOtel });
+            }}
+          />
 
           <AboutCard
             appInfo={appInfo ?? null}
