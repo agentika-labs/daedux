@@ -487,6 +487,36 @@ export function initializeDatabase(): void {
     )
   `);
 
+  // Add productivity columns to otel_sessions if they don't exist
+  try {
+    sqlite.exec(
+      `ALTER TABLE otel_sessions ADD COLUMN commit_count INTEGER DEFAULT 0`
+    );
+  } catch {
+    /* column may already exist */
+  }
+  try {
+    sqlite.exec(
+      `ALTER TABLE otel_sessions ADD COLUMN pr_count INTEGER DEFAULT 0`
+    );
+  } catch {
+    /* column may already exist */
+  }
+  try {
+    sqlite.exec(
+      `ALTER TABLE otel_sessions ADD COLUMN lines_added INTEGER DEFAULT 0`
+    );
+  } catch {
+    /* column may already exist */
+  }
+  try {
+    sqlite.exec(
+      `ALTER TABLE otel_sessions ADD COLUMN lines_removed INTEGER DEFAULT 0`
+    );
+  } catch {
+    /* column may already exist */
+  }
+
   // OTEL indexes
   sqlite.exec(
     `CREATE INDEX IF NOT EXISTS otel_sessions_time_idx ON otel_sessions(first_seen_at)`

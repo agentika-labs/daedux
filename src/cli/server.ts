@@ -376,7 +376,13 @@ export async function startServer(options: ServerOptions): Promise<void> {
           scanIntervalMinutes: 5,
           customPaths: {},
           schedulerEnabled: false,
-          otel: { enabled: true, retentionDays: 30 },
+          otel: {
+            enabled: true,
+            retentionDays: 30,
+            roiHourlyDevCost: 50,
+            roiMinutesPerLoc: 3,
+            roiMinutesPerCommit: 15,
+          },
         });
       }
 

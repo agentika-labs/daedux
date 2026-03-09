@@ -78,7 +78,17 @@ export const storeMetrics = (
   Effect.gen(function* () {
     const metricsToInsert: NewOtelMetric[] = [];
     const sessionsToUpsert = new Map<string, SessionInfo>();
-    const sessionUpdates = new Map<string, { tokens: number; cost: number }>();
+    const sessionUpdates = new Map<
+      string,
+      {
+        tokens: number;
+        cost: number;
+        linesAdded: number;
+        linesRemoved: number;
+        commits: number;
+        prs: number;
+      }
+    >();
 
     // Collect phase - no DB calls
     for (const resourceMetrics of request.resourceMetrics) {
@@ -150,22 +160,34 @@ export const storeMetrics = (
                 : null,
             });
 
-            // Aggregate session token/cost updates
-            if (
-              metric.name === "claude_code.token.usage" ||
-              metric.name === "claude_code.cost.usage"
-            ) {
-              const updates = sessionUpdates.get(sessionId) ?? {
-                tokens: 0,
-                cost: 0,
-              };
-              if (metric.name === "claude_code.token.usage") {
-                updates.tokens += value;
-              } else {
-                updates.cost += value;
+            // Aggregate session metric updates
+            const updates = sessionUpdates.get(sessionId) ?? {
+              tokens: 0,
+              cost: 0,
+              linesAdded: 0,
+              linesRemoved: 0,
+              commits: 0,
+              prs: 0,
+            };
+
+            if (metric.name === "claude_code.token.usage") {
+              updates.tokens += value;
+            } else if (metric.name === "claude_code.cost.usage") {
+              updates.cost += value;
+            } else if (metric.name === "claude_code.lines_of_code.count") {
+              const locType = getStringAttr(allAttrs, CLAUDE_ATTRS.TYPE);
+              if (locType === "added") {
+                updates.linesAdded += value;
+              } else if (locType === "removed") {
+                updates.linesRemoved += value;
               }
-              sessionUpdates.set(sessionId, updates);
+            } else if (metric.name === "claude_code.commit.count") {
+              updates.commits += value;
+            } else if (metric.name === "claude_code.pull_request.count") {
+              updates.prs += value;
             }
+
+            sessionUpdates.set(sessionId, updates);
           }
         }
       }
@@ -185,8 +207,8 @@ export const storeMetrics = (
       );
     }
 
-    // Batch update session totals
-    for (const [sessionId, { tokens, cost }] of sessionUpdates) {
+    // Batch update session totals (including productivity metrics)
+    for (const [sessionId, updates] of sessionUpdates) {
       yield* dbQuery("otel_update_session_totals", async (db) => {
         const session = await db
           .select()
@@ -198,8 +220,13 @@ export const storeMetrics = (
           await db
             .update(otelSessions)
             .set({
-              totalTokens: (session[0].totalTokens ?? 0) + tokens,
-              totalCostUsd: (session[0].totalCostUsd ?? 0) + cost,
+              totalTokens: (session[0].totalTokens ?? 0) + updates.tokens,
+              totalCostUsd: (session[0].totalCostUsd ?? 0) + updates.cost,
+              linesAdded: (session[0].linesAdded ?? 0) + updates.linesAdded,
+              linesRemoved:
+                (session[0].linesRemoved ?? 0) + updates.linesRemoved,
+              commitCount: (session[0].commitCount ?? 0) + updates.commits,
+              prCount: (session[0].prCount ?? 0) + updates.prs,
             })
             .where(eq(otelSessions.sessionId, sessionId));
         }

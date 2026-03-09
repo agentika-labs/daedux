@@ -242,7 +242,13 @@ let settings: AppSettings = {
   scanOnLaunch: true,
   schedulerEnabled: false,
   theme: "system", // Off by default until user enables it
-  otel: { enabled: true, retentionDays: 30 },
+  otel: {
+    enabled: true,
+    retentionDays: 30,
+    roiHourlyDevCost: 50,
+    roiMinutesPerLoc: 3,
+    roiMinutesPerCommit: 15,
+  },
 };
 
 Electrobun.events.on("before-quit", () => {
@@ -1499,7 +1505,9 @@ const OTEL_PORT = 4318; // Standard OTLP HTTP port
 let otelServer: ReturnType<typeof Bun.serve> | null = null;
 
 const startOtelServer = () => {
-  if (!settings.otel?.enabled) {return;}
+  if (!settings.otel?.enabled) {
+    return;
+  }
 
   otelServer = Bun.serve({
     port: OTEL_PORT,

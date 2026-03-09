@@ -250,7 +250,11 @@ CREATE TABLE IF NOT EXISTS otel_sessions (
   last_seen_at INTEGER NOT NULL,
   total_tokens INTEGER DEFAULT 0,
   total_cost_usd REAL DEFAULT 0,
-  event_count INTEGER DEFAULT 0
+  event_count INTEGER DEFAULT 0,
+  commit_count INTEGER DEFAULT 0,
+  pr_count INTEGER DEFAULT 0,
+  lines_added INTEGER DEFAULT 0,
+  lines_removed INTEGER DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS otel_sessions_time_idx ON otel_sessions(first_seen_at);
 

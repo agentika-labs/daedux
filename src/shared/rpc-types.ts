@@ -389,6 +389,10 @@ export interface AppSettings {
 export interface OtelSettings {
   enabled: boolean;
   retentionDays: number; // Default: 30
+  // ─── ROI Calculation Settings ──────────────────────────────────────────────
+  roiHourlyDevCost: number; // Default: 50 ($/hour)
+  roiMinutesPerLoc: number; // Default: 3 (minutes to write a line of code)
+  roiMinutesPerCommit: number; // Default: 15 (minutes per commit)
 }
 
 // ─── OTEL Status ────────────────────────────────────────────────────────────
@@ -433,7 +437,89 @@ export interface OtelDashboardData {
   analytics: OtelAnalytics;
   toolDecisions: OtelToolDecision[];
   apiLatency: OtelApiLatency[];
+  productivity: OtelProductivityMetrics;
+  costBreakdown: OtelCostBreakdown;
+  toolSuccessRates: OtelToolSuccessRate[];
+  sessionBuckets: OtelSessionBuckets;
+  problemPatterns: OtelProblemPatterns;
+  recentEvents: OtelRecentEvent[];
   hasData: boolean;
+}
+
+// ─── OTEL Productivity Metrics ───────────────────────────────────────────────
+
+export interface OtelProductivityMetrics {
+  totalLinesAdded: number;
+  totalLinesRemoved: number;
+  totalCommits: number;
+  totalPRs: number;
+  linesPerSession: number;
+  byLanguage: { language: string; linesAdded: number; linesRemoved: number }[];
+}
+
+// ─── OTEL Cost Breakdown ─────────────────────────────────────────────────────
+
+export interface OtelCostBreakdown {
+  totalCost: number;
+  avgCostPerSession: number;
+  costPerLoc: number;
+  costPerHour: number;
+  cacheEfficiencyRatio: number; // cacheRead / cacheCreation
+  byModel: { model: string; cost: number; tokens: number; requests: number }[];
+}
+
+// ─── OTEL Tool Success Rates ─────────────────────────────────────────────────
+
+export interface OtelToolSuccessRate {
+  toolName: string;
+  totalCalls: number;
+  successCount: number;
+  failureCount: number;
+  successRate: number;
+  avgDurationMs: number;
+}
+
+// ─── OTEL Session Duration Buckets ───────────────────────────────────────────
+
+export interface OtelSessionBuckets {
+  quick: number; // <5min
+  feature: number; // 5-30min
+  deep: number; // >30min
+  avgDurationMs: number;
+}
+
+// ─── OTEL Problem Patterns ───────────────────────────────────────────────────
+
+export interface OtelProblemPatterns {
+  longUnproductiveSessions: {
+    sessionId: string;
+    durationMs: number;
+    commits: number;
+    cost: number;
+  }[];
+  highRejectionTools: { toolName: string; rejectRate: number; total: number }[];
+  apiErrorPatterns: { errorType: string; count: number; model: string }[];
+}
+
+// ─── OTEL Recent Events ──────────────────────────────────────────────────────
+
+export interface OtelRecentEvent {
+  id: number;
+  timestampMs: number;
+  eventName: string;
+  model: string | null;
+  toolName: string | null;
+  costUsd: number | null;
+  durationMs: number | null;
+  success: boolean | null;
+}
+
+// ─── OTEL ROI Settings ───────────────────────────────────────────────────────
+
+export interface OtelRoiSettings {
+  hourlyDevCost: number; // default: 50
+  minutesPerLoc: number; // default: 3
+  minutesPerCommit: number; // default: 15
 }
 
 // ─── Session Schedule Types ─────────────────────────────────────────────────

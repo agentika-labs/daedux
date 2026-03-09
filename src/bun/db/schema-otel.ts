@@ -26,6 +26,11 @@ export const otelSessions = sqliteTable(
     totalTokens: integer("total_tokens").default(0),
     totalCostUsd: real("total_cost_usd").default(0),
     eventCount: integer("event_count").default(0),
+    // ─── Productivity Metrics (Phase 1) ──────────────────────────────────────
+    commitCount: integer("commit_count").default(0),
+    prCount: integer("pr_count").default(0),
+    linesAdded: integer("lines_added").default(0),
+    linesRemoved: integer("lines_removed").default(0),
   },
   (table) => [index("otel_sessions_time_idx").on(table.firstSeenAt)]
 );

@@ -36,6 +36,9 @@ export const OtelSettingsCard = ({
 }: OtelSettingsCardProps) => {
   const enabled = settings?.enabled ?? true;
   const retentionDays = settings?.retentionDays ?? 30;
+  const roiHourlyDevCost = settings?.roiHourlyDevCost ?? 50;
+  const roiMinutesPerLoc = settings?.roiMinutesPerLoc ?? 3;
+  const roiMinutesPerCommit = settings?.roiMinutesPerCommit ?? 15;
 
   const handleToggleEnabled = useCallback(
     (checked: boolean) => {
@@ -47,10 +50,21 @@ export const OtelSettingsCard = ({
   const handleRetentionChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const days = Number.parseInt(e.target.value, 10);
-      if (!isNaN(days) && days >= 1 && days <= 365) {
+      if (!Number.isNaN(days) && days >= 1 && days <= 365) {
         onSettingsChange({ retentionDays: days });
       }
     },
+    [onSettingsChange]
+  );
+
+  const handleRoiSettingChange = useCallback(
+    (field: "roiHourlyDevCost" | "roiMinutesPerLoc" | "roiMinutesPerCommit") =>
+      (e: React.ChangeEvent<HTMLInputElement>) => {
+        const value = Number.parseFloat(e.target.value);
+        if (!Number.isNaN(value) && value >= 0) {
+          onSettingsChange({ [field]: value });
+        }
+      },
     [onSettingsChange]
   );
 
@@ -153,6 +167,85 @@ export const OtelSettingsCard = ({
               disabled={isLoading}
             />
             <span className="text-muted-foreground text-sm">days</span>
+          </div>
+        </div>
+
+        {/* ROI Calculation Settings */}
+        <div className="border-border border-t pt-6">
+          <h3 className="mb-4 text-sm font-medium">ROI Calculation Settings</h3>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <Label htmlFor="roi-hourly" className="text-sm font-medium">
+                  Hourly Developer Cost
+                </Label>
+                <p className="text-muted-foreground text-sm">
+                  Your hourly rate for ROI calculations
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-muted-foreground text-sm">$</span>
+                <Input
+                  id="roi-hourly"
+                  type="number"
+                  min={0}
+                  step={5}
+                  value={roiHourlyDevCost}
+                  onChange={handleRoiSettingChange("roiHourlyDevCost")}
+                  className="w-20"
+                  disabled={isLoading}
+                />
+                <span className="text-muted-foreground text-sm">/hr</span>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div>
+                <Label htmlFor="roi-loc" className="text-sm font-medium">
+                  Baseline Minutes per LOC
+                </Label>
+                <p className="text-muted-foreground text-sm">
+                  Time to write one line of code manually
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Input
+                  id="roi-loc"
+                  type="number"
+                  min={0.1}
+                  step={0.5}
+                  value={roiMinutesPerLoc}
+                  onChange={handleRoiSettingChange("roiMinutesPerLoc")}
+                  className="w-20"
+                  disabled={isLoading}
+                />
+                <span className="text-muted-foreground text-sm">min</span>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div>
+                <Label htmlFor="roi-commit" className="text-sm font-medium">
+                  Baseline Minutes per Commit
+                </Label>
+                <p className="text-muted-foreground text-sm">
+                  Time to create a commit manually
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Input
+                  id="roi-commit"
+                  type="number"
+                  min={1}
+                  step={5}
+                  value={roiMinutesPerCommit}
+                  onChange={handleRoiSettingChange("roiMinutesPerCommit")}
+                  className="w-20"
+                  disabled={isLoading}
+                />
+                <span className="text-muted-foreground text-sm">min</span>
+              </div>
+            </div>
           </div>
         </div>
       </CardContent>
