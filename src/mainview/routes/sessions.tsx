@@ -1,20 +1,20 @@
 /**
- * Overview route - hero stats, efficiency score, insights, and weekly comparison.
+ * Sessions route - full-height table with search, filter, and pagination.
  *
- * This is the landing page that provides a quick scan of Claude Code usage.
+ * Uses URL search params for filter state to enable shareable URLs.
  */
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef } from "react";
 import { z } from "zod";
 
-import { OverviewSection } from "@/components/sections/OverviewSection";
+import { SessionsSection } from "@/components/sections/SessionsSection";
 import { useIsDesktop } from "@/hooks/useApi";
 import { queryClient } from "@/lib/query-client";
 import { useDashboardQuery, dashboardQueryOptions } from "@/queries/dashboard";
 
 // ─── Search Params Schema ────────────────────────────────────────────────────
 
-const overviewSearchSchema = z.object({
+const sessionsSearchSchema = z.object({
   filter: z
     .enum(["today", "7d", "30d", "all"] as const)
     .default("7d")
@@ -25,29 +25,26 @@ const overviewSearchSchema = z.object({
     .catch("claude-code"),
 });
 
-export type OverviewSearch = z.infer<typeof overviewSearchSchema>;
+export type SessionsSearch = z.infer<typeof sessionsSearchSchema>;
 
 // ─── Route Definition ────────────────────────────────────────────────────────
 
-export const Route = createFileRoute("/")({
-  validateSearch: overviewSearchSchema,
+export const Route = createFileRoute("/sessions")({
+  validateSearch: sessionsSearchSchema,
   loader: async () => {
     await queryClient.ensureQueryData(
       dashboardQueryOptions("7d", "claude-code")
     );
   },
-  component: OverviewRoute,
+  component: SessionsRoute,
 });
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
-function OverviewRoute() {
+function SessionsRoute() {
   const { filter, harness } = Route.useSearch();
   const isDesktop = useIsDesktop();
-  const { data, isLoading, error, refetch } = useDashboardQuery(
-    filter,
-    harness
-  );
+  const { data, isLoading, refetch } = useDashboardQuery(filter, harness);
 
   const refetchRef = useRef(refetch);
   refetchRef.current = refetch;
@@ -70,30 +67,12 @@ function OverviewRoute() {
     return () => cleanup?.();
   }, [isDesktop]);
 
-  if (error && !data) {
-    return (
-      <div className="bg-background flex h-screen items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-destructive mb-2 text-2xl font-semibold">
-            Error
-          </h1>
-          <p className="text-muted-foreground">{error.message}</p>
-          <button
-            type="button"
-            onClick={() => refetch()}
-            className="bg-primary text-primary-foreground mt-4 rounded-lg px-4 py-2"
-          >
-            Retry
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="flex-1 overflow-auto">
-      <div className="mx-auto max-w-7xl px-6 py-6">
-        <OverviewSection data={data ?? null} loading={isLoading} />
+    <div className="flex h-full flex-col">
+      <div className="flex-1 overflow-auto">
+        <div className="mx-auto max-w-7xl px-6 py-6">
+          <SessionsSection data={data ?? null} loading={isLoading} />
+        </div>
       </div>
     </div>
   );

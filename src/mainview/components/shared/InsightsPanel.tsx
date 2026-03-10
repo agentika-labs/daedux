@@ -1,10 +1,13 @@
+import { BulbIcon } from "@hugeicons/core-free-icons";
 import type { Insight, InsightActionTarget } from "@shared/rpc-types";
 import { useMemo } from "react";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
 
+import { EmptyState } from "./EmptyState";
 import { InsightCard } from "./InsightCard";
 import type { InsightType } from "./InsightCard";
 
@@ -45,7 +48,7 @@ export function InsightsPanel({
   );
 
   return (
-    <Card className={className}>
+    <Card className={cn("card-interactive", className)}>
       <CardHeader className="pb-2">
         <CardTitle>Insights</CardTitle>
       </CardHeader>
@@ -73,9 +76,11 @@ export function InsightsPanel({
             </div>
           </ScrollArea>
         ) : (
-          <p className="text-muted-foreground py-8 text-center">
-            No insights available
-          </p>
+          <EmptyState
+            icon={BulbIcon}
+            title="No insights yet"
+            description="Insights will appear as you use Claude Code and patterns emerge."
+          />
         )}
       </CardContent>
     </Card>

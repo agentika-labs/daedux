@@ -10,11 +10,30 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as SessionsRouteImport } from './routes/sessions'
+import { Route as AnalyticsRouteImport } from './routes/analytics'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AnalyticsIndexRouteImport } from './routes/analytics/index'
+import { Route as AnalyticsToolsRouteImport } from './routes/analytics/tools'
+import { Route as AnalyticsProjectsRouteImport } from './routes/analytics/projects'
+import { Route as AnalyticsOtelRouteImport } from './routes/analytics/otel'
+import { Route as AnalyticsEfficiencyRouteImport } from './routes/analytics/efficiency'
+import { Route as AnalyticsCostRouteImport } from './routes/analytics/cost'
+import { Route as AnalyticsAutomationRouteImport } from './routes/analytics/automation'
 
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SessionsRoute = SessionsRouteImport.update({
+  id: '/sessions',
+  path: '/sessions',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AnalyticsRoute = AnalyticsRouteImport.update({
+  id: '/analytics',
+  path: '/analytics',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -22,30 +41,126 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AnalyticsIndexRoute = AnalyticsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AnalyticsRoute,
+} as any)
+const AnalyticsToolsRoute = AnalyticsToolsRouteImport.update({
+  id: '/tools',
+  path: '/tools',
+  getParentRoute: () => AnalyticsRoute,
+} as any)
+const AnalyticsProjectsRoute = AnalyticsProjectsRouteImport.update({
+  id: '/projects',
+  path: '/projects',
+  getParentRoute: () => AnalyticsRoute,
+} as any)
+const AnalyticsOtelRoute = AnalyticsOtelRouteImport.update({
+  id: '/otel',
+  path: '/otel',
+  getParentRoute: () => AnalyticsRoute,
+} as any)
+const AnalyticsEfficiencyRoute = AnalyticsEfficiencyRouteImport.update({
+  id: '/efficiency',
+  path: '/efficiency',
+  getParentRoute: () => AnalyticsRoute,
+} as any)
+const AnalyticsCostRoute = AnalyticsCostRouteImport.update({
+  id: '/cost',
+  path: '/cost',
+  getParentRoute: () => AnalyticsRoute,
+} as any)
+const AnalyticsAutomationRoute = AnalyticsAutomationRouteImport.update({
+  id: '/automation',
+  path: '/automation',
+  getParentRoute: () => AnalyticsRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/analytics': typeof AnalyticsRouteWithChildren
+  '/sessions': typeof SessionsRoute
   '/settings': typeof SettingsRoute
+  '/analytics/automation': typeof AnalyticsAutomationRoute
+  '/analytics/cost': typeof AnalyticsCostRoute
+  '/analytics/efficiency': typeof AnalyticsEfficiencyRoute
+  '/analytics/otel': typeof AnalyticsOtelRoute
+  '/analytics/projects': typeof AnalyticsProjectsRoute
+  '/analytics/tools': typeof AnalyticsToolsRoute
+  '/analytics/': typeof AnalyticsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/sessions': typeof SessionsRoute
   '/settings': typeof SettingsRoute
+  '/analytics/automation': typeof AnalyticsAutomationRoute
+  '/analytics/cost': typeof AnalyticsCostRoute
+  '/analytics/efficiency': typeof AnalyticsEfficiencyRoute
+  '/analytics/otel': typeof AnalyticsOtelRoute
+  '/analytics/projects': typeof AnalyticsProjectsRoute
+  '/analytics/tools': typeof AnalyticsToolsRoute
+  '/analytics': typeof AnalyticsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/analytics': typeof AnalyticsRouteWithChildren
+  '/sessions': typeof SessionsRoute
   '/settings': typeof SettingsRoute
+  '/analytics/automation': typeof AnalyticsAutomationRoute
+  '/analytics/cost': typeof AnalyticsCostRoute
+  '/analytics/efficiency': typeof AnalyticsEfficiencyRoute
+  '/analytics/otel': typeof AnalyticsOtelRoute
+  '/analytics/projects': typeof AnalyticsProjectsRoute
+  '/analytics/tools': typeof AnalyticsToolsRoute
+  '/analytics/': typeof AnalyticsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/settings'
+  fullPaths:
+    | '/'
+    | '/analytics'
+    | '/sessions'
+    | '/settings'
+    | '/analytics/automation'
+    | '/analytics/cost'
+    | '/analytics/efficiency'
+    | '/analytics/otel'
+    | '/analytics/projects'
+    | '/analytics/tools'
+    | '/analytics/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/settings'
-  id: '__root__' | '/' | '/settings'
+  to:
+    | '/'
+    | '/sessions'
+    | '/settings'
+    | '/analytics/automation'
+    | '/analytics/cost'
+    | '/analytics/efficiency'
+    | '/analytics/otel'
+    | '/analytics/projects'
+    | '/analytics/tools'
+    | '/analytics'
+  id:
+    | '__root__'
+    | '/'
+    | '/analytics'
+    | '/sessions'
+    | '/settings'
+    | '/analytics/automation'
+    | '/analytics/cost'
+    | '/analytics/efficiency'
+    | '/analytics/otel'
+    | '/analytics/projects'
+    | '/analytics/tools'
+    | '/analytics/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AnalyticsRoute: typeof AnalyticsRouteWithChildren
+  SessionsRoute: typeof SessionsRoute
   SettingsRoute: typeof SettingsRoute
 }
 
@@ -58,6 +173,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/sessions': {
+      id: '/sessions'
+      path: '/sessions'
+      fullPath: '/sessions'
+      preLoaderRoute: typeof SessionsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/analytics': {
+      id: '/analytics'
+      path: '/analytics'
+      fullPath: '/analytics'
+      preLoaderRoute: typeof AnalyticsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -65,11 +194,86 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/analytics/': {
+      id: '/analytics/'
+      path: '/'
+      fullPath: '/analytics/'
+      preLoaderRoute: typeof AnalyticsIndexRouteImport
+      parentRoute: typeof AnalyticsRoute
+    }
+    '/analytics/tools': {
+      id: '/analytics/tools'
+      path: '/tools'
+      fullPath: '/analytics/tools'
+      preLoaderRoute: typeof AnalyticsToolsRouteImport
+      parentRoute: typeof AnalyticsRoute
+    }
+    '/analytics/projects': {
+      id: '/analytics/projects'
+      path: '/projects'
+      fullPath: '/analytics/projects'
+      preLoaderRoute: typeof AnalyticsProjectsRouteImport
+      parentRoute: typeof AnalyticsRoute
+    }
+    '/analytics/otel': {
+      id: '/analytics/otel'
+      path: '/otel'
+      fullPath: '/analytics/otel'
+      preLoaderRoute: typeof AnalyticsOtelRouteImport
+      parentRoute: typeof AnalyticsRoute
+    }
+    '/analytics/efficiency': {
+      id: '/analytics/efficiency'
+      path: '/efficiency'
+      fullPath: '/analytics/efficiency'
+      preLoaderRoute: typeof AnalyticsEfficiencyRouteImport
+      parentRoute: typeof AnalyticsRoute
+    }
+    '/analytics/cost': {
+      id: '/analytics/cost'
+      path: '/cost'
+      fullPath: '/analytics/cost'
+      preLoaderRoute: typeof AnalyticsCostRouteImport
+      parentRoute: typeof AnalyticsRoute
+    }
+    '/analytics/automation': {
+      id: '/analytics/automation'
+      path: '/automation'
+      fullPath: '/analytics/automation'
+      preLoaderRoute: typeof AnalyticsAutomationRouteImport
+      parentRoute: typeof AnalyticsRoute
+    }
   }
 }
 
+interface AnalyticsRouteChildren {
+  AnalyticsAutomationRoute: typeof AnalyticsAutomationRoute
+  AnalyticsCostRoute: typeof AnalyticsCostRoute
+  AnalyticsEfficiencyRoute: typeof AnalyticsEfficiencyRoute
+  AnalyticsOtelRoute: typeof AnalyticsOtelRoute
+  AnalyticsProjectsRoute: typeof AnalyticsProjectsRoute
+  AnalyticsToolsRoute: typeof AnalyticsToolsRoute
+  AnalyticsIndexRoute: typeof AnalyticsIndexRoute
+}
+
+const AnalyticsRouteChildren: AnalyticsRouteChildren = {
+  AnalyticsAutomationRoute: AnalyticsAutomationRoute,
+  AnalyticsCostRoute: AnalyticsCostRoute,
+  AnalyticsEfficiencyRoute: AnalyticsEfficiencyRoute,
+  AnalyticsOtelRoute: AnalyticsOtelRoute,
+  AnalyticsProjectsRoute: AnalyticsProjectsRoute,
+  AnalyticsToolsRoute: AnalyticsToolsRoute,
+  AnalyticsIndexRoute: AnalyticsIndexRoute,
+}
+
+const AnalyticsRouteWithChildren = AnalyticsRoute._addFileChildren(
+  AnalyticsRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AnalyticsRoute: AnalyticsRouteWithChildren,
+  SessionsRoute: SessionsRoute,
   SettingsRoute: SettingsRoute,
 }
 export const routeTree = rootRouteImport

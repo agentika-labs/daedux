@@ -1,18 +1,23 @@
+/**
+ * Header with 3-tab navigation and filter controls.
+ *
+ * Uses TanStack Router Links for tab navigation, preserving search params
+ * across tab switches. The filter controls update URL search params directly.
+ */
 import { Settings02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { Link } from "@tanstack/react-router";
+import { Link, useRouter, useMatches } from "@tanstack/react-router";
 import type { FC, SVGProps } from "react";
-import { useEffect, useRef, useCallback } from "react";
+import { useEffect, useRef, useCallback, useMemo } from "react";
 
 import { buttonVariants } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { SECTIONS, scrollToSection } from "@/hooks/useActiveSection";
-import type { SectionId } from "@/hooks/useActiveSection";
 import { rpcRequest } from "@/hooks/useRPC";
 import { cn } from "@/lib/utils";
-import type { HarnessFilterOption } from "@/queries/dashboard";
+import type { HarnessFilterOption, FilterOption } from "@/queries/dashboard";
 
-// Inline SVG logos for harness filter
+// ─── Inline SVG Logos ────────────────────────────────────────────────────────
+
 const ClaudeLogo: FC<SVGProps<SVGSVGElement>> = (props) => (
   <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" {...props}>
     <path
@@ -60,20 +65,12 @@ const OpenCodeLogo: FC<SVGProps<SVGSVGElement>> = (props) => (
   </svg>
 );
 
+// ─── Constants ───────────────────────────────────────────────────────────────
+
 // Detect macOS for traffic light padding
 const isMacOS =
   typeof navigator !== "undefined" &&
   navigator.platform.toLowerCase().includes("mac");
-
-export type FilterOption = "today" | "7d" | "30d" | "all";
-
-interface HeaderProps {
-  filter: FilterOption;
-  onFilterChange: (filter: FilterOption) => void;
-  harnessFilter: HarnessFilterOption;
-  onHarnessFilterChange: (harness: HarnessFilterOption) => void;
-  activeSection: SectionId;
-}
 
 type LogoComponent = FC<SVGProps<SVGSVGElement>>;
 
@@ -94,16 +91,81 @@ const FILTER_OPTIONS: { value: FilterOption; label: string }[] = [
   { label: "All", value: "all" },
 ];
 
-export function Header({
-  filter,
-  onFilterChange,
-  harnessFilter,
-  onHarnessFilterChange,
-  activeSection,
-}: HeaderProps) {
-  const headerRef = useRef<HTMLElement>(null);
+// Primary tabs with their routes
+const PRIMARY_TABS = [
+  { path: "/", label: "Overview" },
+  { path: "/analytics", label: "Analytics" },
+  { path: "/sessions", label: "Sessions" },
+] as const;
 
-  // Calculate button bounds and send to main process for native drag exclusion zones
+// ─── Component ───────────────────────────────────────────────────────────────
+
+export function Header() {
+  const router = useRouter();
+  const headerRef = useRef<HTMLElement>(null);
+  const matches = useMatches();
+
+  // Get current search params from any matched route that has them
+  const currentSearch = useMemo(() => {
+    // Find a match with search params (filter/harness)
+    for (const match of matches) {
+      const search = match.search as {
+        filter?: FilterOption;
+        harness?: HarnessFilterOption;
+      };
+      if (search?.filter || search?.harness) {
+        return {
+          filter: search.filter ?? "7d",
+          harness: search.harness ?? "claude-code",
+        };
+      }
+    }
+    return {
+      filter: "7d" as FilterOption,
+      harness: "claude-code" as HarnessFilterOption,
+    };
+  }, [matches]);
+
+  const { filter, harness } = currentSearch;
+
+  // Determine active primary tab based on current path
+  const activeTab = useMemo(() => {
+    const pathname = router.state.location.pathname;
+    if (pathname.startsWith("/analytics")) {
+      return "/analytics";
+    }
+    if (pathname.startsWith("/sessions")) {
+      return "/sessions";
+    }
+    if (pathname === "/settings") {
+      return null;
+    } // Settings is not a primary tab
+    return "/";
+  }, [router.state.location.pathname]);
+
+  // Handle filter changes by navigating with new search params
+  const handleFilterChange = useCallback(
+    (newFilter: FilterOption) => {
+      router.navigate({
+        to: ".",
+        search: (prev) => ({ ...prev, filter: newFilter }),
+      });
+    },
+    [router]
+  );
+
+  const handleHarnessChange = useCallback(
+    (newHarness: HarnessFilterOption) => {
+      router.navigate({
+        to: ".",
+        search: (prev) => ({ ...prev, harness: newHarness }),
+      });
+    },
+    [router]
+  );
+
+  // ─── macOS Drag Exclusion Zones ──────────────────────────────────────────────
+
   const updateExclusionZones = useCallback(() => {
     if (!headerRef.current || !isMacOS) {
       return;
@@ -117,22 +179,17 @@ export function Header({
       return { height: rect.height, width: rect.width, x: rect.x, y: rect.y };
     });
 
-    // Send zones to main process (fire and forget)
     rpcRequest("updateDragExclusionZones", { zones }).catch(() => {
-      // Silently ignore errors - drag region is a nice-to-have
+      // Silently ignore - drag region is nice-to-have
     });
   }, []);
 
-  // Update exclusion zones on mount and resize
   useEffect(() => {
     if (!isMacOS) {
       return;
     }
 
-    // Initial update after brief delay (let layout settle)
     const initialTimeout = setTimeout(updateExclusionZones, 100);
-
-    // Update on resize
     window.addEventListener("resize", updateExclusionZones);
 
     return () => {
@@ -141,14 +198,14 @@ export function Header({
     };
   }, [updateExclusionZones]);
 
-  // Update exclusion zones when filter changes (button positions may shift)
+  // Update zones when filters change
   useEffect(() => {
     if (!isMacOS) {
       return;
     }
     const timeout = setTimeout(updateExclusionZones, 50);
     return () => clearTimeout(timeout);
-  }, [filter, harnessFilter, activeSection, updateExclusionZones]);
+  }, [filter, harness, updateExclusionZones]);
 
   return (
     <header
@@ -157,42 +214,48 @@ export function Header({
     >
       <div className={cn("px-6 py-3", isMacOS && "pl-24")}>
         <div className="flex items-center justify-between">
-          {/* Title and nav */}
+          {/* Title and Primary Tabs */}
           <div className="flex items-center gap-6">
-            <h1 className="text-lg font-semibold">Daedux</h1>
+            <h1 className="text-lg font-semibold">
+              <span className="brand-gradient">Daedux</span>
+            </h1>
             <Separator orientation="vertical" className="h-6" />
             <nav className="flex items-center gap-1">
-              {SECTIONS.map(({ id, label }) => (
-                <button
-                  type="button"
-                  key={id}
-                  onClick={() => scrollToSection(id)}
+              {PRIMARY_TABS.map(({ path, label }) => (
+                <Link
+                  key={path}
+                  to={path}
+                  search={{ filter, harness }}
+                  activeOptions={{
+                    exact: path === "/",
+                    includeSearch: false,
+                  }}
                   className={cn(
-                    "px-3 py-1.5 text-sm font-medium rounded-md transition-colors",
-                    activeSection === id
-                      ? "bg-primary text-primary-foreground"
-                      : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                    "rounded-lg px-3 py-1.5 text-sm font-medium transition-all duration-200",
+                    activeTab === path
+                      ? "bg-primary text-primary-foreground nav-pill-active"
+                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
                   )}
                 >
                   {label}
-                </button>
+                </Link>
               ))}
             </nav>
           </div>
 
-          {/* Filter and sync */}
+          {/* Filter Controls */}
           <div className="flex items-center gap-3">
-            {/* Harness Filter - Logo Toggle */}
-            <div className="bg-muted flex items-center rounded-lg p-1 gap-1">
+            {/* Harness Filter */}
+            <div className="bg-muted flex items-center gap-1 rounded-lg p-1">
               {HARNESS_OPTIONS.map(({ value, Logo, tooltip }) => (
                 <button
                   type="button"
                   key={value}
-                  onClick={() => onHarnessFilterChange(value)}
+                  onClick={() => handleHarnessChange(value)}
                   title={tooltip}
                   className={cn(
-                    "p-1.5 rounded-md transition-colors",
-                    harnessFilter === value
+                    "cursor-pointer rounded-md p-1.5 transition-colors",
+                    harness === value
                       ? "bg-background shadow-sm"
                       : "text-muted-foreground hover:text-foreground"
                   )}
@@ -208,9 +271,9 @@ export function Header({
                 <button
                   type="button"
                   key={value}
-                  onClick={() => onFilterChange(value)}
+                  onClick={() => handleFilterChange(value)}
                   className={cn(
-                    "px-3 py-1 text-sm font-medium rounded-md transition-colors",
+                    "cursor-pointer rounded-md px-3 py-1 text-sm font-medium transition-colors",
                     filter === value
                       ? "bg-background text-foreground shadow-sm"
                       : "text-muted-foreground hover:text-foreground"
@@ -220,6 +283,8 @@ export function Header({
                 </button>
               ))}
             </div>
+
+            {/* Settings */}
             <div className="bg-muted flex items-center rounded-lg p-1">
               <Link
                 to="/settings"

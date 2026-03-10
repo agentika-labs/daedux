@@ -28,7 +28,11 @@ import {
   CardTitle,
   CardDescription,
 } from "@/components/ui/card";
-import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+} from "@/components/ui/chart";
 import type { ChartConfig } from "@/components/ui/chart";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
@@ -123,11 +127,7 @@ interface OverviewTabProps {
   loading?: boolean;
 }
 
-function OverviewTab({
-  analytics,
-  costBreakdown,
-  loading,
-}: OverviewTabProps) {
+function OverviewTab({ analytics, costBreakdown, loading }: OverviewTabProps) {
   return (
     <LoadingBoundary loading={loading} skeleton="card">
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -293,7 +293,9 @@ function PerformanceTab({
                           {formatNumber(row.requests)} requests
                         </div>
                       </div>
-                      <Badge variant="outline">{formatCurrency(row.cost)}</Badge>
+                      <Badge variant="outline">
+                        {formatCurrency(row.cost)}
+                      </Badge>
                     </div>
                   ))}
                 </div>
@@ -469,7 +471,8 @@ function InsightsTab({
                   No API errors detected
                 </li>
               )}
-              {(problemPatterns?.longUnproductiveSessions.length ?? 0) === 0 && (
+              {(problemPatterns?.longUnproductiveSessions.length ?? 0) ===
+                0 && (
                 <li className="flex items-center gap-2">
                   <span className="bg-success h-2 w-2 rounded-full" />
                   No long unproductive sessions

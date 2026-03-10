@@ -8,6 +8,7 @@ const EMPTY_PROJECTS: ProjectSummary[] = [];
 import { Section } from "@/components/layout/Section";
 import { ChartCard } from "@/components/shared/ChartCard";
 import { EmptyChartState } from "@/components/shared/EmptyChartState";
+import { EmptyState } from "@/components/shared/EmptyState";
 import { LoadingBoundary } from "@/components/shared/LoadingBoundary";
 import { SectionHeader } from "@/components/shared/SectionHeader";
 import { StatCard } from "@/components/shared/StatCard";
@@ -173,7 +174,10 @@ export function ProjectsSection({ data, loading }: ProjectsSectionProps) {
           loading={loading}
         >
           {chartData.length > 0 ? (
-            <ChartContainer config={projectConfig} className="h-[300px] w-full">
+            <ChartContainer
+              config={projectConfig}
+              className="h-[250px] w-full md:h-[300px]"
+            >
               <BarChart data={chartData} layout="vertical" accessibilityLayer>
                 <CartesianGrid horizontal={false} strokeDasharray="3 3" />
                 <XAxis
@@ -253,9 +257,10 @@ export function ProjectsSection({ data, loading }: ProjectsSectionProps) {
                   ))}
                 </div>
               ) : (
-                <p className="text-muted-foreground py-8 text-center">
-                  No projects found
-                </p>
+                <EmptyState
+                  title="No projects yet"
+                  description="Projects appear here after your first Claude Code session."
+                />
               )}
             </LoadingBoundary>
           </CardContent>

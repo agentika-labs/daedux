@@ -33,7 +33,10 @@ export function ScoreBar({
       <div className="mb-1 flex justify-between text-xs">
         <span className="text-muted-foreground">{label}</span>
         <span
-          className={cn("font-medium", !hasData && "text-muted-foreground")}
+          className={cn(
+            "stat-value font-medium",
+            !hasData && "text-muted-foreground"
+          )}
         >
           {hasData ? `${Math.round(value)}%` : emptyText}
         </span>

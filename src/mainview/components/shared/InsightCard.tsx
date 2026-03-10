@@ -31,6 +31,13 @@ const iconMap: Record<InsightType, typeof CheckmarkCircle02Icon> = {
   warning: AlertCircleIcon,
 };
 
+const borderAccentMap: Record<InsightType, string> = {
+  info: "insight-border-info",
+  success: "insight-border-success",
+  tip: "insight-border-tip",
+  warning: "insight-border-warning",
+};
+
 // Map InsightType to SemanticVariant (they align 1:1)
 function getStyles(type: InsightType) {
   return SEMANTIC_STYLES[type as SemanticVariant];
@@ -51,9 +58,10 @@ export function InsightCard({
   return (
     <div
       className={cn(
-        "flex gap-3 rounded-lg border p-3 transition-colors",
+        "flex gap-3 rounded-lg border p-3 transition-all duration-200 hover:shadow-sm",
         styles.bg,
         styles.border,
+        borderAccentMap[type],
         priority === "high" && "ring-1 ring-current/20",
         className
       )}
@@ -90,7 +98,7 @@ export function InsightCard({
             type="button"
             onClick={action.onClick}
             className={cn(
-              "inline-flex items-center gap-1 text-xs font-medium mt-2 transition-colors",
+              "inline-flex cursor-pointer items-center gap-1 text-xs font-medium mt-2 transition-colors",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 rounded-sm",
               styles.button
             )}

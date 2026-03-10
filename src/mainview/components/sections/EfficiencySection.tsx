@@ -216,7 +216,10 @@ export function EfficiencySection({
           loading={loading}
         >
           {cacheEfficiencyData.length > 0 ? (
-            <ChartContainer config={cacheConfig} className="h-[250px] w-full">
+            <ChartContainer
+              config={cacheConfig}
+              className="h-[200px] w-full md:h-[250px]"
+            >
               <AreaChart data={cacheEfficiencyData} accessibilityLayer>
                 <defs>
                   <linearGradient
@@ -282,7 +285,10 @@ export function EfficiencySection({
           loading={loading}
         >
           {sessionLengthBuckets.length > 0 ? (
-            <ChartContainer config={sessionConfig} className="h-[250px] w-full">
+            <ChartContainer
+              config={sessionConfig}
+              className="h-[200px] w-full md:h-[250px]"
+            >
               <BarChart data={sessionLengthBuckets} accessibilityLayer>
                 <CartesianGrid vertical={false} strokeDasharray="3 3" />
                 <XAxis

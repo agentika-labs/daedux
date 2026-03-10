@@ -33,6 +33,7 @@ import type {
 import { useState, useMemo, useDeferredValue, useEffect } from "react";
 
 import { Section } from "@/components/layout/Section";
+import { EmptyState } from "@/components/shared/EmptyState";
 import { LoadingBoundary } from "@/components/shared/LoadingBoundary";
 import { SectionHeader } from "@/components/shared/SectionHeader";
 import { Badge } from "@/components/ui/badge";
@@ -410,7 +411,7 @@ export function SessionsSection({ data, loading }: SessionsSectionProps) {
                       {table.getRowModel().rows.map((row) => (
                         <tr
                           key={row.id}
-                          className="border-border/50 hover:bg-muted/50 cursor-pointer border-b transition-colors last:border-0"
+                          className="table-row-hover border-border/50 hover:bg-muted/50 cursor-pointer border-b last:border-0"
                           onClick={() => setSelectedSession(row.original)}
                         >
                           {row.getVisibleCells().map((cell) => {
@@ -503,9 +504,11 @@ export function SessionsSection({ data, loading }: SessionsSectionProps) {
                 )}
               </>
             ) : (
-              <p className="text-muted-foreground py-12 text-center">
-                No sessions found
-              </p>
+              <EmptyState
+                icon={Clock01Icon}
+                title="No sessions found"
+                description="Sessions appear here after you start using Claude Code."
+              />
             )}
           </LoadingBoundary>
         </CardContent>
@@ -657,7 +660,7 @@ function SessionDetail({ session }: { session: SessionRow }) {
           <div className="space-y-3">
             <h4 className="text-sm font-medium">File Activity</h4>
             <div className="max-h-[200px] space-y-1 overflow-y-auto">
-              {/* eslint-disable react/no-array-index-key -- filePath+tool may have duplicates, index ensures uniqueness */}
+              {/* eslint-disable react/no-array-index-key -- Composite key required: same file+tool can appear multiple times (e.g., multiple Read/Edit on same file), so filePath+tool isn't unique */}
               {session.fileActivityDetails.slice(0, 20).map((file, index) => (
                 <div
                   key={`${file.filePath}-${file.tool}-${index}`}

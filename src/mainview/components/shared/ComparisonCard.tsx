@@ -28,9 +28,11 @@ export function ComparisonCard({
   return (
     <div className={cn("text-center", className)}>
       <p className="text-muted-foreground mb-1 text-sm">{label}</p>
-      <p className="text-xl font-semibold">{thisWeek}</p>
+      <p className="stat-value text-xl font-semibold">{thisWeek}</p>
       <div className="mt-1 flex items-center justify-center gap-1">
-        <span className="text-muted-foreground text-xs">vs {lastWeek}</span>
+        <span className="stat-value text-muted-foreground text-xs">
+          vs {lastWeek}
+        </span>
         {change !== 0 && (
           <span
             className={cn(
