@@ -363,28 +363,6 @@
   animation: shimmer 1.5s infinite;
 }
 
-/* Efficiency ring glow animation */
-@keyframes ring-pulse {
-  0%,
-  100% {
-    filter: drop-shadow(0 0 4px oklch(0.68 0.16 145 / 30%));
-  }
-  50% {
-    filter: drop-shadow(0 0 8px oklch(0.68 0.16 145 / 50%));
-  }
-}
-
-.efficiency-ring {
-  animation: ring-pulse 3s ease-in-out infinite;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .efficiency-ring {
-    animation: none;
-    filter: drop-shadow(0 0 4px oklch(0.68 0.16 145 / 30%));
-  }
-}
-
 /* Fade edge for scrollable content */
 .fade-edge-bottom {
   mask-image: linear-gradient(to bottom, black 85%, transparent 100%);
@@ -403,44 +381,3 @@
   border: 1px solid oklch(1 0 0 / 10%);
 }
 
-/* ─── Semantic Chart Glow Utilities ────────────────────────────────────────── */
-
-.glow-chart-1 {
-  box-shadow: 0 0 20px oklch(0.62 0.15 265 / 25%);
-}
-
-.glow-chart-2 {
-  box-shadow: 0 0 20px oklch(0.68 0.14 162 / 25%);
-}
-
-.glow-chart-3 {
-  box-shadow: 0 0 20px oklch(0.72 0.14 70 / 25%);
-}
-
-.glow-chart-4 {
-  box-shadow: 0 0 20px oklch(0.65 0.15 305 / 25%);
-}
-
-.glow-chart-5 {
-  box-shadow: 0 0 20px oklch(0.68 0.15 15 / 25%);
-}
-
-.dark .glow-chart-1 {
-  box-shadow: 0 0 24px oklch(0.65 0.18 265 / 30%);
-}
-
-.dark .glow-chart-2 {
-  box-shadow: 0 0 24px oklch(0.70 0.16 162 / 30%);
-}
-
-.dark .glow-chart-3 {
-  box-shadow: 0 0 24px oklch(0.72 0.14 70 / 30%);
-}
-
-.dark .glow-chart-4 {
-  box-shadow: 0 0 24px oklch(0.68 0.17 305 / 30%);
-}
-
-.dark .glow-chart-5 {
-  box-shadow: 0 0 24px oklch(0.70 0.17 15 / 30%);
-}

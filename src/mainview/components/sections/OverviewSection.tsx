@@ -172,10 +172,7 @@ export function OverviewSection({
                   <div className="flex items-center justify-center py-4">
                     <div className="relative h-28 w-28">
                       <svg
-                        className={cn(
-                          "h-full w-full -rotate-90",
-                          efficiencyScore.overall >= 75 && "efficiency-ring"
-                        )}
+                        className="h-full w-full -rotate-90"
                         viewBox="0 0 100 100"
                       >
                         <circle
