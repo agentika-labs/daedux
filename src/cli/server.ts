@@ -407,8 +407,15 @@ export async function startServer(options: ServerOptions): Promise<void> {
       if (pathname === "/api/otel/analytics") {
         try {
           const filter = url.searchParams.get("filter");
+          const harness = url.searchParams.get("harness") as
+            | "claude-code"
+            | "opencode"
+            | "codex"
+            | undefined;
           const dateFilter = parseDateFilter(filter);
-          const data = await runEffect(getOtelDashboardData(dateFilter));
+          const data = await runEffect(
+            getOtelDashboardData({ ...dateFilter, harness: harness ?? undefined })
+          );
           return Response.json(data);
         } catch (error) {
           log.error("api", "OTEL analytics error:", error);

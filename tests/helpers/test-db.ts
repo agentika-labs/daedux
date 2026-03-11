@@ -254,9 +254,12 @@ CREATE TABLE IF NOT EXISTS otel_sessions (
   commit_count INTEGER DEFAULT 0,
   pr_count INTEGER DEFAULT 0,
   lines_added INTEGER DEFAULT 0,
-  lines_removed INTEGER DEFAULT 0
+  lines_removed INTEGER DEFAULT 0,
+  harness TEXT NOT NULL DEFAULT 'claude-code'
 );
 CREATE INDEX IF NOT EXISTS otel_sessions_time_idx ON otel_sessions(first_seen_at);
+CREATE INDEX IF NOT EXISTS otel_sessions_harness_idx ON otel_sessions(harness);
+CREATE INDEX IF NOT EXISTS otel_sessions_harness_time_idx ON otel_sessions(harness, first_seen_at);
 
 -- OTEL metrics
 CREATE TABLE IF NOT EXISTS otel_metrics (

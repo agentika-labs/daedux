@@ -1,7 +1,9 @@
-import { sql, gte, lte, and, count, avg, sum, max, desc } from "drizzle-orm";
+import { sql, gte, lte, and, count, avg, sum, max, desc, inArray } from "drizzle-orm";
 import { Effect } from "effect";
 
 import type {
+  DateFilter,
+  HarnessId,
   OtelStatus,
   OtelAnalytics,
   OtelToolDecision,
@@ -17,13 +19,6 @@ import type {
 import { DatabaseService, dbQuery } from "../db";
 import { otelSessions, otelMetrics, otelEvents } from "../db/schema-otel";
 import { DatabaseError } from "../errors";
-
-// ─── Date Filter ────────────────────────────────────────────────────────────
-
-interface DateFilter {
-  startTime?: number;
-  endTime?: number;
-}
 
 const buildTimeFilter = (filter: DateFilter) => {
   const conditions = [];
@@ -47,6 +42,35 @@ const buildEventsTimeFilter = (filter: DateFilter) => {
   if (filter.endTime) {
     const endNs = BigInt(filter.endTime) * 1_000_000n;
     conditions.push(lte(otelEvents.timestampNs, Number(endNs)));
+  }
+  return conditions.length > 0 ? and(...conditions) : undefined;
+};
+
+/**
+ * Build harness filter for otel_sessions table.
+ * Supports single harness ID or array of harness IDs.
+ */
+const buildSessionHarnessFilter = (filter: DateFilter) => {
+  if (!filter.harness) return undefined;
+  const harnesses = Array.isArray(filter.harness) ? filter.harness : [filter.harness];
+  if (harnesses.length === 0) return undefined;
+  return inArray(otelSessions.harness, harnesses);
+};
+
+/**
+ * Build combined session filter with time and harness.
+ */
+const buildSessionFilter = (filter: DateFilter) => {
+  const conditions = [];
+  if (filter.startTime) {
+    conditions.push(gte(otelSessions.firstSeenAt, filter.startTime));
+  }
+  if (filter.endTime) {
+    conditions.push(lte(otelSessions.firstSeenAt, filter.endTime));
+  }
+  const harnessFilter = buildSessionHarnessFilter(filter);
+  if (harnessFilter) {
+    conditions.push(harnessFilter);
   }
   return conditions.length > 0 ? and(...conditions) : undefined;
 };
@@ -95,9 +119,9 @@ export const getOtelAnalytics = (
   filter: DateFilter
 ): Effect.Effect<OtelAnalytics, DatabaseError, DatabaseService> =>
   Effect.gen(function* () {
-    // Session count from otel_sessions
+    // Session count from otel_sessions (filtered by harness)
     const sessionsResult = yield* dbQuery("otel_analytics_sessions", (db) =>
-      db.select({ count: count() }).from(otelSessions)
+      db.select({ count: count() }).from(otelSessions).where(buildSessionFilter(filter))
     );
 
     // Active time breakdown from metrics
@@ -297,7 +321,7 @@ export const getProductivityMetrics = (
   filter: DateFilter
 ): Effect.Effect<OtelProductivityMetrics, DatabaseError, DatabaseService> =>
   Effect.gen(function* () {
-    // Get aggregated session productivity
+    // Get aggregated session productivity (filtered by harness)
     const sessionTotals = yield* dbQuery("otel_productivity_sessions", (db) =>
       db
         .select({
@@ -308,11 +332,7 @@ export const getProductivityMetrics = (
           sessionCount: count(),
         })
         .from(otelSessions)
-        .where(
-          filter.startTime
-            ? gte(otelSessions.firstSeenAt, filter.startTime)
-            : undefined
-        )
+        .where(buildSessionFilter(filter))
     );
 
     // Get breakdown by language from metrics
@@ -386,7 +406,7 @@ export const getCostBreakdown = (
   filter: DateFilter
 ): Effect.Effect<OtelCostBreakdown, DatabaseError, DatabaseService> =>
   Effect.gen(function* () {
-    // Get total cost and sessions
+    // Get total cost and sessions (filtered by harness)
     const sessionCosts = yield* dbQuery("otel_cost_sessions", (db) =>
       db
         .select({
@@ -397,11 +417,7 @@ export const getCostBreakdown = (
           sessionCount: count(),
         })
         .from(otelSessions)
-        .where(
-          filter.startTime
-            ? gte(otelSessions.firstSeenAt, filter.startTime)
-            : undefined
-        )
+        .where(buildSessionFilter(filter))
     );
 
     // Get cost by model
@@ -547,11 +563,7 @@ export const getSessionDurationBuckets = (
           avgDurationMs: avg(sql<number>`last_seen_at - first_seen_at`),
         })
         .from(otelSessions)
-        .where(
-          filter.startTime
-            ? gte(otelSessions.firstSeenAt, filter.startTime)
-            : undefined
-        )
+        .where(buildSessionFilter(filter))
     );
 
     const row = result[0];
@@ -572,6 +584,16 @@ export const getProblemPatterns = (
   filter: DateFilter
 ): Effect.Effect<OtelProblemPatterns, DatabaseError, DatabaseService> =>
   Effect.gen(function* () {
+    // Build base conditions for long unproductive sessions
+    const baseConditions = [
+      sql`(last_seen_at - first_seen_at) >= 1800000`,
+      sql`commit_count = 0`,
+    ];
+    const sessionFilter = buildSessionFilter(filter);
+    if (sessionFilter) {
+      baseConditions.push(sessionFilter);
+    }
+
     // Long unproductive sessions (>30min with 0 commits)
     const longUnproductive = yield* dbQuery(
       "otel_problems_long_unproductive",
@@ -584,15 +606,7 @@ export const getProblemPatterns = (
             cost: otelSessions.totalCostUsd,
           })
           .from(otelSessions)
-          .where(
-            and(
-              sql`(last_seen_at - first_seen_at) >= 1800000`,
-              sql`commit_count = 0`,
-              filter.startTime
-                ? gte(otelSessions.firstSeenAt, filter.startTime)
-                : undefined
-            )
-          )
+          .where(and(...baseConditions))
           .orderBy(desc(sql`last_seen_at - first_seen_at`))
           .limit(5)
     );

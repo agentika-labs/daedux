@@ -437,7 +437,8 @@ export function initializeDatabase(): void {
       last_seen_at INTEGER NOT NULL,
       total_tokens INTEGER DEFAULT 0,
       total_cost_usd REAL DEFAULT 0,
-      event_count INTEGER DEFAULT 0
+      event_count INTEGER DEFAULT 0,
+      harness TEXT NOT NULL DEFAULT 'claude-code'
     )
   `);
 
@@ -517,9 +518,24 @@ export function initializeDatabase(): void {
     /* column may already exist */
   }
 
+  // Add harness column to otel_sessions for filtering by harness
+  try {
+    sqlite.exec(
+      `ALTER TABLE otel_sessions ADD COLUMN harness TEXT NOT NULL DEFAULT 'claude-code'`
+    );
+  } catch {
+    /* column may already exist */
+  }
+
   // OTEL indexes
   sqlite.exec(
     `CREATE INDEX IF NOT EXISTS otel_sessions_time_idx ON otel_sessions(first_seen_at)`
+  );
+  sqlite.exec(
+    `CREATE INDEX IF NOT EXISTS otel_sessions_harness_idx ON otel_sessions(harness)`
+  );
+  sqlite.exec(
+    `CREATE INDEX IF NOT EXISTS otel_sessions_harness_time_idx ON otel_sessions(harness, first_seen_at)`
   );
   sqlite.exec(
     `CREATE INDEX IF NOT EXISTS otel_metrics_session_idx ON otel_metrics(session_id)`

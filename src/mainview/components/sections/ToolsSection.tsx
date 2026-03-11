@@ -16,6 +16,7 @@ import type { ConfidenceLevel, DashboardData } from "@shared/rpc-types";
 import { useState } from "react";
 
 import { Section } from "@/components/layout/Section";
+import { EmptyState } from "@/components/shared/EmptyState";
 import { InsightCard } from "@/components/shared/InsightCard";
 import { LoadingBoundary } from "@/components/shared/LoadingBoundary";
 import { SectionHeader } from "@/components/shared/SectionHeader";
@@ -117,9 +118,11 @@ export function ToolsSection({ data, loading }: ToolsSectionProps) {
                   ))}
                 </div>
               ) : (
-                <p className="text-muted-foreground py-8 text-center">
-                  No reliable tools found
-                </p>
+                <EmptyState
+                  title="No reliable tools found"
+                  description="Reliable tools appear after more usage"
+                  icon={CheckmarkCircle02Icon}
+                />
               )}
             </LoadingBoundary>
           </CardContent>
@@ -153,9 +156,11 @@ export function ToolsSection({ data, loading }: ToolsSectionProps) {
                     ))}
                 </div>
               ) : (
-                <p className="text-muted-foreground py-8 text-center">
-                  No friction points - all tools are working well
-                </p>
+                <EmptyState
+                  title="All tools working well"
+                  description="No friction points detected"
+                  icon={CheckmarkCircle02Icon}
+                />
               )}
             </LoadingBoundary>
           </CardContent>
@@ -182,9 +187,11 @@ export function ToolsSection({ data, loading }: ToolsSectionProps) {
                 ))}
               </div>
             ) : (
-              <p className="text-muted-foreground py-8 text-center">
-                No bash commands analyzed
-              </p>
+              <EmptyState
+                title="No bash commands"
+                description="Bash commands appear after using Claude Code"
+                icon={CodeIcon}
+              />
             )}
           </LoadingBoundary>
         </CardContent>

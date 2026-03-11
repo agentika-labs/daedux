@@ -13,6 +13,7 @@ import {
   CLAUDE_ATTRS,
 } from "./types";
 import type { OtlpMetricsRequest, OtlpLogsRequest } from "./types";
+import type { HarnessId } from "../../shared/rpc-types";
 
 // ─── Session Upsert ──────────────────────────────────────────────────────────
 
@@ -24,6 +25,7 @@ interface SessionInfo {
   appVersion: string | null;
   terminalType: string | null;
   timestampMs: number;
+  harness: HarnessId;
 }
 
 /**
@@ -58,6 +60,7 @@ const upsertSession = (info: SessionInfo) =>
         firstSeenAt: info.timestampMs,
         lastSeenAt: info.timestampMs,
         eventCount: 1,
+        harness: info.harness,
       });
     }
   });
@@ -131,6 +134,7 @@ export const storeMetrics = (
                   CLAUDE_ATTRS.TERMINAL_TYPE
                 ),
                 timestampMs,
+                harness: (getStringAttr(allAttrs, "harness") as HarnessId) ?? "claude-code",
               });
             }
 
@@ -293,6 +297,7 @@ export const storeEvents = (
             appVersion: getStringAttr(allAttrs, CLAUDE_ATTRS.APP_VERSION),
             terminalType: getStringAttr(allAttrs, CLAUDE_ATTRS.TERMINAL_TYPE),
             timestampMs,
+            harness: (getStringAttr(allAttrs, "harness") as HarnessId) ?? "claude-code",
           });
 
           // Build event row

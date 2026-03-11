@@ -18,6 +18,7 @@ import { useMemo } from "react";
 import { PieChart, Pie, Cell, Legend } from "recharts";
 
 import { Section } from "@/components/layout/Section";
+import { EmptyState } from "@/components/shared/EmptyState";
 import { LoadingBoundary } from "@/components/shared/LoadingBoundary";
 import { SectionHeader } from "@/components/shared/SectionHeader";
 import { Badge } from "@/components/ui/badge";
@@ -60,7 +61,15 @@ interface OtelSectionProps {
 
 export function OtelSection({ data, loading }: OtelSectionProps) {
   if (!data?.hasData && !loading) {
-    return null; // Don't show section if no OTEL data
+    return (
+      <Section id="otel">
+        <EmptyState
+          title="No telemetry data"
+          description="Claude Code's OpenTelemetry integration isn't configured for this harness. Enable OTEL to track real-time metrics like session duration, tool success rates, and cost breakdown."
+          icon={WifiIcon}
+        />
+      </Section>
+    );
   }
 
   const analytics = data?.analytics;

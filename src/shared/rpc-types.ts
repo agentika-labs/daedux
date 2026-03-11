@@ -680,6 +680,7 @@ export interface UsageMonitorRPC {
       getOtelAnalytics: {
         params: {
           filter?: "today" | "7d" | "30d" | "all";
+          harness?: HarnessId;
         };
         response: OtelDashboardData;
       };

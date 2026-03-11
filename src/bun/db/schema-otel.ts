@@ -31,8 +31,14 @@ export const otelSessions = sqliteTable(
     prCount: integer("pr_count").default(0),
     linesAdded: integer("lines_added").default(0),
     linesRemoved: integer("lines_removed").default(0),
+    // ─── Harness Identifier ──────────────────────────────────────────────────
+    harness: text("harness").notNull().default("claude-code"),
   },
-  (table) => [index("otel_sessions_time_idx").on(table.firstSeenAt)]
+  (table) => [
+    index("otel_sessions_time_idx").on(table.firstSeenAt),
+    index("otel_sessions_harness_idx").on(table.harness),
+    index("otel_sessions_harness_time_idx").on(table.harness, table.firstSeenAt),
+  ]
 );
 
 // ─── OTEL Metrics ────────────────────────────────────────────────────────────

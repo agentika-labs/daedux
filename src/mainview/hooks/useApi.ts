@@ -55,9 +55,10 @@ interface ApiClient {
 
   getOtelStatus: () => Promise<OtelStatus>;
 
-  getOtelAnalytics: (
-    filter: "today" | "7d" | "30d" | "all"
-  ) => Promise<OtelDashboardData>;
+  getOtelAnalytics: (params: {
+    filter: "today" | "7d" | "30d" | "all";
+    harness?: HarnessId;
+  }) => Promise<OtelDashboardData>;
 }
 
 // Default timeout for API requests (30 seconds)
@@ -175,8 +176,13 @@ const createHttpClient = (): ApiClient => ({
     return response.json();
   },
 
-  getOtelAnalytics: async (filter) => {
-    const response = await fetch(`/api/otel/analytics?filter=${filter}`);
+  getOtelAnalytics: async (params) => {
+    const searchParams = new URLSearchParams();
+    searchParams.set("filter", params.filter);
+    if (params.harness) {
+      searchParams.set("harness", params.harness);
+    }
+    const response = await fetch(`/api/otel/analytics?${searchParams}`);
 
     if (!response.ok) {
       throw new Error(`OTEL analytics error: ${response.status}`);
@@ -236,9 +242,9 @@ const createRpcClient = (): ApiClient => {
       const { electroview } = await getElectroview();
       return electroview.request.getOtelStatus({});
     },
-    getOtelAnalytics: async (filter) => {
+    getOtelAnalytics: async (params) => {
       const { electroview } = await getElectroview();
-      return electroview.request.getOtelAnalytics({ filter });
+      return electroview.request.getOtelAnalytics(params);
     },
   };
 };

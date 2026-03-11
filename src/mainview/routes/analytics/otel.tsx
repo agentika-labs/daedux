@@ -20,8 +20,8 @@ export const Route = createFileRoute("/analytics/otel")({
 });
 
 function OtelRoute() {
-  const { filter } = Route.useSearch() as AnalyticsSearch;
-  const { data, isLoading } = useOtelAnalyticsQuery(filter);
+  const { filter, harness } = Route.useSearch() as AnalyticsSearch;
+  const { data, isLoading } = useOtelAnalyticsQuery(filter, harness);
 
   return (
     <Suspense fallback={<Skeleton className="h-[600px] w-full" />}>
