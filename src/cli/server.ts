@@ -162,6 +162,10 @@ export async function startServer(options: ServerOptions): Promise<void> {
     log.error("cli", "Initial sync failed:", error);
   }
 
+  // Mark that we're running in server mode - disables CLI probe in anthropic-usage
+  // The CLI probe uses PTY spawning which fails in Bun.serve request handler context
+  process.env.DAEDUX_CLI_SERVER = "1";
+
   Bun.serve({
     port,
     async fetch(req) {
@@ -358,6 +362,7 @@ export async function startServer(options: ServerOptions): Promise<void> {
               return yield* anthropicService.getUsage();
             })
           );
+          log.info("api", `Anthropic usage source: ${usage.source}`);
           return Response.json(usage);
         } catch (error) {
           log.error("api", "Anthropic usage error:", error);

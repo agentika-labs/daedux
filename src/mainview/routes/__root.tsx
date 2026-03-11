@@ -9,11 +9,16 @@ import {
   QueryClientProvider,
   QueryErrorResetBoundary,
 } from "@tanstack/react-query";
-import { createRootRouteWithContext, Outlet } from "@tanstack/react-router";
+import {
+  createRootRouteWithContext,
+  Outlet,
+  useMatches,
+} from "@tanstack/react-router";
 import { lazy, Suspense } from "react";
 import { ErrorBoundary } from "react-error-boundary";
 
 import { Header } from "@/components/layout/Header";
+import "@/lib/router-types"; // Type augmentation for staticData
 
 import { queryClient } from "../lib/query-client";
 
@@ -44,6 +49,11 @@ export const Route = createRootRouteWithContext<RouterContext>()({
 });
 
 function RootComponent() {
+  const showHeader = useMatches({
+    select: (matches) =>
+      !matches.some((m) => m.staticData?.showHeader === false),
+  });
+
   return (
     <QueryClientProvider client={queryClient}>
       <QueryErrorResetBoundary>
@@ -71,7 +81,7 @@ function RootComponent() {
             )}
           >
             <div className="bg-background text-foreground flex h-screen flex-col">
-              <Header />
+              {showHeader && <Header />}
               <main className="flex-1 overflow-auto">
                 <Outlet />
               </main>

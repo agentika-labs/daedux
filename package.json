@@ -29,11 +29,8 @@
   "type": "module",
   "scripts": {
     "prepack": "bun run build:frontend",
-    "dev": "concurrently -n cli,web -c blue,green \"bun bin/cli.ts\" \"vite\"",
-    "dev:cli": "bun bin/cli.ts",
-    "dev:frontend": "vite",
-    "dev:app": "bun run build:native-effects && bun run build:frontend && electrobun dev --console",
-    "dev:hmr": "bun run build:native-effects && concurrently \"vite --port 5173\" \"sleep 2 && VITE_DEV_SERVER_URL=http://localhost:5173 electrobun dev --console\"",
+    "dev": "concurrently -n cli,vite -c blue,green \"bun bin/cli.ts\" \"vite\"",
+    "dev:desktop": "bun run build:native-effects && concurrently -k -n vite,app -c green,yellow \"vite\" \"bunx wait-on http://localhost:5173 && VITE_DEV_SERVER_URL=http://localhost:5173 electrobun dev --console\"",
     "build:native-effects": "bash scripts/build-macos-effects.sh",
     "build:frontend": "vite build",
     "build": "bun run build:native-effects && vite build && electrobun build",

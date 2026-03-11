@@ -116,7 +116,7 @@ export const SettingsScreen = () => {
   }, [updateExclusionZones, isDesktop]);
 
   return (
-    <div className="bg-background text-foreground flex h-screen flex-col">
+    <div className="flex h-full flex-col">
       <header
         ref={headerRef}
         className="bg-background desktop:bg-background/60 border-border sticky top-0 z-50 border-b desktop:backdrop-blur"
@@ -143,12 +143,14 @@ export const SettingsScreen = () => {
 
       <main className="flex-1 overflow-auto">
         <div className="mx-auto max-w-3xl space-y-6 px-6 py-6">
-          <UsageLimitsCard
-            usage={usage ?? null}
-            isLoading={isLoading}
-            onRefresh={handleRefreshUsage}
-            isRefreshing={isRefreshingUsage}
-          />
+          {isDesktop && (
+            <UsageLimitsCard
+              usage={usage ?? null}
+              isLoading={isLoading}
+              onRefresh={handleRefreshUsage}
+              isRefreshing={isRefreshingUsage}
+            />
+          )}
 
           <Card>
             <CardHeader>

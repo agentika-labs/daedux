@@ -18,6 +18,7 @@ const SettingsScreenLazy = lazy(() =>
 );
 
 export const Route = createFileRoute("/settings")({
+  staticData: { showHeader: false },
   loader: async () => {
     const [settings, appInfo, usage, schedules, authStatus, otelStatus] =
       await Promise.all([
@@ -38,7 +39,7 @@ export const Route = createFileRoute("/settings")({
 
 function SettingsLoadingFallback() {
   return (
-    <div className="bg-background flex h-screen items-center justify-center">
+    <div className="bg-background flex h-full items-center justify-center">
       <div className="text-muted-foreground">Loading settings...</div>
     </div>
   );

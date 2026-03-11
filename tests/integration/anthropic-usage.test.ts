@@ -502,6 +502,44 @@ describe("AnthropicUsageService", () => {
       expect(usage.fetchedAt).toBeGreaterThan(0);
     });
   });
+
+  describe("Non-TTY Environment Handling", () => {
+    beforeEach(async () => {
+      await clearServiceCache();
+    });
+
+    afterEach(async () => {
+      await clearServiceCache();
+    });
+
+    it("completes quickly without CLI probe timeout (test runner is non-TTY)", async () => {
+      // Test runners (bun test) run without a TTY, so the CLI probe should be
+      // skipped via the TTY check. This test verifies we don't hit the 10-second
+      // CLI timeout that was causing settings page hangs.
+      const startTime = Date.now();
+
+      const usage = await Effect.runPromise(
+        Effect.gen(function* () {
+          const service = yield* AnthropicUsageService;
+          return yield* service.refreshUsage(); // Force fresh fetch
+        }).pipe(Effect.provide(AnthropicUsageServiceLive))
+      );
+
+      const elapsed = Date.now() - startTime;
+
+      // Should complete in < 5 seconds (OAuth + fast CLI skip)
+      // NOT 30+ seconds from CLI timeouts and retries
+      expect(elapsed).toBeLessThan(5000);
+
+      // Should return valid usage (OAuth or credentials fallback)
+      expect(usage).toBeDefined();
+      expect(["oauth", "credentials", "unavailable"]).toContain(usage.source);
+
+      console.log(
+        `  ℹ️  Non-TTY fetch completed in ${elapsed}ms, source: ${usage.source}`
+      );
+    });
+  });
 });
 
 describe("Parsing Functions (reimplemented for testing)", () => {

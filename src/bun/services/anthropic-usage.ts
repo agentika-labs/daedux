@@ -434,6 +434,12 @@ const tryCliUsage = () =>
         throw new Error("CLI probe disabled in test environment");
       }
 
+      // Skip CLI probe in CLI server mode (Bun.serve context)
+      // PTY spawning fails in request handlers even when terminal is TTY
+      if (process.env.DAEDUX_CLI_SERVER === "1") {
+        throw new Error("CLI probe disabled in CLI server mode");
+      }
+
       // Check if claude is available before attempting to spawn
       if (!(await commandExists("claude"))) {
         debugLog(
