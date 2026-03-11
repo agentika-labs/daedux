@@ -27,7 +27,7 @@ export function ChartSkeletonGrid({
     >
       {/* Skeleton grid - index keys safe for static placeholder arrays that never reorder/filter */}
       {Array.from({ length: count }, (_, i) => (
-        <Skeleton key={i} className={cn("h-20", itemClassName)} />
+        <Skeleton key={`skeleton-${i}`} className={cn("h-20", itemClassName)} />
       ))}
     </div>
   );

@@ -146,9 +146,9 @@ export const ScheduleForm = ({
 
           {/* Time Selection - uses aria-labelledby for composite control (WAI-ARIA 1.2 pattern for groups of related inputs) */}
           <div className="space-y-2">
-            <label id={timeId} className="text-sm font-medium">
+            <div id={timeId} className="text-sm font-medium">
               Time
-            </label>
+            </div>
             <div className="flex items-center gap-2" aria-labelledby={timeId}>
               <Select
                 value={hour.toString()}
@@ -189,9 +189,9 @@ export const ScheduleForm = ({
           {/* Day Selection - uses role="group" with aria-labelledby (WAI-ARIA 1.2 pattern for toggle button groups) */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <label id={daysId} className="text-sm font-medium">
+              <div id={daysId} className="text-sm font-medium">
                 Days
-              </label>
+              </div>
               <div className="flex gap-1">
                 <Button
                   variant="ghost"

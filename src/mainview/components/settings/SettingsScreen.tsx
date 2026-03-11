@@ -186,6 +186,9 @@ export const SettingsScreen = () => {
               const currentOtel = settings?.otel ?? {
                 enabled: true,
                 retentionDays: 30,
+                roiHourlyDevCost: 50,
+                roiMinutesPerLoc: 3,
+                roiMinutesPerCommit: 15,
               };
               const newOtel = { ...currentOtel, ...otelSettings };
               updateSettingsMutation.mutate({ otel: newOtel });
