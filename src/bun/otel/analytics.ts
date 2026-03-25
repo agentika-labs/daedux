@@ -1,4 +1,15 @@
-import { sql, gte, lte, and, count, avg, sum, max, desc, inArray } from "drizzle-orm";
+import {
+  sql,
+  gte,
+  lte,
+  and,
+  count,
+  avg,
+  sum,
+  max,
+  desc,
+  inArray,
+} from "drizzle-orm";
 import { Effect } from "effect";
 
 import type {
@@ -51,9 +62,15 @@ const buildEventsTimeFilter = (filter: DateFilter) => {
  * Supports single harness ID or array of harness IDs.
  */
 const buildSessionHarnessFilter = (filter: DateFilter) => {
-  if (!filter.harness) return undefined;
-  const harnesses = Array.isArray(filter.harness) ? filter.harness : [filter.harness];
-  if (harnesses.length === 0) return undefined;
+  if (!filter.harness) {
+    return;
+  }
+  const harnesses = Array.isArray(filter.harness)
+    ? filter.harness
+    : [filter.harness];
+  if (harnesses.length === 0) {
+    return;
+  }
   return inArray(otelSessions.harness, harnesses);
 };
 
@@ -121,7 +138,10 @@ export const getOtelAnalytics = (
   Effect.gen(function* () {
     // Session count from otel_sessions (filtered by harness)
     const sessionsResult = yield* dbQuery("otel_analytics_sessions", (db) =>
-      db.select({ count: count() }).from(otelSessions).where(buildSessionFilter(filter))
+      db
+        .select({ count: count() })
+        .from(otelSessions)
+        .where(buildSessionFilter(filter))
     );
 
     // Active time breakdown from metrics

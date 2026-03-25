@@ -50,7 +50,11 @@ export const otelAnalyticsQueryOptions = (
 ) =>
   queryOptions({
     queryKey: ["otelAnalytics", filter, harness],
-    queryFn: () => api.getOtelAnalytics({ filter, harness: harness === "all" ? undefined : harness }),
+    queryFn: () =>
+      api.getOtelAnalytics({
+        filter,
+        harness: harness === "all" ? undefined : harness,
+      }),
     staleTime: 30_000,
     retry: false,
   });

@@ -37,7 +37,10 @@ export const otelSessions = sqliteTable(
   (table) => [
     index("otel_sessions_time_idx").on(table.firstSeenAt),
     index("otel_sessions_harness_idx").on(table.harness),
-    index("otel_sessions_harness_time_idx").on(table.harness, table.firstSeenAt),
+    index("otel_sessions_harness_time_idx").on(
+      table.harness,
+      table.firstSeenAt
+    ),
   ]
 );
 

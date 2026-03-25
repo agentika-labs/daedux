@@ -19,7 +19,6 @@ import { ErrorBoundary } from "react-error-boundary";
 
 import { Header } from "@/components/layout/Header";
 import "@/lib/router-types"; // Type augmentation for staticData
-
 import { queryClient } from "../lib/query-client";
 
 // Lazy load devtools - avoids ~50KB combined in production bundle

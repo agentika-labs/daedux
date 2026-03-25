@@ -1238,7 +1238,10 @@ const rpc = BrowserView.defineRPC<UsageMonitorRPC>({
       getOtelStatus: async (): Promise<OtelStatus> =>
         runEffect(getOtelStatus()),
 
-      getOtelAnalytics: async ({ filter, harness }): Promise<OtelDashboardData> => {
+      getOtelAnalytics: async ({
+        filter,
+        harness,
+      }): Promise<OtelDashboardData> => {
         const dateFilter = parseDateFilter(filter);
         return runEffect(getOtelDashboardData({ ...dateFilter, harness }));
       },

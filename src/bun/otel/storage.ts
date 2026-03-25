@@ -1,6 +1,7 @@
 import { eq } from "drizzle-orm";
 import { Effect } from "effect";
 
+import type { HarnessId } from "../../shared/rpc-types";
 import { DatabaseService, dbQuery } from "../db";
 import { otelSessions, otelMetrics, otelEvents } from "../db/schema-otel";
 import type { NewOtelMetric, NewOtelEvent } from "../db/schema-otel";
@@ -13,7 +14,6 @@ import {
   CLAUDE_ATTRS,
 } from "./types";
 import type { OtlpMetricsRequest, OtlpLogsRequest } from "./types";
-import type { HarnessId } from "../../shared/rpc-types";
 
 // ─── Session Upsert ──────────────────────────────────────────────────────────
 
@@ -134,7 +134,9 @@ export const storeMetrics = (
                   CLAUDE_ATTRS.TERMINAL_TYPE
                 ),
                 timestampMs,
-                harness: (getStringAttr(allAttrs, "harness") as HarnessId) ?? "claude-code",
+                harness:
+                  (getStringAttr(allAttrs, "harness") as HarnessId) ??
+                  "claude-code",
               });
             }
 
@@ -297,7 +299,9 @@ export const storeEvents = (
             appVersion: getStringAttr(allAttrs, CLAUDE_ATTRS.APP_VERSION),
             terminalType: getStringAttr(allAttrs, CLAUDE_ATTRS.TERMINAL_TYPE),
             timestampMs,
-            harness: (getStringAttr(allAttrs, "harness") as HarnessId) ?? "claude-code",
+            harness:
+              (getStringAttr(allAttrs, "harness") as HarnessId) ??
+              "claude-code",
           });
 
           // Build event row

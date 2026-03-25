@@ -414,7 +414,10 @@ export async function startServer(options: ServerOptions): Promise<void> {
             | undefined;
           const dateFilter = parseDateFilter(filter);
           const data = await runEffect(
-            getOtelDashboardData({ ...dateFilter, harness: harness ?? undefined })
+            getOtelDashboardData({
+              ...dateFilter,
+              harness: harness ?? undefined,
+            })
           );
           return Response.json(data);
         } catch (error) {

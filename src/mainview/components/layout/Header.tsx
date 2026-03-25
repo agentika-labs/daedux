@@ -87,8 +87,18 @@ const HARNESS_OPTIONS: {
   comingSoon?: boolean;
 }[] = [
   { value: "claude-code", Logo: ClaudeLogo, tooltip: "Claude Code" },
-  { value: "opencode", Logo: OpenCodeLogo, tooltip: "OpenCode (Coming soon)", comingSoon: true },
-  { value: "codex", Logo: CodexLogo, tooltip: "Codex (Coming soon)", comingSoon: true },
+  {
+    value: "opencode",
+    Logo: OpenCodeLogo,
+    tooltip: "OpenCode (Coming soon)",
+    comingSoon: true,
+  },
+  {
+    value: "codex",
+    Logo: CodexLogo,
+    tooltip: "Codex (Coming soon)",
+    comingSoon: true,
+  },
 ];
 
 const FILTER_OPTIONS: { value: FilterOption; label: string }[] = [
@@ -260,7 +270,9 @@ export function Header() {
                     <TooltipTrigger className="flex">
                       <button
                         type="button"
-                        onClick={() => !comingSoon && handleHarnessChange(value)}
+                        onClick={() =>
+                          !comingSoon && handleHarnessChange(value)
+                        }
                         aria-disabled={comingSoon || undefined}
                         className={cn(
                           "rounded-md p-1.5 transition-colors",
