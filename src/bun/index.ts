@@ -1569,6 +1569,10 @@ const startOtelServer = () => {
 // ─── Bootstrap ──────────────────────────────────────────────────────────────
 
 const bootstrap = async () => {
+  // Force all Effect layers to build NOW, before the webview can make RPC calls.
+  // ManagedRuntime.make() is lazy — layers only construct on first runPromise call.
+  await getRuntime().runPromise(Effect.void);
+
   // Initialize database schema
   initializeDatabase();
 

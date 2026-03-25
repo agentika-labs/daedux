@@ -12,6 +12,12 @@ import { useEffect, useRef, useCallback, useMemo } from "react";
 
 import { buttonVariants } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { rpcRequest } from "@/hooks/useRPC";
 import { cn } from "@/lib/utils";
 import type { HarnessFilterOption, FilterOption } from "@/queries/dashboard";
@@ -78,10 +84,11 @@ const HARNESS_OPTIONS: {
   value: HarnessFilterOption;
   Logo: LogoComponent;
   tooltip: string;
+  comingSoon?: boolean;
 }[] = [
   { value: "claude-code", Logo: ClaudeLogo, tooltip: "Claude Code" },
-  { value: "opencode", Logo: OpenCodeLogo, tooltip: "OpenCode" },
-  { value: "codex", Logo: CodexLogo, tooltip: "Codex" },
+  { value: "opencode", Logo: OpenCodeLogo, tooltip: "OpenCode (Coming soon)", comingSoon: true },
+  { value: "codex", Logo: CodexLogo, tooltip: "Codex (Coming soon)", comingSoon: true },
 ];
 
 const FILTER_OPTIONS: { value: FilterOption; label: string }[] = [
@@ -246,24 +253,34 @@ export function Header() {
           {/* Filter Controls */}
           <div className="flex items-center gap-3">
             {/* Harness Filter */}
-            <div className="bg-muted flex items-center gap-1 rounded-lg p-1">
-              {HARNESS_OPTIONS.map(({ value, Logo, tooltip }) => (
-                <button
-                  type="button"
-                  key={value}
-                  onClick={() => handleHarnessChange(value)}
-                  title={tooltip}
-                  className={cn(
-                    "cursor-pointer rounded-md p-1.5 transition-colors",
-                    harness === value
-                      ? "bg-background shadow-sm"
-                      : "text-muted-foreground hover:text-foreground"
-                  )}
-                >
-                  <Logo className="h-4 w-4" />
-                </button>
-              ))}
-            </div>
+            <TooltipProvider delay={200}>
+              <div className="bg-muted flex items-center gap-1 rounded-lg p-1">
+                {HARNESS_OPTIONS.map(({ value, Logo, tooltip, comingSoon }) => (
+                  <Tooltip key={value}>
+                    <TooltipTrigger className="flex">
+                      <button
+                        type="button"
+                        onClick={() => !comingSoon && handleHarnessChange(value)}
+                        aria-disabled={comingSoon || undefined}
+                        className={cn(
+                          "rounded-md p-1.5 transition-colors",
+                          comingSoon
+                            ? "cursor-default opacity-30"
+                            : harness === value
+                              ? "bg-background shadow-sm cursor-pointer"
+                              : "text-muted-foreground hover:text-foreground cursor-pointer"
+                        )}
+                      >
+                        <Logo className="h-4 w-4" />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom" sideOffset={8}>
+                      {tooltip}
+                    </TooltipContent>
+                  </Tooltip>
+                ))}
+              </div>
+            </TooltipProvider>
 
             {/* Date Filter */}
             <div className="bg-muted flex items-center rounded-lg p-1">
