@@ -11,7 +11,7 @@ export type { ParsedRecords, ParserInput as FileInfo } from "./parsers";
 import { Effect } from "effect";
 
 import type { ParseError } from "./errors";
-import { claudeCodeParser } from "./parsers";
+import { ClaudeCodeParserService } from "./parsers";
 import type { ParsedRecords, ParserInput } from "./parsers";
 
 /**
@@ -19,8 +19,11 @@ import type { ParsedRecords, ParserInput } from "./parsers";
  */
 export const parseSessionFile = (
   fileInfo: Omit<ParserInput, "harness">
-): Effect.Effect<ParsedRecords | null, ParseError> =>
-  claudeCodeParser.parseSession({
-    ...fileInfo,
-    harness: "claude-code",
+): Effect.Effect<ParsedRecords | null, ParseError, ClaudeCodeParserService> =>
+  Effect.gen(function* () {
+    const parser = yield* ClaudeCodeParserService;
+    return yield* parser.parseSession({
+      ...fileInfo,
+      harness: "claude-code",
+    });
   });

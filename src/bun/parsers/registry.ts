@@ -1,7 +1,7 @@
 import { Effect } from "effect";
 
 import type { FileSystemError, ParseError } from "../errors";
-import { claudeCodeParser } from "./claude-code/parser";
+import { ClaudeCodeParserService } from "./claude-code/parser";
 import type {
   HarnessId,
   HarnessParser,
@@ -23,10 +23,13 @@ import type {
 export class ParserRegistry extends Effect.Service<ParserRegistry>()(
   "ParserRegistry",
   {
+    dependencies: [ClaudeCodeParserService.Default],
     effect: Effect.gen(function* () {
-      // Initialize with built-in parsers
-      const parsers = new Map<HarnessId, HarnessParser>();
-      parsers.set(claudeCodeParser.harness, claudeCodeParser);
+      // Yield parser from Effect context (injected via dependencies)
+      const ccParser = yield* ClaudeCodeParserService;
+      const parsers = new Map<HarnessId, HarnessParser>([
+        [ccParser.harness, ccParser],
+      ]);
 
       return {
         /**
@@ -81,7 +84,7 @@ export class ParserRegistry extends Effect.Service<ParserRegistry>()(
           const parser = parsers.get(input.harness);
           if (!parser) {
             // Fall back to Claude Code parser for unknown harnesses
-            return claudeCodeParser.parseSession(input);
+            return ccParser.parseSession(input);
           }
           return parser.parseSession(input);
         },

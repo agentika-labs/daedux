@@ -14,7 +14,6 @@ import { Effect } from "effect";
 
 import type {
   DateFilter,
-  HarnessId,
   OtelStatus,
   OtelAnalytics,
   OtelToolDecision,

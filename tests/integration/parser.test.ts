@@ -8,6 +8,7 @@ import * as path from "node:path";
 import { Effect } from "effect";
 
 import { parseSessionFile } from "../../src/bun/parser";
+import { ClaudeCodeParserService } from "../../src/bun/parsers";
 import type { ParserInput } from "../../src/bun/parsers";
 
 // ─── Test Helpers ───────────────────────────────────────────────────────────
@@ -26,8 +27,14 @@ const createFileInfo = (
   ...overrides,
 });
 
+type FileInfo = Omit<ParserInput, "harness">;
+
 const runParser = (fileInfo: FileInfo) =>
-  Effect.runPromise(parseSessionFile(fileInfo));
+  Effect.runPromise(
+    parseSessionFile(fileInfo).pipe(
+      Effect.provide(ClaudeCodeParserService.Default)
+    )
+  );
 
 // ─── Tests ──────────────────────────────────────────────────────────────────
 
