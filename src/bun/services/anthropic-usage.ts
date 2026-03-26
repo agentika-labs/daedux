@@ -186,7 +186,11 @@ const parseUsageOutput = (output: string): AnthropicUsage => {
 
   if (allUsedPatterns.length >= 4) {
     // We have all 4 patterns - use positional extraction
-    debugLog("anthropic-usage", "Using positional extraction from:", allUsedPatterns);
+    debugLog(
+      "anthropic-usage",
+      "Using positional extraction from:",
+      allUsedPatterns
+    );
     sessionPct = extractPct(allUsedPatterns[0]!);
     weeklyPct = extractPct(allUsedPatterns[1]!);
     sonnetPct = extractPct(allUsedPatterns[2]!);
@@ -430,6 +434,12 @@ const tryCliUsage = () =>
         throw new Error("CLI probe disabled in test environment");
       }
 
+      // Skip CLI probe in CLI server mode (Bun.serve context)
+      // PTY spawning fails in request handlers even when terminal is TTY
+      if (process.env.DAEDUX_CLI_SERVER === "1") {
+        throw new Error("CLI probe disabled in CLI server mode");
+      }
+
       // Check if claude is available before attempting to spawn
       if (!(await commandExists("claude"))) {
         debugLog(
@@ -541,7 +551,10 @@ const tryCliUsage = () =>
                 (clean.includes("Continue without") ||
                   clean.includes("without using"))
               ) {
-                debugLog("anthropic-usage", "MCP prompt detected, bypassing...");
+                debugLog(
+                  "anthropic-usage",
+                  "MCP prompt detected, bypassing..."
+                );
                 terminal.write("3\r"); // Select "Continue without using this MCP server"
                 return; // Wait for next data callback
               }
@@ -563,7 +576,10 @@ const tryCliUsage = () =>
                 clean.includes("Itrustthisfolder") && // "Yes, I trust this folder" without spaces
                 clean.includes("Entertoconfirm") // "Enter to confirm" without spaces
               ) {
-                debugLog("anthropic-usage", "Trust prompt detected, pressing Enter...");
+                debugLog(
+                  "anthropic-usage",
+                  "Trust prompt detected, pressing Enter..."
+                );
                 output = ""; // Clear output buffer to prevent re-detection
                 terminal.write("\r"); // Press Enter to confirm pre-selected option 1
                 return; // Wait for next data callback
@@ -582,7 +598,10 @@ const tryCliUsage = () =>
                   clean.includes("security")) &&
                 !clean.includes("Claude Code v") // Not yet at REPL (no header)
               ) {
-                debugLog("anthropic-usage", "Permissions warning detected, selecting 'Yes, I accept'...");
+                debugLog(
+                  "anthropic-usage",
+                  "Permissions warning detected, selecting 'Yes, I accept'..."
+                );
                 output = ""; // Clear buffer to prevent re-detection
                 // Use DOWN ARROW to select "Yes, I accept" (option 1 "No, exit" is pre-selected)
                 // The menu uses arrow-key navigation, not numbered input
@@ -590,7 +609,10 @@ const tryCliUsage = () =>
                 terminal.write("\u001B[B"); // DOWN ARROW
                 setTimeout(() => {
                   if (!resolved && proc.terminal) {
-                    debugLog("anthropic-usage", "Confirming permissions selection...");
+                    debugLog(
+                      "anthropic-usage",
+                      "Confirming permissions selection..."
+                    );
                     proc.terminal.write("\r"); // Enter to confirm
                   }
                 }, 100); // 100ms delay for menu to register selection
@@ -621,13 +643,19 @@ const tryCliUsage = () =>
                 !inMcpPrompt &&
                 !inMenu
               ) {
-                debugLog("anthropic-usage", "REPL prompt detected, sending /usage...");
+                debugLog(
+                  "anthropic-usage",
+                  "REPL prompt detected, sending /usage..."
+                );
                 usageCommandSent = true;
                 terminal.write("/usage\r");
                 // After a short delay, press Enter to select the menu item
                 setTimeout(() => {
                   if (!resolved && proc.terminal) {
-                    debugLog("anthropic-usage", "Pressing Enter to select menu item...");
+                    debugLog(
+                      "anthropic-usage",
+                      "Pressing Enter to select menu item..."
+                    );
                     proc.terminal.write("\r");
                   }
                 }, 300);
@@ -643,7 +671,10 @@ const tryCliUsage = () =>
                 clean.includes("rate limit");
 
               if (hasCliError && usageCommandSent) {
-                debugLog("anthropic-usage", "CLI error detected (rate limited), exiting probe early");
+                debugLog(
+                  "anthropic-usage",
+                  "CLI error detected (rate limited), exiting probe early"
+                );
                 if (!resolved) {
                   resolved = true;
                   clearTimeout(timeout);
@@ -710,7 +741,11 @@ const tryCliUsage = () =>
         });
 
         // DEBUG: Check if terminal exists immediately after spawn
-        debugLog("anthropic-usage", "PTY spawned, terminal exists:", !!proc.terminal);
+        debugLog(
+          "anthropic-usage",
+          "PTY spawned, terminal exists:",
+          !!proc.terminal
+        );
 
         // NOTE: We no longer use a fixed timeout here. Instead, we detect
         // the REPL prompt (❯) in the data callback and send /usage then.
@@ -777,7 +812,10 @@ const tryOAuthAPIWithMethodTracking = (methodRef: Ref.Ref<MethodState>) =>
           error.reason === "not_supported" ||
           error.message.includes("Rate limit")
         ) {
-          debugLog("anthropic-usage", "OAuth API unavailable, switching to CLI-only mode");
+          debugLog(
+            "anthropic-usage",
+            "OAuth API unavailable, switching to CLI-only mode"
+          );
           return Ref.set(methodRef, {
             method: "cli" as const,
             determinedAt: Date.now(),
@@ -845,7 +883,11 @@ const tryCliUsageWithMethodTracking = (methodRef: Ref.Ref<MethodState>) =>
     const cliResult = yield* tryCliUsageWithRetry();
 
     if (cliResult) {
-      debugLog("anthropic-usage", "CLI probe succeeded! Source:", cliResult.source);
+      debugLog(
+        "anthropic-usage",
+        "CLI probe succeeded! Source:",
+        cliResult.source
+      );
       yield* Ref.set(methodRef, {
         method: "cli",
         determinedAt: Date.now(),
@@ -866,7 +908,10 @@ const tryCliUsageWithMethodTracking = (methodRef: Ref.Ref<MethodState>) =>
 
     // Final fallback: credentials-only usage (no usage percentages, but subscription info)
     if (credentials) {
-      debugLog("anthropic-usage", "Falling back to credentials-only (no percentages)");
+      debugLog(
+        "anthropic-usage",
+        "Falling back to credentials-only (no percentages)"
+      );
       return createCredentialsOnlyUsage(credentials);
     }
 
@@ -912,7 +957,10 @@ export class AnthropicUsageService extends Effect.Service<AnthropicUsageService>
             return result;
           }
         } else {
-          debugLog("anthropic-usage", "Skipping OAuth (CLI preferred), using CLI directly");
+          debugLog(
+            "anthropic-usage",
+            "Skipping OAuth (CLI preferred), using CLI directly"
+          );
         }
 
         // CLI probe fallback
@@ -1064,7 +1112,10 @@ const fetchUsageFromAPI = (accessToken: string) =>
         // Check if OAuth is not supported (different from token expiry)
         if (errorMessage.includes("not supported")) {
           reason = "not_supported";
-          debugLog("anthropic-usage", "OAuth API not supported by Anthropic yet");
+          debugLog(
+            "anthropic-usage",
+            "OAuth API not supported by Anthropic yet"
+          );
         } else if (response.status === 401) {
           reason = "token_expired";
         }

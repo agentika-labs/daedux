@@ -5,14 +5,14 @@ import type {
 } from "@shared/rpc-types";
 import { useMemo } from "react";
 import {
+  Area,
   Bar,
   BarChart,
   CartesianGrid,
+  Cell,
+  ComposedChart,
   XAxis,
   YAxis,
-  ComposedChart,
-  Line,
-  Cell,
 } from "recharts";
 
 import { ExpensivePromptsCard } from "@/components/cards/ExpensivePromptsCard";
@@ -162,9 +162,35 @@ export function CostSection({ data, loading }: CostSectionProps) {
           {dailyWithCumulative.length > 0 ? (
             <ChartContainer
               config={dailyCostConfig}
-              className="h-[250px] w-full"
+              className="h-[200px] w-full md:h-[250px]"
             >
               <ComposedChart data={dailyWithCumulative} accessibilityLayer>
+                <defs>
+                  <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop
+                      offset="0%"
+                      stopColor="var(--color-cost)"
+                      stopOpacity={1}
+                    />
+                    <stop
+                      offset="100%"
+                      stopColor="var(--color-cost)"
+                      stopOpacity={0.6}
+                    />
+                  </linearGradient>
+                  <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop
+                      offset="0%"
+                      stopColor="var(--color-cumulativeCost)"
+                      stopOpacity={0.3}
+                    />
+                    <stop
+                      offset="100%"
+                      stopColor="var(--color-cumulativeCost)"
+                      stopOpacity={0.05}
+                    />
+                  </linearGradient>
+                </defs>
                 <CartesianGrid vertical={false} strokeDasharray="3 3" />
                 <XAxis
                   dataKey="date"
@@ -200,21 +226,23 @@ export function CostSection({ data, loading }: CostSectionProps) {
                     />
                   }
                 />
-                <Bar
-                  yAxisId="left"
-                  dataKey="totalCost"
-                  name="cost"
-                  fill="var(--color-cost)"
-                  radius={[4, 4, 0, 0]}
-                />
-                <Line
+                <Area
                   yAxisId="right"
                   type="monotone"
                   dataKey="cumulativeCost"
                   name="cumulativeCost"
+                  fill="url(#areaGradient)"
                   stroke="var(--color-cumulativeCost)"
                   strokeWidth={2}
-                  dot={false}
+                />
+                <Bar
+                  yAxisId="left"
+                  dataKey="totalCost"
+                  name="cost"
+                  fill="url(#barGradient)"
+                  radius={[4, 4, 0, 0]}
+                  animationDuration={800}
+                  animationEasing="ease-out"
                 />
               </ComposedChart>
             </ChartContainer>
@@ -230,7 +258,10 @@ export function CostSection({ data, loading }: CostSectionProps) {
           loading={loading}
         >
           {sortedModelBreakdown.length > 0 ? (
-            <ChartContainer config={modelConfig} className="h-[250px] w-full">
+            <ChartContainer
+              config={modelConfig}
+              className="h-[200px] w-full md:h-[250px]"
+            >
               <BarChart
                 data={sortedModelBreakdown}
                 layout="vertical"

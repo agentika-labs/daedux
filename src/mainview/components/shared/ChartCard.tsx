@@ -26,7 +26,7 @@ export function ChartCard({
   children,
 }: ChartCardProps) {
   return (
-    <Card className={cn("overflow-hidden", className)}>
+    <Card className={cn("card-interactive overflow-hidden", className)}>
       <CardHeader className="pb-2">
         <div className="flex items-start justify-between">
           <div>

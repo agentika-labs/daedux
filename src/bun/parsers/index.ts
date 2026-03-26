@@ -11,4 +11,5 @@ export type {
 export { ParserRegistry } from "./registry";
 
 // Re-export Claude Code parser for direct access
-export { ClaudeCodeParser, claudeCodeParser } from "./claude-code/parser";
+export { ClaudeCodeParserService } from "./claude-code/parser";
+export { CodexParserService } from "./codex/parser";

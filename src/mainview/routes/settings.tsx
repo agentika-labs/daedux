@@ -8,6 +8,7 @@ import {
   anthropicUsageQueryOptions,
   schedulesQueryOptions,
   authStatusQueryOptions,
+  otelStatusQueryOptions,
 } from "@/queries/settings";
 
 const SettingsScreenLazy = lazy(() =>
@@ -17,9 +18,10 @@ const SettingsScreenLazy = lazy(() =>
 );
 
 export const Route = createFileRoute("/settings")({
+  staticData: { showHeader: false },
   loader: async () => {
-    const [settings, appInfo, usage, schedules, authStatus] = await Promise.all(
-      [
+    const [settings, appInfo, usage, schedules, authStatus, otelStatus] =
+      await Promise.all([
         queryClient.ensureQueryData(settingsQueryOptions),
         queryClient.ensureQueryData(appInfoQueryOptions),
         queryClient
@@ -27,9 +29,9 @@ export const Route = createFileRoute("/settings")({
           .catch(() => null),
         queryClient.ensureQueryData(schedulesQueryOptions),
         queryClient.ensureQueryData(authStatusQueryOptions),
-      ]
-    );
-    return { settings, appInfo, usage, schedules, authStatus };
+        queryClient.ensureQueryData(otelStatusQueryOptions).catch(() => null),
+      ]);
+    return { settings, appInfo, usage, schedules, authStatus, otelStatus };
   },
   pendingComponent: SettingsLoadingFallback,
   component: SettingsRoute,
@@ -37,7 +39,7 @@ export const Route = createFileRoute("/settings")({
 
 function SettingsLoadingFallback() {
   return (
-    <div className="bg-background flex h-screen items-center justify-center">
+    <div className="bg-background flex h-full items-center justify-center">
       <div className="text-muted-foreground">Loading settings...</div>
     </div>
   );

@@ -703,7 +703,7 @@ export class ToolAnalyticsService extends Effect.Service<ToolAnalyticsService>()
               // Get bash category health for deep dive
               const bashCategoryData = await getBashCategoryHealthInternal(
                 db,
-                dateConditions
+                allConditions
               );
 
               // Generate headline and recommendation

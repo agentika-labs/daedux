@@ -1,7 +1,6 @@
 import {
   ArrowRight01Icon,
   Clock01Icon,
-  Coins01Icon,
   Search01Icon,
   ArrowLeft01Icon,
 } from "@hugeicons/core-free-icons";
@@ -12,10 +11,6 @@ import type {
   ProjectSummary,
 } from "@shared/rpc-types";
 import { HARNESS_LABELS } from "@shared/rpc-types";
-
-// ─── Stable Empty Arrays (prevent useMemo dep changes on rerenders) ──────────
-const EMPTY_SESSIONS: SessionSummary[] = [];
-const EMPTY_PROJECTS: ProjectSummary[] = [];
 import {
   useReactTable,
   getCoreRowModel,
@@ -33,13 +28,14 @@ import type {
 import { useState, useMemo, useDeferredValue, useEffect } from "react";
 
 import { Section } from "@/components/layout/Section";
+import { SessionDetailSheet } from "@/components/sections/SessionDetailSheet";
+import { EmptyState } from "@/components/shared/EmptyState";
 import { LoadingBoundary } from "@/components/shared/LoadingBoundary";
 import { SectionHeader } from "@/components/shared/SectionHeader";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Select,
   SelectContent,
@@ -48,21 +44,16 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetDescription,
-} from "@/components/ui/sheet";
-import {
   formatCurrency,
   formatTokens,
-  formatDuration,
   cn,
   computeSmartProjectNames,
-  shortenPath,
 } from "@/lib/utils";
 import type { SmartProjectName } from "@/lib/utils";
+
+// ─── Stable Empty Arrays (prevent useMemo dep changes on rerenders) ──────────
+const EMPTY_SESSIONS: SessionSummary[] = [];
+const EMPTY_PROJECTS: ProjectSummary[] = [];
 
 interface SessionsSectionProps {
   data: DashboardData | null;
@@ -70,7 +61,7 @@ interface SessionsSectionProps {
 }
 
 // Extended session type with pre-computed smart name for filtering/display
-interface SessionRow extends SessionSummary {
+export interface SessionRow extends SessionSummary {
   smartName: SmartProjectName;
 }
 
@@ -410,7 +401,7 @@ export function SessionsSection({ data, loading }: SessionsSectionProps) {
                       {table.getRowModel().rows.map((row) => (
                         <tr
                           key={row.id}
-                          className="border-border/50 hover:bg-muted/50 cursor-pointer border-b transition-colors last:border-0"
+                          className="table-row-hover border-border/50 hover:bg-muted/50 cursor-pointer border-b last:border-0"
                           onClick={() => setSelectedSession(row.original)}
                         >
                           {row.getVisibleCells().map((cell) => {
@@ -503,40 +494,21 @@ export function SessionsSection({ data, loading }: SessionsSectionProps) {
                 )}
               </>
             ) : (
-              <p className="text-muted-foreground py-12 text-center">
-                No sessions found
-              </p>
+              <EmptyState
+                icon={Clock01Icon}
+                title="No sessions found"
+                description="Sessions appear here after you start using Claude Code."
+              />
             )}
           </LoadingBoundary>
         </CardContent>
       </Card>
 
       {/* Session Detail Drawer */}
-      <Sheet
-        open={!!selectedSession}
-        onOpenChange={(open) => !open && setSelectedSession(null)}
-      >
-        <SheetContent className="flex w-[500px] flex-col overflow-hidden sm:max-w-[500px]">
-          {selectedSession && (
-            <>
-              <SheetHeader className="flex-shrink-0">
-                <SheetTitle>
-                  {selectedSession.displayName ??
-                    selectedSession.smartName.primary}
-                </SheetTitle>
-                <SheetDescription>
-                  {shortenPath(selectedSession.smartName.full)}
-                </SheetDescription>
-              </SheetHeader>
-              <ScrollArea className="min-h-0 flex-1">
-                <div className="px-6 pt-4 pb-6">
-                  <SessionDetail session={selectedSession} />
-                </div>
-              </ScrollArea>
-            </>
-          )}
-        </SheetContent>
-      </Sheet>
+      <SessionDetailSheet
+        session={selectedSession}
+        onClose={() => setSelectedSession(null)}
+      />
     </Section>
   );
 }
@@ -570,173 +542,5 @@ function SortableHeaderCell({
         <span className="text-xs">{sorted === "asc" ? "↑" : "↓"}</span>
       )}
     </button>
-  );
-}
-
-function SessionDetail({ session }: { session: SessionRow }) {
-  return (
-    <div className="space-y-6">
-      {/* Summary Stats */}
-      <div className="grid grid-cols-2 gap-4">
-        <StatItem
-          icon={Clock01Icon}
-          label="Duration"
-          value={formatDuration(session.durationMs)}
-        />
-        <StatItem
-          icon={Coins01Icon}
-          label="Cost"
-          value={formatCurrency(session.totalCost)}
-        />
-      </div>
-
-      {/* Session Info */}
-      <div className="space-y-3">
-        <h4 className="text-sm font-medium">Session Info</h4>
-        <div className="grid grid-cols-2 gap-3 text-sm">
-          <MetricRow label="Agent" value={HARNESS_LABELS[session.harness]} />
-          <MetricRow
-            label="Model"
-            value={session.modelShort || session.model}
-          />
-        </div>
-      </div>
-
-      {/* Metrics */}
-      <div className="space-y-3">
-        <h4 className="text-sm font-medium">Metrics</h4>
-        <div className="grid grid-cols-2 gap-3 text-sm">
-          <MetricRow label="Queries" value={session.queryCount.toString()} />
-          <MetricRow
-            label="Tool Uses"
-            value={session.toolUseCount.toString()}
-          />
-          <MetricRow label="Turns" value={session.turnCount.toString()} />
-          <MetricRow
-            label="Total Tokens"
-            value={formatTokens(session.totalTokens)}
-          />
-          <MetricRow
-            label="Cache Savings"
-            value={formatCurrency(session.savedByCaching)}
-          />
-          <MetricRow
-            label="Compactions"
-            value={session.compactions.toString()}
-          />
-          <MetricRow
-            label="Subagents"
-            value={session.subagentCount.toString()}
-          />
-        </div>
-      </div>
-
-      {/* Token Breakdown */}
-      <div className="space-y-3">
-        <h4 className="text-sm font-medium">Token Breakdown</h4>
-        <div className="grid grid-cols-2 gap-3 text-sm">
-          <MetricRow
-            label="Uncached Input"
-            value={formatTokens(session.uncachedInput)}
-          />
-          <MetricRow
-            label="Cache Read"
-            value={formatTokens(session.cacheRead)}
-          />
-          <MetricRow
-            label="Cache Creation"
-            value={formatTokens(session.cacheCreation)}
-          />
-          <MetricRow label="Output" value={formatTokens(session.output)} />
-        </div>
-      </div>
-
-      {/* File Activity */}
-      {session.fileActivityDetails &&
-        session.fileActivityDetails.length > 0 && (
-          <div className="space-y-3">
-            <h4 className="text-sm font-medium">File Activity</h4>
-            <div className="max-h-[200px] space-y-1 overflow-y-auto">
-              {/* eslint-disable react/no-array-index-key -- filePath+tool may have duplicates, index ensures uniqueness */}
-              {session.fileActivityDetails.slice(0, 20).map((file, index) => (
-                <div
-                  key={`${file.filePath}-${file.tool}-${index}`}
-                  className="flex items-center justify-between py-1 text-xs"
-                >
-                  <span className="text-muted-foreground max-w-[300px] truncate">
-                    {file.filePath}
-                  </span>
-                  <Badge variant="outline" className="text-xs">
-                    {file.tool}
-                  </Badge>
-                </div>
-              ))}
-              {/* eslint-enable react/no-array-index-key */}
-              {session.fileActivityDetails.length > 20 && (
-                <p className="text-muted-foreground pt-2 text-xs">
-                  +{session.fileActivityDetails.length - 20} more files
-                </p>
-              )}
-            </div>
-          </div>
-        )}
-
-      {/* Tool Usage */}
-      {session.toolCounts && Object.keys(session.toolCounts).length > 0 && (
-        <div className="space-y-3">
-          <h4 className="text-sm font-medium">Tool Usage</h4>
-          <div className="flex flex-wrap gap-2">
-            {Object.entries(session.toolCounts)
-              .toSorted(([, a], [, b]) => b - a)
-              .slice(0, 10)
-              .map(([tool, count]) => (
-                <Badge key={tool} variant="outline" className="text-xs">
-                  {tool}: {count}
-                </Badge>
-              ))}
-          </div>
-        </div>
-      )}
-
-      {/* First Prompt */}
-      {session.firstPrompt && (
-        <div className="space-y-3">
-          <h4 className="text-sm font-medium">First Prompt</h4>
-          <p className="text-muted-foreground bg-muted/50 rounded-lg p-3 text-sm">
-            {session.firstPrompt.slice(0, 500)}
-            {session.firstPrompt.length > 500 && "..."}
-          </p>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function StatItem({
-  icon,
-  label,
-  value,
-}: {
-  icon: typeof Clock01Icon;
-  label: string;
-  value: string;
-}) {
-  return (
-    <div className="bg-muted/50 flex items-center gap-3 rounded-lg p-3">
-      <HugeiconsIcon icon={icon} className="text-muted-foreground h-5 w-5" />
-      <div>
-        <p className="text-muted-foreground text-xs">{label}</p>
-        <p className="font-medium">{value}</p>
-      </div>
-    </div>
-  );
-}
-
-function MetricRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex justify-between">
-      <span className="text-muted-foreground">{label}</span>
-      <span className="font-medium">{value}</span>
-    </div>
   );
 }

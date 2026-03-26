@@ -42,6 +42,8 @@
   /* Custom success color for positive metrics */
   --success: oklch(0.65 0.16 145);
   --success-foreground: oklch(0.985 0 0);
+  /* Brand accent - warm coral */
+  --accent-brand: oklch(0.68 0.18 25);
 }
 
 .dark {
@@ -63,11 +65,12 @@
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
   --ring: oklch(0.552 0.016 285.938);
-  --chart-1: oklch(0.62 0.15 265);
-  --chart-2: oklch(0.68 0.14 162);
+  /* Chart colors - increased saturation for dark mode visibility */
+  --chart-1: oklch(0.65 0.18 265);
+  --chart-2: oklch(0.7 0.16 162);
   --chart-3: oklch(0.72 0.14 70);
-  --chart-4: oklch(0.65 0.15 305);
-  --chart-5: oklch(0.68 0.15 15);
+  --chart-4: oklch(0.68 0.17 305);
+  --chart-5: oklch(0.7 0.17 15);
   --sidebar: oklch(0.21 0.006 285.885);
   --sidebar-foreground: oklch(0.985 0 0);
   --sidebar-primary: oklch(0.488 0.243 264.376);
@@ -79,6 +82,8 @@
   /* Custom success color for positive metrics */
   --success: oklch(0.68 0.16 145);
   --success-foreground: oklch(0.141 0.005 285.823);
+  /* Brand accent - warm coral (brighter in dark mode) */
+  --accent-brand: oklch(0.72 0.16 25);
 }
 
 @theme inline {
@@ -116,6 +121,7 @@
   --color-background: var(--background);
   --color-success: var(--success);
   --color-success-foreground: var(--success-foreground);
+  --color-accent-brand: var(--accent-brand);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -189,4 +195,188 @@
 
 .dark ::-webkit-scrollbar-thumb:hover {
   background: oklch(0.8 0 0 / 30%);
+}
+
+/* ─── Reduced Motion Support ───────────────────────────────────────────────── */
+/* Respects user preference for reduced motion (accessibility) */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ─── UI Enhancement Utilities ─────────────────────────────────────────────── */
+
+/* Tabular numbers for metrics and currency */
+.stat-value {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+/* Interactive card hover - subtle lift effect */
+.card-interactive {
+  @apply transition-all duration-200;
+}
+
+.card-interactive:hover {
+  box-shadow:
+    0 4px 12px oklch(0 0 0 / 8%),
+    0 0 0 1px oklch(1 0 0 / 5%);
+  transform: translateY(-1px);
+}
+
+.dark .card-interactive:hover {
+  box-shadow:
+    0 4px 16px oklch(0 0 0 / 30%),
+    0 0 0 1px oklch(1 0 0 / 8%);
+}
+
+/* Hero card gradient backgrounds */
+.hero-gradient-primary {
+  background: linear-gradient(
+    135deg,
+    oklch(0.62 0.15 265 / 8%) 0%,
+    transparent 60%
+  );
+}
+
+.hero-gradient-success {
+  background: linear-gradient(
+    135deg,
+    oklch(0.68 0.16 145 / 10%) 0%,
+    transparent 60%
+  );
+}
+
+.dark .hero-gradient-primary {
+  background: linear-gradient(
+    135deg,
+    oklch(0.62 0.15 265 / 12%) 0%,
+    transparent 60%
+  );
+}
+
+.dark .hero-gradient-success {
+  background: linear-gradient(
+    135deg,
+    oklch(0.68 0.16 145 / 15%) 0%,
+    transparent 60%
+  );
+}
+
+/* Glow effects for emphasis */
+.glow-ring {
+  box-shadow:
+    0 0 0 1px oklch(0.62 0.15 265 / 20%),
+    0 0 20px oklch(0.62 0.15 265 / 15%);
+}
+
+.glow-success {
+  box-shadow:
+    0 0 0 1px oklch(0.68 0.16 145 / 25%),
+    0 0 16px oklch(0.68 0.16 145 / 20%);
+}
+
+/* Brand accent for logo */
+.brand-gradient {
+  background: linear-gradient(
+    135deg,
+    oklch(0.7 0.15 25) 0%,
+    oklch(0.6 0.15 35) 100%
+  );
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Active nav pill glow */
+.nav-pill-active {
+  box-shadow: 0 0 12px oklch(0.62 0.15 265 / 25%);
+}
+
+.dark .nav-pill-active {
+  box-shadow: 0 0 16px oklch(0.62 0.15 265 / 35%);
+}
+
+/* Insight card left border accent */
+.insight-border-success {
+  border-left: 3px solid oklch(0.68 0.16 145);
+}
+
+.insight-border-warning {
+  border-left: 3px solid oklch(0.8 0.14 85);
+}
+
+.insight-border-info {
+  border-left: 3px solid oklch(0.68 0.14 162);
+}
+
+.insight-border-tip {
+  border-left: 3px solid oklch(0.7 0.15 40);
+}
+
+/* Table row hover with accent */
+.table-row-hover {
+  @apply transition-all duration-150;
+  position: relative;
+}
+
+.table-row-hover::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 0;
+  background: oklch(0.62 0.15 265);
+  transition: width 150ms ease-out;
+}
+
+.table-row-hover:hover::before {
+  width: 3px;
+}
+
+/* Shimmer animation for skeletons */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.skeleton-shimmer {
+  background: linear-gradient(
+    90deg,
+    oklch(0.5 0 0 / 10%) 25%,
+    oklch(0.5 0 0 / 20%) 50%,
+    oklch(0.5 0 0 / 10%) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+/* Fade edge for scrollable content */
+.fade-edge-bottom {
+  mask-image: linear-gradient(to bottom, black 85%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, black 85%, transparent 100%);
+}
+
+/* Chart tooltip glassmorphism */
+.chart-tooltip {
+  backdrop-filter: blur(8px);
+  background: oklch(1 0 0 / 85%);
+  border: 1px solid oklch(0 0 0 / 10%);
+}
+
+.dark .chart-tooltip {
+  background: oklch(0.21 0.006 285.885 / 90%);
+  border: 1px solid oklch(1 0 0 / 10%);
 }

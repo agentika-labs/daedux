@@ -56,12 +56,12 @@ export const ScheduleForm = ({
   onSave,
   onCancel,
 }: ScheduleFormProps) => {
-  const [name, setName] = useState(schedule?.name ?? "");
-  const [hour, setHour] = useState(schedule?.hour ?? 15);
-  const [minute, setMinute] = useState(schedule?.minute ?? 0);
-  const [daysOfWeek, setDaysOfWeek] = useState<number[]>(
-    schedule?.daysOfWeek ?? [1, 2, 3, 4, 5] // Default to weekdays
-  );
+  const [form, setForm] = useState({
+    name: schedule?.name ?? "",
+    hour: schedule?.hour ?? 15,
+    minute: schedule?.minute ?? 0,
+    daysOfWeek: schedule?.daysOfWeek ?? [1, 2, 3, 4, 5], // Default to weekdays
+  });
   const [error, setError] = useState<string | null>(null);
 
   const nameId = useId();
@@ -69,45 +69,46 @@ export const ScheduleForm = ({
   const daysId = useId();
 
   const toggleDay = (day: number) => {
-    setDaysOfWeek((prev) =>
-      prev.includes(day)
-        ? prev.filter((d) => d !== day)
-        : [...prev, day].toSorted()
-    );
+    setForm((prev) => ({
+      ...prev,
+      daysOfWeek: prev.daysOfWeek.includes(day)
+        ? prev.daysOfWeek.filter((d) => d !== day)
+        : [...prev.daysOfWeek, day].toSorted(),
+    }));
   };
 
   const handleSubmit = () => {
     // Validation
-    if (!name.trim()) {
+    if (!form.name.trim()) {
       setError("Name is required");
       return;
     }
-    if (daysOfWeek.length === 0) {
+    if (form.daysOfWeek.length === 0) {
       setError("Select at least one day");
       return;
     }
 
     onSave({
-      daysOfWeek,
+      daysOfWeek: form.daysOfWeek,
       enabled: schedule?.enabled ?? true,
-      hour,
-      minute,
-      name: name.trim(),
+      hour: form.hour,
+      minute: form.minute,
+      name: form.name.trim(),
     });
   };
 
   const handleSelectPreset = (preset: "weekdays" | "weekends" | "everyday") => {
     switch (preset) {
       case "weekdays": {
-        setDaysOfWeek([1, 2, 3, 4, 5]);
+        setForm((prev) => ({ ...prev, daysOfWeek: [1, 2, 3, 4, 5] }));
         break;
       }
       case "weekends": {
-        setDaysOfWeek([0, 6]);
+        setForm((prev) => ({ ...prev, daysOfWeek: [0, 6] }));
         break;
       }
       case "everyday": {
-        setDaysOfWeek([0, 1, 2, 3, 4, 5, 6]);
+        setForm((prev) => ({ ...prev, daysOfWeek: [0, 1, 2, 3, 4, 5, 6] }));
         break;
       }
     }
@@ -134,9 +135,9 @@ export const ScheduleForm = ({
             <input
               id={nameId}
               type="text"
-              value={name}
+              value={form.name}
               onChange={(e) => {
-                setName(e.target.value);
+                setForm((prev) => ({ ...prev, name: e.target.value }));
                 setError(null);
               }}
               placeholder="e.g., Before work"
@@ -144,18 +145,24 @@ export const ScheduleForm = ({
             />
           </div>
 
-          {/* Time Selection */}
+          {/* Time Selection - uses aria-labelledby for composite control (WAI-ARIA 1.2 pattern for groups of related inputs) */}
           <div className="space-y-2">
-            <label id={timeId} className="text-sm font-medium">
+            <div id={timeId} className="text-sm font-medium">
               Time
-            </label>
+            </div>
             <div className="flex items-center gap-2" aria-labelledby={timeId}>
               <Select
-                value={hour.toString()}
-                onValueChange={(v) => v && setHour(Number.parseInt(v, 10))}
+                value={form.hour.toString()}
+                onValueChange={(v) =>
+                  v &&
+                  setForm((prev) => ({
+                    ...prev,
+                    hour: Number.parseInt(v, 10),
+                  }))
+                }
               >
                 <SelectTrigger className="w-24" aria-labelledby={timeId}>
-                  <SelectValue>{formatHour(hour)}</SelectValue>
+                  <SelectValue>{formatHour(form.hour)}</SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {HOURS.map((h) => (
@@ -167,12 +174,18 @@ export const ScheduleForm = ({
               </Select>
               <span className="text-muted-foreground">:</span>
               <Select
-                value={minute.toString()}
-                onValueChange={(v) => v && setMinute(Number.parseInt(v, 10))}
+                value={form.minute.toString()}
+                onValueChange={(v) =>
+                  v &&
+                  setForm((prev) => ({
+                    ...prev,
+                    minute: Number.parseInt(v, 10),
+                  }))
+                }
               >
                 <SelectTrigger className="w-20" aria-labelledby={timeId}>
                   <SelectValue>
-                    {minute.toString().padStart(2, "0")}
+                    {form.minute.toString().padStart(2, "0")}
                   </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
@@ -186,12 +199,12 @@ export const ScheduleForm = ({
             </div>
           </div>
 
-          {/* Day Selection */}
+          {/* Day Selection - uses role="group" with aria-labelledby (WAI-ARIA 1.2 pattern for toggle button groups) */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <label id={daysId} className="text-sm font-medium">
+              <div id={daysId} className="text-sm font-medium">
                 Days
-              </label>
+              </div>
               <div className="flex gap-1">
                 <Button
                   variant="ghost"
@@ -221,12 +234,12 @@ export const ScheduleForm = ({
                 <Button
                   key={day.value}
                   variant={
-                    daysOfWeek.includes(day.value) ? "default" : "outline"
+                    form.daysOfWeek.includes(day.value) ? "default" : "outline"
                   }
                   size="sm"
                   className={cn(
                     "flex-1 min-w-0 px-0",
-                    daysOfWeek.includes(day.value) && "ring-2 ring-ring/30"
+                    form.daysOfWeek.includes(day.value) && "ring-2 ring-ring/30"
                   )}
                   onClick={() => toggleDay(day.value)}
                 >

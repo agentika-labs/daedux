@@ -11,6 +11,14 @@ import { FileAnalyticsService } from "../bun/analytics/file-analytics";
 import { SessionAnalyticsService } from "../bun/analytics/session-analytics";
 import { ToolAnalyticsService } from "../bun/analytics/tool-analytics";
 import { AppLive } from "../bun/main";
+import { getOtelStatus, getOtelDashboardData } from "../bun/otel/analytics";
+import {
+  handleMetrics,
+  handleLogs,
+  buildSuccessResponse,
+  buildClientErrorResponse,
+  buildServerErrorResponse,
+} from "../bun/otel/receiver";
 import { AnthropicUsageService } from "../bun/services/anthropic-usage";
 import { loadDashboardData } from "../bun/services/dashboard-loader";
 import { SyncService } from "../bun/sync";
@@ -154,6 +162,10 @@ export async function startServer(options: ServerOptions): Promise<void> {
     log.error("cli", "Initial sync failed:", error);
   }
 
+  // Mark that we're running in server mode - disables CLI probe in anthropic-usage
+  // The CLI probe uses PTY spawning which fails in Bun.serve request handler context
+  process.env.DAEDUX_CLI_SERVER = "1";
+
   Bun.serve({
     port,
     async fetch(req) {
@@ -164,6 +176,45 @@ export async function startServer(options: ServerOptions): Promise<void> {
 
       if (pathname === "/favicon.svg" || pathname === "/favicon.ico") {
         return new Response(null, { status: 204 });
+      }
+
+      // ─── OTLP Endpoints (port 4318 standard) ──────────────────────────────
+
+      if (pathname === "/v1/metrics" && req.method === "POST") {
+        try {
+          const body = await req.json();
+          await runEffect(handleMetrics(body));
+          return Response.json(buildSuccessResponse());
+        } catch (error) {
+          log.error("otel", "Metrics ingestion error:", error);
+          // ParseError = 400 (client error), other errors = 500 (server error)
+          const errorStr = String(error);
+          const isParseError = errorStr.includes("ParseError");
+          return Response.json(
+            isParseError
+              ? buildClientErrorResponse(errorStr)
+              : buildServerErrorResponse(errorStr),
+            { status: isParseError ? 400 : 500 }
+          );
+        }
+      }
+
+      if (pathname === "/v1/logs" && req.method === "POST") {
+        try {
+          const body = await req.json();
+          await runEffect(handleLogs(body));
+          return Response.json(buildSuccessResponse());
+        } catch (error) {
+          log.error("otel", "Logs ingestion error:", error);
+          const errorStr = String(error);
+          const isParseError = errorStr.includes("ParseError");
+          return Response.json(
+            isParseError
+              ? buildClientErrorResponse(errorStr)
+              : buildServerErrorResponse(errorStr),
+            { status: isParseError ? 400 : 500 }
+          );
+        }
       }
 
       // ─── API Routes ──────────────────────────────────────────────────────
@@ -311,6 +362,7 @@ export async function startServer(options: ServerOptions): Promise<void> {
               return yield* anthropicService.getUsage();
             })
           );
+          log.info("api", `Anthropic usage source: ${usage.source}`);
           return Response.json(usage);
         } catch (error) {
           log.error("api", "Anthropic usage error:", error);
@@ -329,7 +381,52 @@ export async function startServer(options: ServerOptions): Promise<void> {
           scanIntervalMinutes: 5,
           customPaths: {},
           schedulerEnabled: false,
+          otel: {
+            enabled: true,
+            retentionDays: 30,
+            roiHourlyDevCost: 50,
+            roiMinutesPerLoc: 3,
+            roiMinutesPerCommit: 15,
+          },
         });
+      }
+
+      if (pathname === "/api/otel/status") {
+        try {
+          const status = await runEffect(getOtelStatus());
+          return Response.json(status);
+        } catch (error) {
+          log.error("api", "OTEL status error:", error);
+          return Response.json(
+            { error: "Failed to get OTEL status" },
+            { status: 500 }
+          );
+        }
+      }
+
+      if (pathname === "/api/otel/analytics") {
+        try {
+          const filter = url.searchParams.get("filter");
+          const harness = url.searchParams.get("harness") as
+            | "claude-code"
+            | "opencode"
+            | "codex"
+            | undefined;
+          const dateFilter = parseDateFilter(filter);
+          const data = await runEffect(
+            getOtelDashboardData({
+              ...dateFilter,
+              harness: harness ?? undefined,
+            })
+          );
+          return Response.json(data);
+        } catch (error) {
+          log.error("api", "OTEL analytics error:", error);
+          return Response.json(
+            { error: "Failed to get OTEL analytics" },
+            { status: 500 }
+          );
+        }
       }
 
       // ─── Static Files ────────────────────────────────────────────────────

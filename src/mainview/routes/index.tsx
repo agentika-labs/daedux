@@ -1,73 +1,58 @@
+/**
+ * Overview route - hero stats, efficiency score, insights, and weekly comparison.
+ *
+ * This is the landing page that provides a quick scan of Claude Code usage.
+ */
 import { createFileRoute } from "@tanstack/react-router";
-import {
-  lazy,
-  Suspense,
-  useCallback,
-  useEffect,
-  useState,
-  useRef,
-} from "react";
+import { useEffect, useRef } from "react";
+import { z } from "zod";
 
-import { Header } from "@/components/layout/Header";
-import type { FilterOption } from "@/components/layout/Header";
 import { OverviewSection } from "@/components/sections/OverviewSection";
-import { SessionsSection } from "@/components/sections/SessionsSection";
-import { ToolsSection } from "@/components/sections/ToolsSection";
-import { Skeleton } from "@/components/ui/skeleton";
-import { useActiveSection, scrollToSection } from "@/hooks/useActiveSection";
 import { useIsDesktop } from "@/hooks/useApi";
 import { queryClient } from "@/lib/query-client";
-import type { HarnessFilterOption } from "@/queries/dashboard";
 import { useDashboardQuery, dashboardQueryOptions } from "@/queries/dashboard";
 
-// Lazy load chart-heavy sections to reduce initial bundle
-const CostSection = lazy(() =>
-  import("@/components/sections/CostSection").then((m) => ({
-    default: m.CostSection,
-  }))
-);
-const EfficiencySection = lazy(() =>
-  import("@/components/sections/EfficiencySection").then((m) => ({
-    default: m.EfficiencySection,
-  }))
-);
-const AutomationSection = lazy(() =>
-  import("@/components/sections/AutomationSection").then((m) => ({
-    default: m.AutomationSection,
-  }))
-);
-const ProjectsSection = lazy(() =>
-  import("@/components/sections/ProjectsSection").then((m) => ({
-    default: m.ProjectsSection,
-  }))
-);
+// ─── Search Params Schema ────────────────────────────────────────────────────
+
+const overviewSearchSchema = z.object({
+  filter: z
+    .enum(["today", "7d", "30d", "all"] as const)
+    .default("7d")
+    .catch("7d"),
+  harness: z
+    .enum(["claude-code", "opencode", "codex", "all"] as const)
+    .default("claude-code")
+    .catch("claude-code"),
+});
+
+export type OverviewSearch = z.infer<typeof overviewSearchSchema>;
+
+// ─── Route Definition ────────────────────────────────────────────────────────
 
 export const Route = createFileRoute("/")({
+  validateSearch: overviewSearchSchema,
   loader: async () => {
     await queryClient.ensureQueryData(
       dashboardQueryOptions("7d", "claude-code")
     );
   },
-  component: Dashboard,
+  component: OverviewRoute,
 });
 
-function Dashboard() {
+// ─── Component ───────────────────────────────────────────────────────────────
+
+function OverviewRoute() {
+  const { filter, harness } = Route.useSearch();
   const isDesktop = useIsDesktop();
-  const activeSection = useActiveSection();
-
-  const [filter, setFilter] = useState<FilterOption>("7d");
-  const [harnessFilter, setHarnessFilter] =
-    useState<HarnessFilterOption>("claude-code");
-
   const { data, isLoading, error, refetch } = useDashboardQuery(
     filter,
-    harnessFilter
+    harness
   );
 
   const refetchRef = useRef(refetch);
   refetchRef.current = refetch;
 
-  // Listen for data updates from main process (desktop only)
+  // Listen for desktop updates
   useEffect(() => {
     if (!isDesktop) {
       return;
@@ -76,10 +61,7 @@ function Dashboard() {
     let cleanup: (() => void) | undefined;
 
     import("@/hooks/useRPC").then(({ electroview }) => {
-      const handleUpdate = () => {
-        refetchRef.current();
-      };
-
+      const handleUpdate = () => refetchRef.current();
       electroview.addMessageListener("sessionsUpdated", handleUpdate);
       cleanup = () =>
         electroview.removeMessageListener("sessionsUpdated", handleUpdate);
@@ -87,18 +69,6 @@ function Dashboard() {
 
     return () => cleanup?.();
   }, [isDesktop]);
-
-  const handleNavigateToSection = useCallback((section: string) => {
-    scrollToSection(
-      section as
-        | "overview"
-        | "cost"
-        | "efficiency"
-        | "tools"
-        | "sessions"
-        | "projects"
-    );
-  }, []);
 
   if (error && !data) {
     return (
@@ -121,48 +91,10 @@ function Dashboard() {
   }
 
   return (
-    <div className="bg-background text-foreground flex h-screen flex-col">
-      <Header
-        filter={filter}
-        onFilterChange={setFilter}
-        harnessFilter={harnessFilter}
-        onHarnessFilterChange={setHarnessFilter}
-        activeSection={activeSection}
-      />
-
-      <main className="flex-1 overflow-auto">
-        <div className="mx-auto max-w-7xl px-6 pb-12">
-          <OverviewSection
-            data={data ?? null}
-            loading={isLoading}
-            onNavigateToSection={handleNavigateToSection}
-          />
-
-          <Suspense fallback={<Skeleton className="h-64 w-full" />}>
-            <CostSection data={data ?? null} loading={isLoading} />
-          </Suspense>
-
-          <Suspense fallback={<Skeleton className="h-64 w-full" />}>
-            <EfficiencySection
-              data={data ?? null}
-              loading={isLoading}
-              filter={filter}
-            />
-          </Suspense>
-
-          <ToolsSection data={data ?? null} loading={isLoading} />
-
-          <Suspense fallback={<Skeleton className="h-64 w-full" />}>
-            <AutomationSection data={data ?? null} loading={isLoading} />
-          </Suspense>
-
-          <Suspense fallback={<Skeleton className="h-64 w-full" />}>
-            <ProjectsSection data={data ?? null} loading={isLoading} />
-          </Suspense>
-
-          <SessionsSection data={data ?? null} loading={isLoading} />
-        </div>
-      </main>
+    <div className="flex-1 overflow-auto">
+      <div className="mx-auto max-w-7xl px-6 py-6">
+        <OverviewSection data={data ?? null} loading={isLoading} />
+      </div>
     </div>
   );
 }

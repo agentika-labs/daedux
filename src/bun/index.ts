@@ -24,6 +24,8 @@ import type {
   SessionSchedule,
   AnthropicUsage,
   AppInfo,
+  OtelStatus,
+  OtelDashboardData,
 } from "../shared/rpc-types";
 import { AgentAnalyticsService } from "./analytics/agent-analytics";
 import { ContextAnalyticsService } from "./analytics/context-analytics";
@@ -33,6 +35,15 @@ import { SessionAnalyticsService } from "./analytics/session-analytics";
 import { ToolAnalyticsService } from "./analytics/tool-analytics";
 import { initializeDatabase } from "./db/migrate";
 import { AppLive } from "./main";
+import { getOtelStatus, getOtelDashboardData } from "./otel/analytics";
+import {
+  handleMetrics,
+  handleLogs,
+  buildSuccessResponse,
+  buildClientErrorResponse,
+  buildServerErrorResponse,
+} from "./otel/receiver";
+import { cleanupOtelData } from "./otel/retention";
 import { AnthropicUsageService } from "./services/anthropic-usage";
 import { loadDashboardData } from "./services/dashboard-loader";
 import { SchedulerService, parseDaysOfWeek } from "./services/scheduler";
@@ -231,6 +242,13 @@ let settings: AppSettings = {
   scanOnLaunch: true,
   schedulerEnabled: false,
   theme: "system", // Off by default until user enables it
+  otel: {
+    enabled: true,
+    retentionDays: 30,
+    roiHourlyDevCost: 50,
+    roiMinutesPerLoc: 3,
+    roiMinutesPerCommit: 15,
+  },
 };
 
 Electrobun.events.on("before-quit", () => {
@@ -1216,6 +1234,18 @@ const rpc = BrowserView.defineRPC<UsageMonitorRPC>({
         };
       },
 
+      // ─── OTEL Endpoints ────────────────────────────────────────────────
+      getOtelStatus: async (): Promise<OtelStatus> =>
+        runEffect(getOtelStatus()),
+
+      getOtelAnalytics: async ({
+        filter,
+        harness,
+      }): Promise<OtelDashboardData> => {
+        const dateFilter = parseDateFilter(filter);
+        return runEffect(getOtelDashboardData({ ...dateFilter, harness }));
+      },
+
       updateDragExclusionZones: async ({ zones }) => {
         const success = updateDragExclusionZones(zones);
         return { success };
@@ -1471,11 +1501,92 @@ const downloadAndApplyUpdate = async () => {
   }
 };
 
+// ─── OTEL HTTP Server ───────────────────────────────────────────────────────
+
+const OTEL_PORT = 4318; // Standard OTLP HTTP port
+
+let otelServer: ReturnType<typeof Bun.serve> | null = null;
+
+const startOtelServer = () => {
+  if (!settings.otel?.enabled) {
+    return;
+  }
+
+  otelServer = Bun.serve({
+    port: OTEL_PORT,
+    fetch: async (req) => {
+      const url = new URL(req.url);
+
+      // CORS preflight
+      if (req.method === "OPTIONS") {
+        return new Response(null, {
+          headers: {
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "POST, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type",
+          },
+        });
+      }
+
+      if (url.pathname === "/v1/metrics" && req.method === "POST") {
+        try {
+          const body = await req.json();
+          await runEffect(handleMetrics(body));
+          return Response.json(buildSuccessResponse());
+        } catch (error) {
+          const errorStr = String(error);
+          const isParseError = errorStr.includes("ParseError");
+          return Response.json(
+            isParseError
+              ? buildClientErrorResponse(errorStr)
+              : buildServerErrorResponse(errorStr),
+            { status: isParseError ? 400 : 500 }
+          );
+        }
+      }
+
+      if (url.pathname === "/v1/logs" && req.method === "POST") {
+        try {
+          const body = await req.json();
+          await runEffect(handleLogs(body));
+          return Response.json(buildSuccessResponse());
+        } catch (error) {
+          const errorStr = String(error);
+          const isParseError = errorStr.includes("ParseError");
+          return Response.json(
+            isParseError
+              ? buildClientErrorResponse(errorStr)
+              : buildServerErrorResponse(errorStr),
+            { status: isParseError ? 400 : 500 }
+          );
+        }
+      }
+
+      return new Response("Not Found", { status: 404 });
+    },
+  });
+
+  log.info("otel", `OTEL receiver listening on port ${OTEL_PORT}`);
+};
+
 // ─── Bootstrap ──────────────────────────────────────────────────────────────
 
 const bootstrap = async () => {
+  // Force all Effect layers to build NOW, before the webview can make RPC calls.
+  // ManagedRuntime.make() is lazy — layers only construct on first runPromise call.
+  await getRuntime().runPromise(Effect.void);
+
   // Initialize database schema
   initializeDatabase();
+
+  // Run OTEL data cleanup on startup if enabled
+  if (settings.otel?.enabled) {
+    const retentionDays = settings.otel.retentionDays ?? 30;
+    void runEffect(cleanupOtelData(retentionDays));
+  }
+
+  // Start OTEL HTTP receiver if enabled
+  startOtelServer();
 
   // Set up application menu
   refreshApplicationMenu();
@@ -1525,6 +1636,12 @@ process.on("exit", () => {
   if (tray) {
     tray.remove();
     tray = null;
+  }
+
+  // Stop OTEL server
+  if (otelServer) {
+    otelServer.stop();
+    otelServer = null;
   }
 
   // Dispose the managed runtime to clean up Effect fibers

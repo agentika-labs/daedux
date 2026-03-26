@@ -5,6 +5,7 @@ import { Electroview } from "electrobun/view";
 
 // Define the RPC schema for type-safe requests
 export const electroview = Electroview.defineRPC<UsageMonitorRPC>({
+  maxRequestTime: 30_000,
   handlers: {},
 });
 

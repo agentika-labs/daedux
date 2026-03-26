@@ -201,8 +201,9 @@ export function ExpensivePromptsCard({
       <CardContent className="pt-0">
         {loading ? (
           <div className="space-y-4">
+            {/* Skeleton placeholders - index keys safe for static arrays that never reorder/filter */}
             {[1, 2, 3].map((i) => (
-              <div key={i} className="flex gap-3">
+              <div key={`skeleton-${i}`} className="flex gap-3">
                 <Skeleton className="h-6 w-6 shrink-0 rounded-full" />
                 <div className="flex-1 space-y-2">
                   <Skeleton className="h-2 w-full" />

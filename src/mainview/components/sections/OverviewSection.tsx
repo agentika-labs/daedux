@@ -73,6 +73,7 @@ export function OverviewSection({
           value={formatCurrency(totals?.totalCost ?? 0)}
           subtext={`${formatCurrency(totals?.avgCostPerSession ?? 0)} avg/session`}
           trend={costTrend}
+          size="hero"
           loading={loading}
           tooltip={
             <InfoTooltip
@@ -113,6 +114,7 @@ export function OverviewSection({
           value={formatCurrency(totals?.savedByCaching ?? 0)}
           subtext={`${formatPercent(totals?.cacheEfficiencyRatio ?? 0)} hit rate`}
           variant="success"
+          size="hero"
           loading={loading}
           tooltip={
             <InfoTooltip
@@ -192,6 +194,7 @@ export function OverviewSection({
                           strokeLinecap="round"
                           strokeDasharray={`${(efficiencyScore.overall / 100) * 251.2} 251.2`}
                           className={cn(
+                            "transition-all duration-700 ease-out",
                             efficiencyScore.overall >= 75
                               ? "text-success"
                               : efficiencyScore.overall >= 50
@@ -201,7 +204,7 @@ export function OverviewSection({
                         />
                       </svg>
                       <div className="absolute inset-0 flex items-center justify-center">
-                        <span className="text-2xl font-bold">
+                        <span className="stat-value text-2xl font-bold">
                           {Math.round(efficiencyScore.overall)}
                         </span>
                       </div>

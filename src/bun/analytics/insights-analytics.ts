@@ -235,6 +235,19 @@ export class InsightsAnalyticsService extends Effect.Service<InsightsAnalyticsSe
                   : 0;
               const toolSuccessRate = 1 - errorRate;
 
+              // ─── EARLY RETURN: No meaningful activity ──────────────────────────
+              // Don't generate insights when there's no actual usage in the period
+              const hasMeaningfulActivity =
+                (thisWeek.totalCost ?? 0) > 0 ||
+                (thisWeek.totalQueries ?? 0) > 0 ||
+                (thisWeek.totalInputTokens ?? 0) > 0 ||
+                (thisWeek.totalCacheRead ?? 0) > 0 ||
+                toolStats.total > 0;
+
+              if (!hasMeaningfulActivity) {
+                return insights; // Empty array - frontend shows "No insights available"
+              }
+
               // Calculate cache efficiency
               const cacheRatio = cacheHitRatio({
                 cacheRead: thisWeek.totalCacheRead ?? 0,

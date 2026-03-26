@@ -5,17 +5,32 @@ import { describe, expect, it } from "bun:test";
 
 import { Effect } from "effect";
 
-import { claudeCodeParser } from "../../../src/bun/parsers/claude-code/parser";
-import { codexParser } from "../../../src/bun/parsers/codex/parser";
+import { ClaudeCodeParserService } from "../../../src/bun/parsers/claude-code/parser";
+import { CodexParserService } from "../../../src/bun/parsers/codex/parser";
 import { ParserRegistry } from "../../../src/bun/parsers/registry";
+
+// ─── Helpers ────────────────────────────────────────────────────────────────
+// For future tests of consumers (e.g., SyncService), provide mock parser layers
+// via Effect.provideService() to isolate from filesystem operations.
+
+const createRegistry = () =>
+  Effect.runSync(ParserRegistry.pipe(Effect.provide(ParserRegistry.Default)));
+
+const createClaudeCodeParser = () =>
+  Effect.runSync(
+    ClaudeCodeParserService.pipe(
+      Effect.provide(ClaudeCodeParserService.Default)
+    )
+  );
+
+const createCodexParser = () =>
+  Effect.runSync(
+    CodexParserService.pipe(Effect.provide(CodexParserService.Default))
+  );
 
 // ─── ParserRegistry Tests ────────────────────────────────────────────────────
 
 describe("ParserRegistry", () => {
-  // Create a fresh registry instance for testing
-  const createRegistry = () =>
-    Effect.runSync(ParserRegistry.pipe(Effect.provide(ParserRegistry.Default)));
-
   describe("harness detection", () => {
     it("detects Claude Code files by path pattern", () => {
       const registry = createRegistry();
@@ -85,6 +100,7 @@ describe("ParserRegistry", () => {
 
     it("can register additional parsers", () => {
       const registry = createRegistry();
+      const codexParser = createCodexParser();
 
       registry.register(codexParser);
 
@@ -102,46 +118,46 @@ describe("ParserRegistry", () => {
 describe("ClaudeCodeParser", () => {
   describe("canHandle", () => {
     it("returns true for Claude Code project files", () => {
+      const parser = createClaudeCodeParser();
       expect(
-        claudeCodeParser.canHandle(
-          "/Users/test/.claude/projects/foo/session.jsonl"
-        )
+        parser.canHandle("/Users/test/.claude/projects/foo/session.jsonl")
       ).toBe(true);
     });
 
     it("returns true for Claude Code subagent files", () => {
+      const parser = createClaudeCodeParser();
       expect(
-        claudeCodeParser.canHandle(
+        parser.canHandle(
           "/Users/test/.claude/projects/foo/abc/subagents/agent-xyz.jsonl"
         )
       ).toBe(true);
     });
 
     it("returns false for non-Claude Code paths", () => {
-      expect(
-        claudeCodeParser.canHandle("/Users/test/.codex/sessions/foo.jsonl")
-      ).toBe(false);
-      expect(claudeCodeParser.canHandle("/Users/test/projects/foo.jsonl")).toBe(
+      const parser = createClaudeCodeParser();
+      expect(parser.canHandle("/Users/test/.codex/sessions/foo.jsonl")).toBe(
         false
       );
+      expect(parser.canHandle("/Users/test/projects/foo.jsonl")).toBe(false);
     });
 
     it("returns false for non-JSONL files in Claude Code path", () => {
+      const parser = createClaudeCodeParser();
       expect(
-        claudeCodeParser.canHandle(
-          "/Users/test/.claude/projects/foo/config.json"
-        )
+        parser.canHandle("/Users/test/.claude/projects/foo/config.json")
       ).toBe(false);
     });
   });
 
   describe("metadata", () => {
     it("has correct harness identifier", () => {
-      expect(claudeCodeParser.harness).toBe("claude-code");
+      const parser = createClaudeCodeParser();
+      expect(parser.harness).toBe("claude-code");
     });
 
     it("has human-readable name", () => {
-      expect(claudeCodeParser.name).toBe("Claude Code");
+      const parser = createClaudeCodeParser();
+      expect(parser.name).toBe("Claude Code");
     });
   });
 });
@@ -151,37 +167,43 @@ describe("ClaudeCodeParser", () => {
 describe("CodexParser", () => {
   describe("canHandle", () => {
     it("returns true for Codex session files", () => {
-      expect(
-        codexParser.canHandle("/Users/test/.codex/sessions/foo.jsonl")
-      ).toBe(true);
+      const parser = createCodexParser();
+      expect(parser.canHandle("/Users/test/.codex/sessions/foo.jsonl")).toBe(
+        true
+      );
     });
 
     it("returns false for Claude Code paths", () => {
+      const parser = createCodexParser();
       expect(
-        codexParser.canHandle("/Users/test/.claude/projects/foo/session.jsonl")
+        parser.canHandle("/Users/test/.claude/projects/foo/session.jsonl")
       ).toBe(false);
     });
   });
 
   describe("metadata", () => {
     it("has correct harness identifier", () => {
-      expect(codexParser.harness).toBe("codex");
+      const parser = createCodexParser();
+      expect(parser.harness).toBe("codex");
     });
 
     it("has human-readable name", () => {
-      expect(codexParser.name).toBe("Codex");
+      const parser = createCodexParser();
+      expect(parser.name).toBe("Codex");
     });
   });
 
   describe("stub implementation", () => {
     it("discoverSessions returns empty array", async () => {
-      const result = await Effect.runPromise(codexParser.discoverSessions());
+      const parser = createCodexParser();
+      const result = await Effect.runPromise(parser.discoverSessions());
       expect(result).toEqual([]);
     });
 
     it("parseSession returns null", async () => {
+      const parser = createCodexParser();
       const result = await Effect.runPromise(
-        codexParser.parseSession({
+        parser.parseSession({
           filePath: "/test/path.jsonl",
           harness: "codex",
           isSubagent: false,

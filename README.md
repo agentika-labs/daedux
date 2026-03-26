@@ -49,6 +49,40 @@ bunx @agentika/daedux
 - **Desktop**: macOS ARM64 (Apple Silicon)
 - **Both**: Claude Code must have been used (`~/.claude/projects/` must exist)
 
+## OpenTelemetry Setup
+
+To receive real-time metrics from Claude Code, configure telemetry export. Choose one approach:
+
+### Option 1: Shell Environment
+
+Add to `~/.zshrc` or `~/.bashrc`:
+
+```bash
+export CLAUDE_CODE_ENABLE_TELEMETRY=1
+export OTEL_METRICS_EXPORTER=otlp
+export OTEL_LOGS_EXPORTER=otlp
+export OTEL_EXPORTER_OTLP_PROTOCOL=http/json
+export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318
+```
+
+### Option 2: Claude Code Settings
+
+Add to `~/.claude/settings.json`:
+
+```json
+{
+  "env": {
+    "CLAUDE_CODE_ENABLE_TELEMETRY": "1",
+    "OTEL_METRICS_EXPORTER": "otlp",
+    "OTEL_LOGS_EXPORTER": "otlp",
+    "OTEL_EXPORTER_OTLP_PROTOCOL": "http/json",
+    "OTEL_EXPORTER_OTLP_ENDPOINT": "http://localhost:4318"
+  }
+}
+```
+
+After configuring, ensure Daedux is running and the OTEL receiver is enabled in Settings.
+
 ## CLI Usage
 
 ```bash
@@ -65,24 +99,24 @@ daedux --json --filter 7d   # Filter: today, 7d, 30d, all
 
 ### Options
 
-| Option | Alias | Description | Default |
-|--------|-------|-------------|---------|
-| `--port` | `-p` | Port to run the server on | 3456 |
-| `--json` | `-j` | Output JSON to stdout and exit | false |
-| `--filter` | `-f` | Date filter for --json mode | 7d |
-| `--resync` | `-r` | Full resync (clears and re-parses) | false |
-| `--no-open` | `-n` | Don't open browser automatically | false |
-| `--verbose` | `-v` | Enable verbose logging | false |
+| Option      | Alias | Description                        | Default |
+| ----------- | ----- | ---------------------------------- | ------- |
+| `--port`    | `-p`  | Port to run the server on          | 3456    |
+| `--json`    | `-j`  | Output JSON to stdout and exit     | false   |
+| `--filter`  | `-f`  | Date filter for --json mode        | 7d      |
+| `--resync`  | `-r`  | Full resync (clears and re-parses) | false   |
+| `--no-open` | `-n`  | Don't open browser automatically   | false   |
+| `--verbose` | `-v`  | Enable verbose logging             | false   |
 
 ## Data Storage
 
 Database location by platform:
 
-| Platform | Path |
-|----------|------|
-| macOS | `~/Library/Application Support/Daedux/daedux.db` |
-| Windows | `%APPDATA%/Daedux/daedux.db` |
-| Linux | `~/.local/share/daedux/daedux.db` |
+| Platform | Path                                             |
+| -------- | ------------------------------------------------ |
+| macOS    | `~/Library/Application Support/Daedux/daedux.db` |
+| Windows  | `%APPDATA%/Daedux/daedux.db`                     |
+| Linux    | `~/.local/share/daedux/daedux.db`                |
 
 ## Development
 

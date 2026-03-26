@@ -25,8 +25,9 @@ export function ChartSkeletonGrid({
       className={cn("grid gap-4", className)}
       style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}
     >
+      {/* Skeleton grid - index keys safe for static placeholder arrays that never reorder/filter */}
       {Array.from({ length: count }, (_, i) => (
-        <Skeleton key={i} className={cn("h-20", itemClassName)} />
+        <Skeleton key={`skeleton-${i}`} className={cn("h-20", itemClassName)} />
       ))}
     </div>
   );
