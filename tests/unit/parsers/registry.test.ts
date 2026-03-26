@@ -19,13 +19,13 @@ const createRegistry = () =>
 const createClaudeCodeParser = () =>
   Effect.runSync(
     ClaudeCodeParserService.pipe(
-      Effect.provide(ClaudeCodeParserService.Default),
-    ),
+      Effect.provide(ClaudeCodeParserService.Default)
+    )
   );
 
 const createCodexParser = () =>
   Effect.runSync(
-    CodexParserService.pipe(Effect.provide(CodexParserService.Default)),
+    CodexParserService.pipe(Effect.provide(CodexParserService.Default))
   );
 
 // ─── ParserRegistry Tests ────────────────────────────────────────────────────
@@ -36,12 +36,12 @@ describe("ParserRegistry", () => {
       const registry = createRegistry();
 
       expect(
-        registry.detectHarness("/Users/test/.claude/projects/foo/abc123.jsonl"),
+        registry.detectHarness("/Users/test/.claude/projects/foo/abc123.jsonl")
       ).toBe("claude-code");
       expect(
         registry.detectHarness(
-          "/home/user/.claude/projects/-test-project/session.jsonl",
-        ),
+          "/home/user/.claude/projects/-test-project/session.jsonl"
+        )
       ).toBe("claude-code");
     });
 
@@ -50,8 +50,8 @@ describe("ParserRegistry", () => {
 
       expect(
         registry.detectHarness(
-          "/Users/test/.claude/projects/foo/abc123/subagents/agent-xyz.jsonl",
-        ),
+          "/Users/test/.claude/projects/foo/abc123/subagents/agent-xyz.jsonl"
+        )
       ).toBe("claude-code");
     });
 
@@ -59,10 +59,10 @@ describe("ParserRegistry", () => {
       const registry = createRegistry();
 
       expect(
-        registry.detectHarness("/Users/test/random/path/session.jsonl"),
+        registry.detectHarness("/Users/test/random/path/session.jsonl")
       ).toBe("unknown");
       expect(
-        registry.detectHarness("/Users/test/.claude/sessions/foo.jsonl"),
+        registry.detectHarness("/Users/test/.claude/sessions/foo.jsonl")
       ).toBe("unknown");
     });
 
@@ -70,7 +70,7 @@ describe("ParserRegistry", () => {
       const registry = createRegistry();
 
       expect(
-        registry.detectHarness("/Users/test/.claude/projects/foo/config.json"),
+        registry.detectHarness("/Users/test/.claude/projects/foo/config.json")
       ).toBe("unknown");
     });
   });
@@ -120,7 +120,7 @@ describe("ClaudeCodeParser", () => {
     it("returns true for Claude Code project files", () => {
       const parser = createClaudeCodeParser();
       expect(
-        parser.canHandle("/Users/test/.claude/projects/foo/session.jsonl"),
+        parser.canHandle("/Users/test/.claude/projects/foo/session.jsonl")
       ).toBe(true);
     });
 
@@ -128,15 +128,15 @@ describe("ClaudeCodeParser", () => {
       const parser = createClaudeCodeParser();
       expect(
         parser.canHandle(
-          "/Users/test/.claude/projects/foo/abc/subagents/agent-xyz.jsonl",
-        ),
+          "/Users/test/.claude/projects/foo/abc/subagents/agent-xyz.jsonl"
+        )
       ).toBe(true);
     });
 
     it("returns false for non-Claude Code paths", () => {
       const parser = createClaudeCodeParser();
       expect(parser.canHandle("/Users/test/.codex/sessions/foo.jsonl")).toBe(
-        false,
+        false
       );
       expect(parser.canHandle("/Users/test/projects/foo.jsonl")).toBe(false);
     });
@@ -144,7 +144,7 @@ describe("ClaudeCodeParser", () => {
     it("returns false for non-JSONL files in Claude Code path", () => {
       const parser = createClaudeCodeParser();
       expect(
-        parser.canHandle("/Users/test/.claude/projects/foo/config.json"),
+        parser.canHandle("/Users/test/.claude/projects/foo/config.json")
       ).toBe(false);
     });
   });
@@ -169,14 +169,14 @@ describe("CodexParser", () => {
     it("returns true for Codex session files", () => {
       const parser = createCodexParser();
       expect(parser.canHandle("/Users/test/.codex/sessions/foo.jsonl")).toBe(
-        true,
+        true
       );
     });
 
     it("returns false for Claude Code paths", () => {
       const parser = createCodexParser();
       expect(
-        parser.canHandle("/Users/test/.claude/projects/foo/session.jsonl"),
+        parser.canHandle("/Users/test/.claude/projects/foo/session.jsonl")
       ).toBe(false);
     });
   });
@@ -210,7 +210,7 @@ describe("CodexParser", () => {
           parentSessionId: null,
           project: "test",
           sessionId: "test-session",
-        }),
+        })
       );
       expect(result).toBeNull();
     });
