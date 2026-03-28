@@ -460,6 +460,8 @@ const tryCliUsage = () =>
       let output = "";
       let resolved = false;
       let usageCommandSent = false; // Track if we've sent /usage to the REPL
+      let trustHandled = false; // Track if trust dialog was already dismissed
+      let permissionsHandled = false; // Track if permissions dialog was already dismissed
       let dataCallbackCount = 0; // DEBUG: track callback invocations
       const decoder = new TextDecoder();
 
@@ -489,8 +491,8 @@ const tryCliUsage = () =>
               .replaceAll(/\u001B[=>]/g, "")
               .replaceAll(/[\u0000-\u0008\u000B\u000C\u000E-\u001A]/g, "");
 
-            // DEBUG: Log state at timeout with CLEANED output
-            debugLog("anthropic-usage", "TIMEOUT DEBUG:", {
+            // Log state at timeout so we can see what the PTY received
+            log.info("usage", "CLI probe timeout debug:", {
               cleanedLength: cleanedForDebug.length,
               dataCallbackCount,
               hasCurrentSession: cleanedForDebug.includes("Current session"),
@@ -498,11 +500,12 @@ const tryCliUsage = () =>
               hasPercentUsed: cleanedForDebug.includes("% used"),
               hasTerminal: !!proc.terminal,
               outputLength: output.length,
+              usageCommandSent,
             });
             // Log first 1000 chars of cleaned output to see actual content
-            debugLog(
-              "anthropic-usage",
-              "CLEANED OUTPUT:",
+            log.info(
+              "usage",
+              "CLI probe output:",
               cleanedForDebug.slice(0, 1000)
             );
             reject(new Error("CLI probe timed out after 8s"));
@@ -551,10 +554,7 @@ const tryCliUsage = () =>
                 (clean.includes("Continue without") ||
                   clean.includes("without using"))
               ) {
-                debugLog(
-                  "anthropic-usage",
-                  "MCP prompt detected, bypassing..."
-                );
+                log.info("usage", "MCP prompt detected, bypassing...");
                 terminal.write("3\r"); // Select "Continue without using this MCP server"
                 return; // Wait for next data callback
               }
@@ -571,15 +571,14 @@ const tryCliUsage = () =>
               //
               // Handler is idempotent - clearing output buffer prevents re-detection.
               if (
+                !trustHandled &&
                 clean.includes("trust") &&
                 clean.includes("folder") &&
                 clean.includes("Itrustthisfolder") && // "Yes, I trust this folder" without spaces
                 clean.includes("Entertoconfirm") // "Enter to confirm" without spaces
               ) {
-                debugLog(
-                  "anthropic-usage",
-                  "Trust prompt detected, pressing Enter..."
-                );
+                log.info("usage", "Trust prompt detected, pressing Enter...");
+                trustHandled = true;
                 output = ""; // Clear output buffer to prevent re-detection
                 terminal.write("\r"); // Press Enter to confirm pre-selected option 1
                 return; // Wait for next data callback
@@ -592,16 +591,18 @@ const tryCliUsage = () =>
               // Guard: Don't match if we see "Claude Code v" header (indicates REPL is ready).
               // Handler is idempotent - clearing output buffer prevents re-detection.
               if (
+                !permissionsHandled &&
                 (clean.includes("Bypasspermissions") ||
                   clean.includes("BypassPermissions") ||
                   clean.includes("code.claude.com/docs") ||
                   clean.includes("security")) &&
                 !clean.includes("Claude Code v") // Not yet at REPL (no header)
               ) {
-                debugLog(
-                  "anthropic-usage",
+                log.info(
+                  "usage",
                   "Permissions warning detected, selecting 'Yes, I accept'..."
                 );
+                permissionsHandled = true;
                 output = ""; // Clear buffer to prevent re-detection
                 // Use DOWN ARROW to select "Yes, I accept" (option 1 "No, exit" is pre-selected)
                 // The menu uses arrow-key navigation, not numbered input
@@ -624,13 +625,15 @@ const tryCliUsage = () =>
               // as a selection cursor or contain the character in ANSI sequences.
               //
               // Use NEGATIVE detection: check that we're NOT in any known dialog state.
-              // This works whether dialogs appear or not (vs flags which require dialogs to appear).
-              const inTrustDialog =
+              // Use flags for dialogs we've already handled (confirmation text lingers in output).
+              const inTrustDialog = !trustHandled && (
                 clean.includes("Itrustthisfolder") ||
-                clean.includes("trust this folder");
-              const inPermissionsDialog =
+                clean.includes("trust this folder")
+              );
+              const inPermissionsDialog = !permissionsHandled && (
                 clean.includes("Bypasspermissions") ||
-                clean.includes("BypassPermissions");
+                clean.includes("BypassPermissions")
+              );
               const inMcpPrompt =
                 clean.includes("MCP server") && clean.includes("found");
               const inMenu = clean.includes("❯ 1.") || clean.includes("❯1.");
@@ -643,10 +646,7 @@ const tryCliUsage = () =>
                 !inMcpPrompt &&
                 !inMenu
               ) {
-                debugLog(
-                  "anthropic-usage",
-                  "REPL prompt detected, sending /usage..."
-                );
+                log.info("usage", "REPL prompt detected, sending /usage...");
                 usageCommandSent = true;
                 terminal.write("/usage\r");
                 // After a short delay, press Enter to select the menu item
