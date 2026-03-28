@@ -1,0 +1,106 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!--
+    Daedalus Maze — large tier (3 rings + center node)
+    For 256px+ renders.
+
+    BOLD revision: thicker strokes, brighter palette, tinted background,
+    stronger glow. Designed to hold its own in the macOS Dock alongside
+    Finder, Safari, Chrome etc.
+
+    Stroke: 20px (was 14), same ring positions.
+    All rings bright (outer=brand, inner=brightest).
+    Background has subtle emerald tint instead of pure black.
+  -->
+
+  <defs>
+    <!-- Dark emerald background (NOT pure black — visible against Dock) -->
+    <linearGradient id="bg-grad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#0f1f17"/>
+      <stop offset="100%" stop-color="#060f0a"/>
+    </linearGradient>
+
+    <!-- Glow filter for rings -->
+    <filter id="glow" x="-25%" y="-25%" width="150%" height="150%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="10" result="blur"/>
+    </filter>
+
+    <!-- Strong glow for center node -->
+    <filter id="center-glow" x="-150%" y="-150%" width="400%" height="400%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="16" result="blur"/>
+    </filter>
+
+    <!-- Specular highlight -->
+    <radialGradient id="specular" cx="0.3" cy="0.25" r="0.5">
+      <stop offset="0%" stop-color="white" stop-opacity="0.06"/>
+      <stop offset="100%" stop-color="white" stop-opacity="0"/>
+    </radialGradient>
+
+    <!-- Subtle inner border to separate from Dock -->
+    <linearGradient id="border-grad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1a3d2a" stop-opacity="0.8"/>
+      <stop offset="100%" stop-color="#0d1f15" stop-opacity="0.3"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background with emerald tint -->
+  <rect width="512" height="512" rx="108" ry="108" fill="url(#bg-grad)"/>
+
+  <!-- Subtle edge highlight (helps icon pop against dark Dock) -->
+  <rect x="1" y="1" width="510" height="510" rx="107" ry="107"
+    fill="none" stroke="url(#border-grad)" stroke-width="1.5"/>
+
+  <!-- ═══ Glow layers ═══ -->
+
+  <path
+    d="M 235,108 L 108,108 L 108,404 L 404,404 L 404,108 L 277,108"
+    fill="none" stroke="#10B981" stroke-width="26"
+    stroke-linecap="round" stroke-linejoin="round"
+    stroke-opacity="0.3" filter="url(#glow)"
+  />
+
+  <path
+    d="M 362,235 L 362,150 L 150,150 L 150,362 L 362,362 L 362,277"
+    fill="none" stroke="#34D399" stroke-width="26"
+    stroke-linecap="round" stroke-linejoin="round"
+    stroke-opacity="0.3" filter="url(#glow)"
+  />
+
+  <path
+    d="M 277,320 L 320,320 L 320,192 L 192,192 L 192,320 L 235,320"
+    fill="none" stroke="#6EE7B7" stroke-width="26"
+    stroke-linecap="round" stroke-linejoin="round"
+    stroke-opacity="0.35" filter="url(#glow)"
+  />
+
+  <!-- Center glow -->
+  <circle cx="256" cy="256" r="14" fill="#A7F3D0" opacity="0.4" filter="url(#center-glow)"/>
+
+  <!-- ═══ Main rings (bright palette, thick strokes) ═══ -->
+
+  <!-- Ring 1 (outer) — brand emerald, gap NORTH -->
+  <path
+    d="M 235,108 L 108,108 L 108,404 L 404,404 L 404,108 L 277,108"
+    fill="none" stroke="#10B981" stroke-width="20"
+    stroke-linecap="round" stroke-linejoin="round"
+  />
+
+  <!-- Ring 2 (middle) — bright emerald, gap EAST -->
+  <path
+    d="M 362,235 L 362,150 L 150,150 L 150,362 L 362,362 L 362,277"
+    fill="none" stroke="#34D399" stroke-width="20"
+    stroke-linecap="round" stroke-linejoin="round"
+  />
+
+  <!-- Ring 3 (inner) — light emerald, gap SOUTH -->
+  <path
+    d="M 277,320 L 320,320 L 320,192 L 192,192 L 192,320 L 235,320"
+    fill="none" stroke="#6EE7B7" stroke-width="20"
+    stroke-linecap="round" stroke-linejoin="round"
+  />
+
+  <!-- Center node — brightest, beacon -->
+  <circle cx="256" cy="256" r="14" fill="#A7F3D0"/>
+
+  <!-- Specular highlight -->
+  <rect width="512" height="512" rx="108" ry="108" fill="url(#specular)"/>
+</svg>

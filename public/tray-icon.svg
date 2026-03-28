@@ -1,3 +1,16 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 336 336" width="336" height="336">
-  <path d="M 252,0 L 0,0 L 0,336 L 336,336 L 336,0 L 294,0 L 294,294 L 42,294 L 42,42 L 252,42 L 252,252 L 84,252 L 84,84 L 210,84 L 210,210 L 126,210 L 126,126 L 168,126" fill="none" stroke="#ffffff" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="94 94 324 324" width="324" height="324">
+  <!--
+    Tray icon — small tier (2 layers), black stroke on transparent.
+    Uses template mode: macOS auto-inverts for dark menu bars.
+    Optimized for 18px rendered size with bold strokes.
+  -->
+  <path
+    d="
+      M 276,108
+      L 108,108 L 108,404 L 404,404 L 404,108 L 340,108
+      L 340,340 L 172,340 L 172,172 L 256,172
+    "
+    fill="none" stroke="#000000" stroke-width="28"
+    stroke-linecap="round" stroke-linejoin="round"
+  />
 </svg>

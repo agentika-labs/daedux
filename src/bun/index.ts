@@ -1341,7 +1341,7 @@ const createTray = () => {
   tray = new Tray({
     ...(trayIconPath ? { image: trayIconPath } : {}),
     height: 18,
-    template: false,
+    template: true,
     width: 18,
   });
 

@@ -1,0 +1,94 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!--
+    Daedalus Maze BOLD — large tier
+    For 256px+ renders.
+
+    FILLED maze walls (not stroked outlines) for maximum visual mass.
+    Square walls + circular center = ownable "squares framing a circle" silhouette.
+
+    Ring 1 (outer square): 108→404, wall=28, gap NORTH
+    Ring 2 (inner square): 152→360, wall=28, gap EAST
+    Center circle: r=56 filled, bright emerald
+    Center beacon: r=12, brightest
+
+    Corridors: 16px between rings, 20px between Ring 2 and circle.
+  -->
+
+  <defs>
+    <linearGradient id="bg-grad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#0f1f17"/>
+      <stop offset="100%" stop-color="#060f0a"/>
+    </linearGradient>
+
+    <filter id="glow" x="-25%" y="-25%" width="150%" height="150%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="10"/>
+    </filter>
+
+    <filter id="center-glow" x="-100%" y="-100%" width="300%" height="300%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="18"/>
+    </filter>
+
+    <radialGradient id="specular" cx="0.3" cy="0.25" r="0.5">
+      <stop offset="0%" stop-color="white" stop-opacity="0.06"/>
+      <stop offset="100%" stop-color="white" stop-opacity="0"/>
+    </radialGradient>
+
+    <linearGradient id="border-grad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1a3d2a" stop-opacity="0.8"/>
+      <stop offset="100%" stop-color="#0d1f15" stop-opacity="0.3"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="512" height="512" rx="108" ry="108" fill="url(#bg-grad)"/>
+  <rect x="1" y="1" width="510" height="510" rx="107" ry="107"
+    fill="none" stroke="url(#border-grad)" stroke-width="1.5"/>
+
+  <!-- ═══ Glow layers ═══ -->
+
+  <!-- Ring 1 glow (approximate with stroked path) -->
+  <path d="M 235,108 L 108,108 L 108,404 L 404,404 L 404,108 L 277,108"
+    fill="none" stroke="#10B981" stroke-width="40"
+    stroke-linecap="round" stroke-linejoin="round"
+    stroke-opacity="0.2" filter="url(#glow)"/>
+
+  <!-- Ring 2 glow -->
+  <path d="M 360,235 L 360,152 L 152,152 L 152,360 L 360,360 L 360,277"
+    fill="none" stroke="#34D399" stroke-width="40"
+    stroke-linecap="round" stroke-linejoin="round"
+    stroke-opacity="0.2" filter="url(#glow)"/>
+
+  <!-- Center circle glow -->
+  <circle cx="256" cy="256" r="56" fill="#6EE7B7" opacity="0.3" filter="url(#center-glow)"/>
+
+  <!-- ═══ Filled maze walls ═══ -->
+
+  <!-- Ring 1: filled square frame, gap NORTH centered at x=256
+       Outer: 108→404, Inner: 136→376, Gap: x 235→277 -->
+  <path d="
+    M 235,108
+    L 235,136  L 136,136  L 136,376  L 376,376  L 376,136  L 277,136
+    L 277,108
+    L 404,108  L 404,404  L 108,404  L 108,108
+    Z"
+    fill="#10B981"/>
+
+  <!-- Ring 2: filled square frame, gap EAST centered at y=256
+       Outer: 152→360, Inner: 180→332, Gap: y 235→277 -->
+  <path d="
+    M 360,235
+    L 332,235  L 332,180  L 180,180  L 180,332  L 332,332  L 332,277
+    L 360,277
+    L 360,360  L 152,360  L 152,152  L 360,152
+    Z"
+    fill="#34D399"/>
+
+  <!-- Center circle — the destination -->
+  <circle cx="256" cy="256" r="56" fill="#6EE7B7"/>
+
+  <!-- Center beacon — brightest point -->
+  <circle cx="256" cy="256" r="12" fill="#A7F3D0"/>
+
+  <!-- Specular highlight -->
+  <rect width="512" height="512" rx="108" ry="108" fill="url(#specular)"/>
+</svg>

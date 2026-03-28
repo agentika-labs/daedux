@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="94 94 324 324" width="324" height="324">
+  <!-- Square spiral mark — small tier (2 layers), no background
+       Stroke: 28px (14px extends beyond path coords 108-404) -->
+  <path
+    d="
+      M 276,108
+      L 108,108 L 108,404 L 404,404 L 404,108 L 340,108
+      L 340,340 L 172,340 L 172,172 L 256,172
+    "
+    fill="none" stroke="#10B981" stroke-width="28"
+    stroke-linecap="round" stroke-linejoin="round"
+  />
+</svg>

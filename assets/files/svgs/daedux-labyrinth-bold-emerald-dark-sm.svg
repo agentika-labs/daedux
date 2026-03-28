@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!--
+    Daedalus Maze BOLD — small tier (1 filled ring + circle)
+    For 16-32px renders.
+    Extra thick wall + large center circle for maximum readability.
+
+    Ring 1: outer 108→404, inner 160→352, wall=52, gap NORTH (64px wide)
+    Center circle: r=64
+  -->
+
+  <defs>
+    <linearGradient id="bg-grad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#0f1f17"/>
+      <stop offset="100%" stop-color="#060f0a"/>
+    </linearGradient>
+    <linearGradient id="border-grad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1a3d2a" stop-opacity="0.8"/>
+      <stop offset="100%" stop-color="#0d1f15" stop-opacity="0.3"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="512" height="512" rx="108" ry="108" fill="url(#bg-grad)"/>
+  <rect x="1" y="1" width="510" height="510" rx="107" ry="107"
+    fill="none" stroke="url(#border-grad)" stroke-width="1.5"/>
+
+  <!-- Ring 1: filled square frame, gap NORTH
+       Outer: 108→404, Inner: 160→352, Gap x: 224→288 -->
+  <path d="
+    M 224,108
+    L 224,160  L 160,160  L 160,352  L 352,352  L 352,160  L 288,160
+    L 288,108
+    L 404,108  L 404,404  L 108,404  L 108,108
+    Z"
+    fill="#10B981"/>
+
+  <!-- Center circle — large for readability -->
+  <circle cx="256" cy="256" r="64" fill="#6EE7B7"/>
+</svg>

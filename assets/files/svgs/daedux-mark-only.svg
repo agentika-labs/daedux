@@ -1,3 +1,16 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 336 336" width="336" height="336">
-  <path d="M 252,0 L 0,0 L 0,336 L 336,336 L 336,0 L 294,0 L 294,294 L 42,294 L 42,42 L 252,42 L 252,252 L 84,252 L 84,84 L 210,84 L 210,210 L 126,210 L 126,126 L 168,126" fill="none" stroke="#10B981" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="101 101 310 310" width="310" height="310">
+  <!-- Square spiral mark — large tier (4 layers), no background
+       Coordinates from 512 canvas with 108px margin, viewbox cropped to path bounds + stroke padding.
+       Stroke: 14px (7px extends beyond path coords 108-404) -->
+  <path
+    d="
+      M 320,108
+      L 108,108 L 108,404 L 404,404 L 404,108 L 362,108
+      L 362,362 L 150,362 L 150,150 L 320,150
+      L 320,320 L 192,320 L 192,192 L 278,192
+      L 278,278 L 234,278 L 234,234 L 256,234
+    "
+    fill="none" stroke="#10B981" stroke-width="14"
+    stroke-linecap="round" stroke-linejoin="round"
+  />
 </svg>

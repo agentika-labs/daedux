@@ -8,7 +8,7 @@ import type {
   AnthropicUsageWindow,
 } from "../../shared/rpc-types";
 import { AnthropicUsageError } from "../errors";
-import { debugLog } from "../utils/log";
+import { debugLog, log } from "../utils/log";
 
 // ─── Method Preference State ─────────────────────────────────────────────────
 //
@@ -505,9 +505,9 @@ const tryCliUsage = () =>
               "CLEANED OUTPUT:",
               cleanedForDebug.slice(0, 1000)
             );
-            reject(new Error("CLI probe timed out after 10s"));
+            reject(new Error("CLI probe timed out after 8s"));
           }
-        }, 10_000);
+        }, 8_000);
 
         // Use Bun's native PTY API - this provides real terminal emulation
         // that the Claude CLI's TUI requires to render properly.
@@ -756,15 +756,16 @@ const tryCliUsage = () =>
 
 /**
  * CLI probe with retry logic.
- * Retries up to 2 times with 500ms delay between attempts.
+ * Retries once with 500ms delay between attempts.
+ * Budget: ~8s per attempt + 500ms delay = ~16.5s max, fits within 15s phase timeout.
  */
 const tryCliUsageWithRetry = () =>
   tryCliUsage().pipe(
     Effect.retry(
-      Schedule.recurs(2).pipe(Schedule.addDelay(() => Duration.millis(500)))
+      Schedule.recurs(1).pipe(Schedule.addDelay(() => Duration.millis(500)))
     ),
     Effect.catchAll((err) => {
-      debugLog("anthropic-usage", "CLI probe failed after retries:", err);
+      log.info("usage", "CLI probe failed after retries:", err);
       return Effect.succeed(null);
     })
   );
@@ -776,10 +777,10 @@ const tryCliUsageWithRetry = () =>
 const tryOAuthAPIWithMethodTracking = (methodRef: Ref.Ref<MethodState>) =>
   Effect.gen(function* () {
     // Read credentials from Keychain
-    debugLog("anthropic-usage", "Reading credentials from Keychain...");
+    log.info("usage", "Reading credentials from Keychain...");
     const credentials = yield* readKeychainCredentials().pipe(
       Effect.catchAll((err) => {
-        debugLog("anthropic-usage", "Failed to read credentials:", err);
+        log.info("usage", "Failed to read credentials:", err);
         return Effect.succeed(null);
       })
     );
@@ -795,13 +796,13 @@ const tryOAuthAPIWithMethodTracking = (methodRef: Ref.Ref<MethodState>) =>
     );
 
     // Try to fetch usage from API
-    debugLog("anthropic-usage", "Trying OAuth API...");
+    log.info("usage", "Trying OAuth API...");
     const apiResult = yield* fetchUsageFromAPI(
       credentials.claudeAiOauth.accessToken
     ).pipe(
       Effect.catchTag("AnthropicUsageError", (error) => {
-        debugLog(
-          "anthropic-usage",
+        log.info(
+          "usage",
           "OAuth API error:",
           error.reason,
           error.message
@@ -848,7 +849,7 @@ const tryOAuthAPIWithMethodTracking = (methodRef: Ref.Ref<MethodState>) =>
 
     // If API succeeded, update method preference and return
     if (apiResult) {
-      debugLog("anthropic-usage", "OAuth API succeeded!");
+      log.info("usage", "OAuth API succeeded!");
       yield* Ref.set(methodRef, {
         method: "oauth",
         determinedAt: Date.now(),
@@ -879,15 +880,11 @@ const tryCliUsageWithMethodTracking = (methodRef: Ref.Ref<MethodState>) =>
       Effect.catchAll(() => Effect.succeed(null))
     );
 
-    debugLog("anthropic-usage", "Trying CLI probe via native PTY...");
+    log.info("usage", "Trying CLI probe via native PTY...");
     const cliResult = yield* tryCliUsageWithRetry();
 
     if (cliResult) {
-      debugLog(
-        "anthropic-usage",
-        "CLI probe succeeded! Source:",
-        cliResult.source
-      );
+      log.info("usage", "CLI probe succeeded! Source:", cliResult.source);
       yield* Ref.set(methodRef, {
         method: "cli",
         determinedAt: Date.now(),
@@ -908,10 +905,7 @@ const tryCliUsageWithMethodTracking = (methodRef: Ref.Ref<MethodState>) =>
 
     // Final fallback: credentials-only usage (no usage percentages, but subscription info)
     if (credentials) {
-      debugLog(
-        "anthropic-usage",
-        "Falling back to credentials-only (no percentages)"
-      );
+      log.info("usage", "Falling back to credentials-only (no percentages)");
       return createCredentialsOnlyUsage(credentials);
     }
 
@@ -952,7 +946,10 @@ export class AnthropicUsageService extends Effect.Service<AnthropicUsageService>
             now - state.determinedAt > METHOD_RECHECK_MS);
 
         if (shouldTryOAuth) {
-          const result = yield* tryOAuthAPIWithMethodTracking(methodRef);
+          const result = yield* tryOAuthAPIWithMethodTracking(methodRef).pipe(
+            Effect.timeout("12 seconds"),
+            Effect.catchAll(() => Effect.succeed(null))
+          );
           if (result) {
             return result;
           }
@@ -964,7 +961,10 @@ export class AnthropicUsageService extends Effect.Service<AnthropicUsageService>
         }
 
         // CLI probe fallback
-        return yield* tryCliUsageWithMethodTracking(methodRef);
+        return yield* tryCliUsageWithMethodTracking(methodRef).pipe(
+          Effect.timeout("15 seconds"),
+          Effect.catchAll(() => Effect.succeed(createUnavailableUsage()))
+        );
       }).pipe(Effect.catchAll(() => Effect.succeed(createUnavailableUsage())));
 
       // Cached version with TTL and manual invalidation
@@ -1074,7 +1074,7 @@ const readKeychainCredentials = () =>
     );
 
     return credentials;
-  });
+  }).pipe(Effect.timeout("5 seconds"));
 
 /**
  * Call the Anthropic OAuth usage API.
@@ -1088,12 +1088,13 @@ const fetchUsageFromAPI = (accessToken: string) =>
           message: "Failed to connect to Anthropic API",
           reason: "api_error",
         }),
-      try: () =>
+      try: (signal) =>
         fetch("https://api.anthropic.com/api/oauth/usage", {
           headers: {
             Authorization: `Bearer ${accessToken}`,
             "Content-Type": "application/json",
           },
+          signal,
         }),
     });
 
@@ -1232,10 +1233,8 @@ const refreshOAuthToken = () =>
     }
 
     // Give a moment for keychain to update
-    yield* Effect.promise(
-      () => new Promise((resolve) => setTimeout(resolve, 500))
-    );
-  });
+    yield* Effect.sleep("500 millis");
+  }).pipe(Effect.timeout("5 seconds"));
 
 /** @deprecated Use AnthropicUsageService.Default instead */
 export const AnthropicUsageServiceLive = AnthropicUsageService.Default;

@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- Square spiral — medium tier (3 layers), dark on light -->
+  <rect width="512" height="512" rx="108" ry="108" fill="#f5f5f5"/>
+  <path
+    d="
+      M 300,108
+      L 108,108 L 108,404 L 404,404 L 404,108 L 352,108
+      L 352,352 L 160,352 L 160,160 L 300,160
+      L 300,300 L 212,300 L 212,212 L 256,212
+    "
+    fill="none" stroke="#0a0a0a" stroke-width="20"
+    stroke-linecap="round" stroke-linejoin="round"
+  />
+</svg>

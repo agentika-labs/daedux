@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!--
+    Square spiral labyrinth — small tier (2 layers)
+    For 16-32px renders.
+
+    Canvas: 512x512
+    Safe-area margin: 108px
+    Usable area: 108 to 404 (296px)
+
+    Stroke: 28px, Gap: 36px, Step: 64px
+
+    Layer 1 (outer): 108 to 404
+    Layer 2:         172 to 340
+    Center:          256
+
+    Entry gap at top-right between x=276 and Layer2_right (340).
+  -->
+
+  <rect width="512" height="512" rx="108" ry="108" fill="#0a0a0a"/>
+
+  <path
+    d="
+      M 276,108
+      L 108,108
+      L 108,404
+      L 404,404
+      L 404,108
+      L 340,108
+
+      L 340,340
+      L 172,340
+      L 172,172
+      L 256,172
+    "
+    fill="none"
+    stroke="#10B981"
+    stroke-width="28"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+</svg>

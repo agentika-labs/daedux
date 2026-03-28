@@ -21,7 +21,7 @@ export default {
     linux: { bundleCEF: true, icon: "icon.png" },
     mac: {
       bundleCEF: false,
-      icons: "assets/files/iconsets/daedux-emerald-dark.iconset",
+      icons: "assets/files/iconsets/daedux-labyrinth-emerald-dark.iconset",
     },
     win: { bundleCEF: false, icon: "icon.ico" },
   },

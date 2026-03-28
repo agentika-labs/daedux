@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Daedux Icon Preview</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap');
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Space Mono', monospace;
+      background: #0c0c0c;
+      color: #e0e0e0;
+      padding: 40px;
+      min-height: 100vh;
+    }
+
+    h1 {
+      font-size: 24px;
+      color: #10B981;
+      margin-bottom: 8px;
+      letter-spacing: -0.5px;
+    }
+
+    .subtitle {
+      color: #666;
+      font-size: 13px;
+      margin-bottom: 48px;
+    }
+
+    h2 {
+      font-size: 16px;
+      color: #888;
+      margin-bottom: 20px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      border-bottom: 1px solid #222;
+      padding-bottom: 8px;
+    }
+
+    section { margin-bottom: 56px; }
+
+    .icon-row {
+      display: flex;
+      align-items: flex-end;
+      gap: 32px;
+      flex-wrap: wrap;
+      margin-bottom: 16px;
+    }
+
+    .icon-cell {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .icon-cell img {
+      image-rendering: auto;
+      border: 1px solid #222;
+      border-radius: 4px;
+    }
+
+    .icon-cell .label {
+      font-size: 11px;
+      color: #555;
+      text-align: center;
+    }
+
+    .icon-cell .tier {
+      font-size: 10px;
+      color: #10B981;
+      opacity: 0.6;
+    }
+
+    /* Tray simulation */
+    .menubar {
+      display: flex;
+      align-items: center;
+      height: 25px;
+      padding: 0 12px;
+      border-radius: 6px;
+      gap: 8px;
+      font-size: 12px;
+      width: fit-content;
+    }
+
+    .menubar.light {
+      background: #f5f5f5;
+      color: #333;
+    }
+
+    .menubar.dark {
+      background: #1a1a1a;
+      color: #ddd;
+    }
+
+    .menubar img {
+      width: 18px;
+      height: 18px;
+    }
+
+    .menubar.light img { filter: none; }
+    .menubar.dark img { filter: invert(1); }
+
+    .tray-row {
+      display: flex;
+      gap: 24px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .tray-cell {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      align-items: flex-start;
+    }
+
+    .tray-cell .label {
+      font-size: 11px;
+      color: #555;
+    }
+
+    /* Favicon simulation */
+    .browser-tab {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: #1e1e1e;
+      border: 1px solid #333;
+      border-bottom: none;
+      border-radius: 8px 8px 0 0;
+      padding: 6px 16px;
+      font-size: 12px;
+      color: #ccc;
+    }
+
+    .browser-tab img {
+      width: 16px;
+      height: 16px;
+    }
+
+    /* Variant grid */
+    .variant-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 24px;
+    }
+
+    .variant-card {
+      background: #141414;
+      border: 1px solid #222;
+      border-radius: 12px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .variant-card img {
+      border-radius: 20%;
+    }
+
+    .variant-card .name {
+      font-size: 12px;
+      color: #888;
+    }
+
+    /* SVG inline preview */
+    .svg-row {
+      display: flex;
+      gap: 24px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .svg-cell {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .svg-cell .label {
+      font-size: 11px;
+      color: #555;
+    }
+  </style>
+</head>
+<body>
+  <h1>Daedux Icon Set Preview</h1>
+  <p class="subtitle">Optical size tiers, tray icon, favicon, and all color variants</p>
+
+  <!-- ─── Emerald Dark: All Sizes ──────────────────────────────── -->
+  <section>
+    <h2>Emerald Dark — All Sizes (Optical Tiers)</h2>
+    <div class="icon-row">
+      <div class="icon-cell">
+        <img src="daedux-emerald-dark.iconset/icon_512x512@2x.png" width="256" height="256">
+        <span class="label">1024px (512@2x)</span>
+        <span class="tier">Large tier — 4 layers</span>
+      </div>
+      <div class="icon-cell">
+        <img src="daedux-emerald-dark.iconset/icon_512x512.png" width="192" height="192">
+        <span class="label">512px</span>
+        <span class="tier">Large tier</span>
+      </div>
+      <div class="icon-cell">
+        <img src="daedux-emerald-dark.iconset/icon_256x256.png" width="128" height="128">
+        <span class="label">256px</span>
+        <span class="tier">Large tier</span>
+      </div>
+      <div class="icon-cell">
+        <img src="daedux-emerald-dark.iconset/icon_128x128.png" width="64" height="64">
+        <span class="label">128px</span>
+        <span class="tier">Medium tier — 3 layers</span>
+      </div>
+      <div class="icon-cell">
+        <img src="daedux-emerald-dark.iconset/icon_32x32@2x.png" width="48" height="48">
+        <span class="label">64px (32@2x)</span>
+        <span class="tier">Medium tier</span>
+      </div>
+      <div class="icon-cell">
+        <img src="daedux-emerald-dark.iconset/icon_32x32.png" width="32" height="32">
+        <span class="label">32px</span>
+        <span class="tier">Small tier — 2 layers</span>
+      </div>
+      <div class="icon-cell">
+        <img src="daedux-emerald-dark.iconset/icon_16x16@2x.png" width="32" height="32">
+        <span class="label">32px (16@2x)</span>
+        <span class="tier">Small tier</span>
+      </div>
+      <div class="icon-cell">
+        <img src="daedux-emerald-dark.iconset/icon_16x16.png" width="16" height="16">
+        <span class="label">16px</span>
+        <span class="tier">Small tier</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- LABYRINTH VARIANT (Option 2) -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+
+  <section>
+    <h2>Labyrinth Variant — All Sizes (Optical Tiers)</h2>
+    <p style="font-size: 12px; color: #555; margin-bottom: 16px;">
+      Concentric maze walls with rotating gaps (N→E→S). Color deepens outward, brightens inward. Center beacon.
+    </p>
+    <div class="icon-row">
+      <div class="icon-cell">
+        <img src="daedux-labyrinth-emerald-dark.iconset/icon_512x512@2x.png" width="256" height="256">
+        <span class="label">1024px (512@2x)</span>
+        <span class="tier">Large — 3 rings + center</span>
+      </div>
+      <div class="icon-cell">
+        <img src="daedux-labyrinth-emerald-dark.iconset/icon_256x256.png" width="128" height="128">
+        <span class="label">256px</span>
+        <span class="tier">Large</span>
+      </div>
+      <div class="icon-cell">
+        <img src="daedux-labyrinth-emerald-dark.iconset/icon_128x128.png" width="64" height="64">
+        <span class="label">128px</span>
+        <span class="tier">Medium — 2 rings + center</span>
+      </div>
+      <div class="icon-cell">
+        <img src="daedux-labyrinth-emerald-dark.iconset/icon_32x32@2x.png" width="48" height="48">
+        <span class="label">64px (32@2x)</span>
+        <span class="tier">Medium</span>
+      </div>
+      <div class="icon-cell">
+        <img src="daedux-labyrinth-emerald-dark.iconset/icon_32x32.png" width="32" height="32">
+        <span class="label">32px</span>
+        <span class="tier">Small — 1 ring + center</span>
+      </div>
+      <div class="icon-cell">
+        <img src="daedux-labyrinth-emerald-dark.iconset/icon_16x16.png" width="16" height="16">
+        <span class="label">16px</span>
+        <span class="tier">Small</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- LABYRINTH BOLD (Option 3) — ACTIVE -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+
+  <section>
+    <h2>Labyrinth Bold — All Sizes (Active)</h2>
+    <p style="font-size: 12px; color: #555; margin-bottom: 16px;">
+      Filled maze walls (not stroked). Square walls + circular center = ownable silhouette. Maximum visual mass.
+    </p>
+    <div class="icon-row">
+      <div class="icon-cell">
+        <img src="daedux-labyrinth-bold-emerald-dark.iconset/icon_512x512@2x.png" width="256" height="256">
+        <span class="label">1024px (512@2x)</span>
+        <span class="tier">Large — 2 filled rings + circle</span>
+      </div>
+      <div class="icon-cell">
+        <img src="daedux-labyrinth-bold-emerald-dark.iconset/icon_256x256.png" width="128" height="128">
+        <span class="label">256px</span>
+        <span class="tier">Large</span>
+      </div>
+      <div class="icon-cell">
+        <img src="daedux-labyrinth-bold-emerald-dark.iconset/icon_128x128.png" width="64" height="64">
+        <span class="label">128px</span>
+        <span class="tier">Medium — 1 ring + circle</span>
+      </div>
+      <div class="icon-cell">
+        <img src="daedux-labyrinth-bold-emerald-dark.iconset/icon_32x32@2x.png" width="48" height="48">
+        <span class="label">64px (32@2x)</span>
+        <span class="tier">Medium</span>
+      </div>
+      <div class="icon-cell">
+        <img src="daedux-labyrinth-bold-emerald-dark.iconset/icon_32x32.png" width="32" height="32">
+        <span class="label">32px</span>
+        <span class="tier">Small — 1 ring + dot</span>
+      </div>
+      <div class="icon-cell">
+        <img src="daedux-labyrinth-bold-emerald-dark.iconset/icon_16x16.png" width="16" height="16">
+        <span class="label">16px</span>
+        <span class="tier">Small</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── Side-by-Side Comparison ──────────────────────────────── -->
+  <section>
+    <h2>Side-by-Side — All Three Options</h2>
+    <div style="display: flex; gap: 48px; flex-wrap: wrap;">
+      <div class="icon-cell">
+        <img src="daedux-emerald-dark.iconset/icon_256x256.png" width="128" height="128">
+        <span class="label" style="color: #10B981;">Option 1: Spiral</span>
+        <span class="tier">Single continuous path inward</span>
+      </div>
+      <div class="icon-cell">
+        <img src="daedux-labyrinth-emerald-dark.iconset/icon_256x256.png" width="128" height="128">
+        <span class="label" style="color: #6EE7B7;">Option 2: Labyrinth</span>
+        <span class="tier">Stroked walls, rotating gaps</span>
+      </div>
+      <div class="icon-cell">
+        <img src="daedux-labyrinth-bold-emerald-dark.iconset/icon_256x256.png" width="128" height="128">
+        <span class="label" style="color: #A7F3D0;">Option 3: Labyrinth Bold</span>
+        <span class="tier">Filled walls + circular center (Active)</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── All Variants at 256px ────────────────────────────────── -->
+  <section>
+    <h2>Spiral — All Color Variants (256px)</h2>
+    <div class="variant-grid">
+      <div class="variant-card">
+        <img src="daedux-emerald-dark.iconset/icon_256x256.png" width="128" height="128">
+        <span class="name">Emerald Dark</span>
+      </div>
+      <div class="variant-card">
+        <img src="daedux-white-dark.iconset/icon_256x256.png" width="128" height="128">
+        <span class="name">White Dark</span>
+      </div>
+      <div class="variant-card">
+        <img src="daedux-dark-light.iconset/icon_256x256.png" width="128" height="128">
+        <span class="name">Dark Light</span>
+      </div>
+      <div class="variant-card">
+        <img src="daedux-mark-only.iconset/icon_256x256.png" width="128" height="128">
+        <span class="name">Mark Only</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── SVG Source Tiers ─────────────────────────────────────── -->
+  <section>
+    <h2>SVG Source Tiers — Spiral</h2>
+    <div class="svg-row">
+      <div class="svg-cell">
+        <img src="../svgs/daedux-icon-emerald-dark.svg" width="160" height="160">
+        <span class="label">Large (4 layers, 14px stroke)</span>
+      </div>
+      <div class="svg-cell">
+        <img src="../svgs/daedux-icon-emerald-dark-md.svg" width="120" height="120">
+        <span class="label">Medium (3 layers, 20px stroke)</span>
+      </div>
+      <div class="svg-cell">
+        <img src="../svgs/daedux-icon-emerald-dark-sm.svg" width="80" height="80">
+        <span class="label">Small (2 layers, 28px stroke)</span>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>SVG Source Tiers — Labyrinth</h2>
+    <div class="svg-row">
+      <div class="svg-cell">
+        <img src="../svgs/daedux-labyrinth-emerald-dark.svg" width="160" height="160">
+        <span class="label">Large (3 rings, depth gradient)</span>
+      </div>
+      <div class="svg-cell">
+        <img src="../svgs/daedux-labyrinth-emerald-dark-md.svg" width="120" height="120">
+        <span class="label">Medium (2 rings)</span>
+      </div>
+      <div class="svg-cell">
+        <img src="../svgs/daedux-labyrinth-emerald-dark-sm.svg" width="80" height="80">
+        <span class="label">Small (1 ring)</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── Tray Icon ────────────────────────────────────────────── -->
+  <section>
+    <h2>Tray Icon — Template Mode</h2>
+    <p style="font-size: 12px; color: #555; margin-bottom: 16px;">
+      With <code>template: true</code>, macOS auto-inverts for dark menu bars.
+    </p>
+    <div class="tray-row">
+      <div class="tray-cell">
+        <div class="menubar light">
+          <img src="../../../public/tray-icon.png" alt="tray icon">
+          <span>Light menu bar</span>
+        </div>
+        <span class="label">Black stroke on light bg</span>
+      </div>
+      <div class="tray-cell">
+        <div class="menubar dark">
+          <img src="../../../public/tray-icon.png" alt="tray icon">
+          <span>Dark menu bar</span>
+        </div>
+        <span class="label">Auto-inverted to white (simulated with CSS filter)</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── Favicon ──────────────────────────────────────────────── -->
+  <section>
+    <h2>Favicon — Browser Tab</h2>
+    <div style="display: flex; gap: 24px; flex-wrap: wrap; align-items: flex-end;">
+      <div class="tray-cell">
+        <div class="browser-tab">
+          <img src="../../../public/favicon.svg" alt="favicon">
+          <span>Daedux — Dashboard</span>
+        </div>
+        <span class="label">SVG favicon (scales to any size)</span>
+      </div>
+      <div class="tray-cell">
+        <div class="browser-tab">
+          <img src="../../../public/favicon-32.png" alt="favicon">
+          <span>Daedux — Dashboard</span>
+        </div>
+        <span class="label">PNG fallback (32px)</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── Apple Touch Icon ─────────────────────────────────────── -->
+  <section>
+    <h2>Apple Touch Icon (180px)</h2>
+    <div class="icon-cell" style="align-items: flex-start;">
+      <img src="../../../public/apple-touch-icon.png" width="90" height="90" style="border-radius: 20%;">
+      <span class="label">Home screen bookmark icon (medium tier, 3 layers)</span>
+    </div>
+  </section>
+</body>
+</html>
