@@ -203,9 +203,15 @@ function applyMacOSWindowEffects(window: BrowserWindow) {
       alignButtons();
     }, 120);
 
-    // Re-align on resize
+    // Re-align on resize and detect fullscreen transitions
+    let wasFullscreen = false;
     window.on("resize", () => {
       alignButtons();
+      const isFs = window.isFullScreen();
+      if (isFs !== wasFullscreen) {
+        wasFullscreen = isFs;
+        rpc.send.fullscreenChanged({ isFullscreen: isFs });
+      }
     });
 
     log.info(
@@ -666,6 +672,13 @@ const updateTrayMenu = async () => {
   try {
     const stats = await getTrayStats();
     tray.setMenu(buildTrayMenu(stats));
+
+    // Push usage data to frontend cache so settings page renders instantly
+    if (stats.anthropicUsage) {
+      dispatchToWebview(() => {
+        rpc.send.usageUpdated(stats.anthropicUsage!);
+      });
+    }
   } catch (error) {
     log.warn("tray", "Failed to update stats", error);
   }

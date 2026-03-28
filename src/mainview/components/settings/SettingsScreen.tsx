@@ -50,12 +50,12 @@ export const SettingsScreen = () => {
     data: usage,
     refetch: refetchUsage,
     isFetching: isRefreshingUsage,
+    isPending: isPendingUsage,
   } = useAnthropicUsageQuery();
-  const { data: otelStatus } = useOtelStatusQuery();
+  const { data: otelStatus, isPending: isPendingOtelStatus } =
+    useOtelStatusQuery();
 
   const updateSettingsMutation = useUpdateSettingsMutation();
-
-  const isLoading = isLoadingSettings || isLoadingAppInfo;
 
   // Focus management: focus heading on mount
   useEffect(() => {
@@ -146,7 +146,7 @@ export const SettingsScreen = () => {
           {isDesktop && (
             <UsageLimitsCard
               usage={usage ?? null}
-              isLoading={isLoading}
+              isLoading={isPendingUsage}
               onRefresh={handleRefreshUsage}
               isRefreshing={isRefreshingUsage}
             />
@@ -168,7 +168,7 @@ export const SettingsScreen = () => {
                 <ThemeToggle
                   value={settings?.theme ?? "system"}
                   onChange={handleThemeChange}
-                  disabled={isLoading}
+                  disabled={isLoadingSettings}
                 />
               </div>
             </CardContent>
@@ -181,7 +181,8 @@ export const SettingsScreen = () => {
           <OtelSettingsCard
             settings={settings?.otel}
             status={otelStatus ?? null}
-            isLoading={isLoading}
+            isLoading={isLoadingSettings}
+            isStatusLoading={isPendingOtelStatus}
             onSettingsChange={(otelSettings) => {
               const currentOtel = settings?.otel ?? {
                 enabled: true,
@@ -197,7 +198,7 @@ export const SettingsScreen = () => {
 
           <AboutCard
             appInfo={appInfo ?? null}
-            isLoading={isLoading}
+            isLoading={isLoadingAppInfo}
             isDesktop={isDesktop}
           />
         </div>

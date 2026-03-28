@@ -38,6 +38,7 @@ import {
   CardContent,
   CardAction,
 } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
   TableHeader,
@@ -89,7 +90,7 @@ export const ScheduleSettings = () => {
   // Use TanStack Query hooks - data is already cached from route loader
   const { data: schedules = [], isLoading: isLoadingSchedules } =
     useSchedulesQuery();
-  const { data: authStatus } = useAuthStatusQuery();
+  const { data: authStatus, isPending: isAuthPending } = useAuthStatusQuery();
   const { data: settings } = useSettingsQuery();
 
   const updateSettingsMutation = useUpdateSettingsMutation();
@@ -269,39 +270,49 @@ export const ScheduleSettings = () => {
 
         <CardContent className="space-y-4">
           {/* Auth Status */}
-          <div className="space-y-1">
+          {isAuthPending ? (
             <div className="flex items-center justify-between text-sm">
               <span className="text-muted-foreground">Auth Status</span>
-              {authStatus?.loggedIn ? (
-                <Badge variant="success" className="gap-1.5">
-                  <HugeiconsIcon
-                    icon={CheckmarkCircle02Icon}
-                    className="size-3"
-                  />
-                  Logged in
-                </Badge>
-              ) : (
-                <Badge variant="destructive" className="gap-1.5">
-                  <HugeiconsIcon icon={Cancel01Icon} className="size-3" />
-                  Not logged in
-                </Badge>
-              )}
+              <Skeleton className="h-5 w-20" />
             </div>
-            {authStatus?.loggedIn && authStatus.email && (
-              <p className="text-muted-foreground truncate text-xs">
-                {authStatus.email}
-              </p>
-            )}
-          </div>
+          ) : (
+            <>
+              <div className="space-y-1">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Auth Status</span>
+                  {authStatus?.loggedIn ? (
+                    <Badge variant="success" className="gap-1.5">
+                      <HugeiconsIcon
+                        icon={CheckmarkCircle02Icon}
+                        className="size-3"
+                      />
+                      Logged in
+                    </Badge>
+                  ) : (
+                    <Badge variant="destructive" className="gap-1.5">
+                      <HugeiconsIcon icon={Cancel01Icon} className="size-3" />
+                      Not logged in
+                    </Badge>
+                  )}
+                </div>
+                {authStatus?.loggedIn && authStatus.email && (
+                  <p className="text-muted-foreground truncate text-xs">
+                    {authStatus.email}
+                  </p>
+                )}
+              </div>
 
-          {!authStatus?.loggedIn && (
-            <p className="text-muted-foreground bg-muted/50 rounded-lg p-3 text-sm">
-              You need to be logged into Claude CLI for warm-ups to work. Run{" "}
-              <code className="bg-muted rounded px-1.5 py-0.5">
-                claude auth login
-              </code>{" "}
-              in your terminal.
-            </p>
+              {!authStatus?.loggedIn && (
+                <p className="text-muted-foreground bg-muted/50 rounded-lg p-3 text-sm">
+                  You need to be logged into Claude CLI for warm-ups to work.
+                  Run{" "}
+                  <code className="bg-muted rounded px-1.5 py-0.5">
+                    claude auth login
+                  </code>{" "}
+                  in your terminal.
+                </p>
+              )}
+            </>
           )}
         </CardContent>
       </Card>

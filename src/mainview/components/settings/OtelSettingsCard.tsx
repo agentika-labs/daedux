@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
 import { cn, formatNumber, formatRelativeTime } from "@/lib/utils";
 
 // ─── Component ──────────────────────────────────────────────────────────────
@@ -25,6 +26,7 @@ interface OtelSettingsCardProps {
   settings: OtelSettings | undefined;
   status: OtelStatus | null;
   isLoading?: boolean;
+  isStatusLoading?: boolean;
   onSettingsChange: (settings: Partial<OtelSettings>) => void;
 }
 
@@ -32,6 +34,7 @@ export const OtelSettingsCard = ({
   settings,
   status,
   isLoading,
+  isStatusLoading,
   onSettingsChange,
 }: OtelSettingsCardProps) => {
   const enabled = settings?.enabled ?? true;
@@ -103,7 +106,20 @@ export const OtelSettingsCard = ({
         </div>
 
         {/* Status Indicator */}
-        {status && (
+        {isStatusLoading ? (
+          <div className="bg-muted/50 rounded-lg p-4">
+            <div className="mb-2 flex items-center gap-2">
+              <Skeleton className="h-4 w-4 rounded-full" />
+              <Skeleton className="h-4 w-24" />
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <Skeleton className="h-4 w-20" />
+              <Skeleton className="h-4 w-20" />
+              <Skeleton className="h-4 w-20" />
+              <Skeleton className="h-4 w-24" />
+            </div>
+          </div>
+        ) : status ? (
           <div className="bg-muted/50 rounded-lg p-4">
             <div className="mb-2 flex items-center gap-2">
               <HugeiconsIcon
@@ -143,7 +159,7 @@ export const OtelSettingsCard = ({
               </div>
             </div>
           </div>
-        )}
+        ) : null}
 
         {/* Retention Days */}
         <div className="flex items-center justify-between">

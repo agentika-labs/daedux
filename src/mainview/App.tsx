@@ -83,7 +83,7 @@ const App = () => {
     return () => mediaQuery.removeEventListener("change", handleChange);
   }, [isDesktop]);
 
-  // Listen for theme changes from main process (desktop only)
+  // Listen for theme and fullscreen changes from main process (desktop only)
   useEffect(() => {
     if (!isDesktop) {
       return;
@@ -91,7 +91,7 @@ const App = () => {
 
     // Dynamically import RPC for desktop mode
     import("./hooks/useRPC").then(({ electroview }) => {
-      const listener = (payload: unknown) => {
+      const themeListener = (payload: unknown) => {
         if (!payload || typeof payload !== "object") {
           return;
         }
@@ -101,9 +101,33 @@ const App = () => {
         }
       };
 
-      electroview.addMessageListener("themeChanged", listener);
+      const fullscreenListener = (payload: unknown) => {
+        if (!payload || typeof payload !== "object") {
+          return;
+        }
+        const { isFullscreen } = payload as { isFullscreen?: boolean };
+        document.documentElement.classList.toggle(
+          "fullscreen",
+          isFullscreen === true
+        );
+      };
+
+      const usageListener = (payload: unknown) => {
+        if (payload && typeof payload === "object") {
+          queryClient.setQueryData(["anthropicUsage"], payload);
+        }
+      };
+
+      electroview.addMessageListener("themeChanged", themeListener);
+      electroview.addMessageListener("fullscreenChanged", fullscreenListener);
+      electroview.addMessageListener("usageUpdated", usageListener);
       return () => {
-        electroview.removeMessageListener("themeChanged", listener);
+        electroview.removeMessageListener("themeChanged", themeListener);
+        electroview.removeMessageListener(
+          "fullscreenChanged",
+          fullscreenListener
+        );
+        electroview.removeMessageListener("usageUpdated", usageListener);
       };
     });
   }, [isDesktop]);

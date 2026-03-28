@@ -11,6 +11,15 @@ import {
   otelStatusQueryOptions,
 } from "@/queries/settings";
 
+// Slow queries are prefetched without blocking - components show skeletons
+// until data arrives. Usage data is often already warm from the backend push.
+const prefetchSlowQueries = () => {
+  queryClient.prefetchQuery(anthropicUsageQueryOptions);
+  queryClient.prefetchQuery(schedulesQueryOptions);
+  queryClient.prefetchQuery(authStatusQueryOptions);
+  queryClient.prefetchQuery(otelStatusQueryOptions);
+};
+
 const SettingsScreenLazy = lazy(() =>
   import("@/components/settings/SettingsScreen").then((m) => ({
     default: m.SettingsScreen,
@@ -20,18 +29,15 @@ const SettingsScreenLazy = lazy(() =>
 export const Route = createFileRoute("/settings")({
   staticData: { showHeader: false },
   loader: async () => {
-    const [settings, appInfo, usage, schedules, authStatus, otelStatus] =
-      await Promise.all([
-        queryClient.ensureQueryData(settingsQueryOptions),
-        queryClient.ensureQueryData(appInfoQueryOptions),
-        queryClient
-          .ensureQueryData(anthropicUsageQueryOptions)
-          .catch(() => null),
-        queryClient.ensureQueryData(schedulesQueryOptions),
-        queryClient.ensureQueryData(authStatusQueryOptions),
-        queryClient.ensureQueryData(otelStatusQueryOptions).catch(() => null),
-      ]);
-    return { settings, appInfo, usage, schedules, authStatus, otelStatus };
+    // Fire-and-forget slow queries - components show skeletons until ready
+    prefetchSlowQueries();
+
+    // Only block on fast, essential queries
+    const [settings, appInfo] = await Promise.all([
+      queryClient.ensureQueryData(settingsQueryOptions),
+      queryClient.ensureQueryData(appInfoQueryOptions),
+    ]);
+    return { settings, appInfo };
   },
   pendingComponent: SettingsLoadingFallback,
   component: SettingsRoute,

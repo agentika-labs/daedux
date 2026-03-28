@@ -42,8 +42,6 @@
   /* Custom success color for positive metrics */
   --success: oklch(0.65 0.16 145);
   --success-foreground: oklch(0.985 0 0);
-  /* Brand accent - warm coral */
-  --accent-brand: oklch(0.68 0.18 25);
 }
 
 .dark {
@@ -82,8 +80,6 @@
   /* Custom success color for positive metrics */
   --success: oklch(0.68 0.16 145);
   --success-foreground: oklch(0.141 0.005 285.823);
-  /* Brand accent - warm coral (brighter in dark mode) */
-  --accent-brand: oklch(0.72 0.16 25);
 }
 
 @theme inline {
@@ -121,7 +117,6 @@
   --color-background: var(--background);
   --color-success: var(--success);
   --color-success-foreground: var(--success-foreground);
-  --color-accent-brand: var(--accent-brand);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -281,18 +276,6 @@
   box-shadow:
     0 0 0 1px oklch(0.68 0.16 145 / 25%),
     0 0 16px oklch(0.68 0.16 145 / 20%);
-}
-
-/* Brand accent for logo */
-.brand-gradient {
-  background: linear-gradient(
-    135deg,
-    oklch(0.7 0.15 25) 0%,
-    oklch(0.6 0.15 35) 100%
-  );
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
 }
 
 /* Active nav pill glow */

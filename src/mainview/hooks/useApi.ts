@@ -1,10 +1,3 @@
-/**
- * API abstraction for Electrobun RPC vs HTTP fetch.
- *
- * Detects runtime environment and provides a unified interface:
- * - Desktop app (Electrobun): Uses WebSocket RPC
- * - CLI/browser: Uses native fetch to HTTP endpoints
- */
 import type {
   DashboardData,
   SyncResult,
@@ -16,6 +9,14 @@ import type {
   OtelStatus,
   OtelDashboardData,
 } from "@shared/rpc-types";
+/**
+ * API abstraction for Electrobun RPC vs HTTP fetch.
+ *
+ * Detects runtime environment and provides a unified interface:
+ * - Desktop app (Electrobun): Uses WebSocket RPC
+ * - CLI/browser: Uses native fetch to HTTP endpoints
+ */
+import { useEffect, useState } from "react";
 
 // ─── Environment Detection ───────────────────────────────────────────────────
 
@@ -282,3 +283,28 @@ export const useApi = (): ApiClient => getApiClient();
  * Useful for conditionally rendering desktop-only features.
  */
 export const useIsDesktop = (): boolean => isElectrobun();
+
+/**
+ * Check if the window is in fullscreen mode.
+ * Reads the .fullscreen class toggled by App.tsx on fullscreen changes.
+ */
+export const useIsFullscreen = (): boolean => {
+  const [isFullscreen, setIsFullscreen] = useState(() =>
+    document.documentElement.classList.contains("fullscreen")
+  );
+
+  useEffect(() => {
+    const observer = new MutationObserver(() => {
+      setIsFullscreen(
+        document.documentElement.classList.contains("fullscreen")
+      );
+    });
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["class"],
+    });
+    return () => observer.disconnect();
+  }, []);
+
+  return isFullscreen;
+};

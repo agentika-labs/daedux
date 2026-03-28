@@ -706,6 +706,8 @@ export interface UsageMonitorRPC {
       navigate: { view: string };
       themeChanged: { theme: "system" | "light" | "dark" };
       sessionsUpdated: { scanResult: { scanned: number; total: number } };
+      usageUpdated: AnthropicUsage;
+      fullscreenChanged: { isFullscreen: boolean };
       scheduleExecuted: { scheduleId: string; result: ExecutionResult };
     };
   }>;

@@ -153,6 +153,46 @@ extern "C" bool enableWindowVibrancy(void *windowPtr) {
 			}
 		}
 
+		// Fullscreen observers — switch blending mode to avoid red backing
+		// artifact. behindWindow blending has nothing to sample in fullscreen
+		// (window occupies its own Space), so we switch to withinWindow.
+		[[NSNotificationCenter defaultCenter]
+			addObserverForName:NSWindowWillEnterFullScreenNotification
+						object:window
+						 queue:[NSOperationQueue mainQueue]
+					usingBlock:^(NSNotification *note) {
+			(void)note;
+			[effectView
+				setBlendingMode:NSVisualEffectBlendingModeWithinWindow];
+			[effectView
+				setMaterial:NSVisualEffectMaterialWindowBackground];
+			[window setBackgroundColor:[NSColor colorWithRed:0.118
+													   green:0.118
+														blue:0.137
+													   alpha:1.0]];
+			// Hide toolbar — it was only needed for traffic light positioning
+			// and its strip overlaps the header content in fullscreen
+			[[window toolbar] setVisible:NO];
+		}];
+
+		[[NSNotificationCenter defaultCenter]
+			addObserverForName:NSWindowDidExitFullScreenNotification
+						object:window
+						 queue:[NSOperationQueue mainQueue]
+					usingBlock:^(NSNotification *note) {
+			(void)note;
+			if (@available(macOS 10.14, *)) {
+				[effectView setMaterial:
+					NSVisualEffectMaterialUnderWindowBackground];
+			} else {
+				[effectView setMaterial:NSVisualEffectMaterialSidebar];
+			}
+			[effectView
+				setBlendingMode:NSVisualEffectBlendingModeBehindWindow];
+			[window setBackgroundColor:[NSColor clearColor]];
+			[[window toolbar] setVisible:YES];
+		}];
+
 		[window invalidateShadow];
 		success = YES;
 	});

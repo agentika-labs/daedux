@@ -11,13 +11,13 @@ import type { FC, SVGProps } from "react";
 import { useEffect, useRef, useCallback, useMemo } from "react";
 
 import { buttonVariants } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useIsFullscreen } from "@/hooks/useApi";
 import { rpcRequest } from "@/hooks/useRPC";
 import { cn } from "@/lib/utils";
 import type { HarnessFilterOption, FilterOption } from "@/queries/dashboard";
@@ -121,6 +121,7 @@ export function Header() {
   const router = useRouter();
   const headerRef = useRef<HTMLElement>(null);
   const matches = useMatches();
+  const isFullscreen = useIsFullscreen();
 
   // Get current search params from any matched route that has them
   const currentSearch = useMemo(() => {
@@ -229,14 +230,10 @@ export function Header() {
       ref={headerRef}
       className="bg-background desktop:bg-background/60 border-border sticky top-0 z-50 border-b desktop:backdrop-blur"
     >
-      <div className={cn("px-6 py-3", isMacOS && "pl-24")}>
+      <div className={cn("px-6 py-3", isMacOS && !isFullscreen && "pl-24")}>
         <div className="flex items-center justify-between">
-          {/* Title and Primary Tabs */}
+          {/* Primary Tabs */}
           <div className="flex items-center gap-6">
-            <h1 className="text-lg font-semibold">
-              <span className="brand-gradient">Daedux</span>
-            </h1>
-            <Separator orientation="vertical" className="h-6" />
             <nav className="flex items-center gap-1">
               {PRIMARY_TABS.map(({ path, label }) => (
                 <Link

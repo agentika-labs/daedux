@@ -1,13 +1,10 @@
 import type { DashboardData } from "@shared/rpc-types";
 
 import { Section } from "@/components/layout/Section";
-import { ChartSkeletonGrid } from "@/components/shared/ChartSkeletonGrid";
-import { ComparisonCard } from "@/components/shared/ComparisonCard";
 import { InfoTooltip } from "@/components/shared/InfoTooltip";
 import { InsightsPanel } from "@/components/shared/InsightsPanel";
 import { LoadingBoundary } from "@/components/shared/LoadingBoundary";
 import { ScoreBar } from "@/components/shared/ScoreBar";
-import { SectionHeader } from "@/components/shared/SectionHeader";
 import { StatCard } from "@/components/shared/StatCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -58,20 +55,27 @@ export function OverviewSection({
       }
     : undefined;
 
+  // Build comparison subtexts when weekly data is available
+  const costSubtext = weeklyComparison
+    ? `vs ${formatCurrency(weeklyComparison.lastWeek.cost)} last week`
+    : `${formatCurrency(totals?.avgCostPerSession ?? 0)} avg/session`;
+
+  const sessionSubtext = weeklyComparison
+    ? `vs ${formatNumber(weeklyComparison.lastWeek.sessions)} last week`
+    : `${formatNumber(totals?.totalSubagents ?? 0)} subagents`;
+
+  const cacheSubtext = weeklyComparison
+    ? `vs ${formatPercent(weeklyComparison.lastWeek.cacheHitRate)} last week`
+    : `${formatPercent(totals?.cacheEfficiencyRatio ?? 0)} hit rate`;
+
   return (
     <Section id="overview">
-      <SectionHeader
-        id="overview-header"
-        title="Overview"
-        subtitle="Your Claude Code usage at a glance"
-      />
-
       {/* Hero Stats Row */}
       <div className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-5">
         <StatCard
           label="API Value"
           value={formatCurrency(totals?.totalCost ?? 0)}
-          subtext={`${formatCurrency(totals?.avgCostPerSession ?? 0)} avg/session`}
+          subtext={costSubtext}
           trend={costTrend}
           size="hero"
           loading={loading}
@@ -85,7 +89,7 @@ export function OverviewSection({
         <StatCard
           label="Sessions"
           value={formatNumber(totals?.totalSessions ?? 0)}
-          subtext={`${formatNumber(totals?.totalSubagents ?? 0)} subagents`}
+          subtext={sessionSubtext}
           trend={sessionTrend}
           loading={loading}
         />
@@ -112,7 +116,7 @@ export function OverviewSection({
         <StatCard
           label="Cache Savings"
           value={formatCurrency(totals?.savedByCaching ?? 0)}
-          subtext={`${formatPercent(totals?.cacheEfficiencyRatio ?? 0)} hit rate`}
+          subtext={cacheSubtext}
           variant="success"
           size="hero"
           loading={loading}
@@ -126,7 +130,7 @@ export function OverviewSection({
       </div>
 
       {/* Efficiency Score + Insights Row */}
-      <div className="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         {/* Efficiency Gauge */}
         <Card className="lg:col-span-1">
           <CardHeader className="pb-2">
@@ -251,79 +255,6 @@ export function OverviewSection({
           className="lg:col-span-2"
         />
       </div>
-
-      {/* Weekly Comparison */}
-      {weeklyComparison && (
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle>This Week vs Last Week</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <LoadingBoundary
-              loading={loading}
-              fallback={<ChartSkeletonGrid columns={3} rows={1} />}
-            >
-              <>
-                <div className="mb-4 grid grid-cols-3 gap-4">
-                  <ComparisonCard
-                    label="Cost"
-                    thisWeek={formatCurrency(weeklyComparison.thisWeek.cost)}
-                    lastWeek={formatCurrency(weeklyComparison.lastWeek.cost)}
-                    change={weeklyComparison.changes.cost}
-                    isInverse
-                  />
-                  <ComparisonCard
-                    label="Sessions"
-                    thisWeek={weeklyComparison.thisWeek.sessions.toString()}
-                    lastWeek={weeklyComparison.lastWeek.sessions.toString()}
-                    change={weeklyComparison.changes.sessions}
-                  />
-                  <ComparisonCard
-                    label="Cache Hit Rate"
-                    thisWeek={formatPercent(
-                      weeklyComparison.thisWeek.cacheHitRate
-                    )}
-                    lastWeek={formatPercent(
-                      weeklyComparison.lastWeek.cacheHitRate
-                    )}
-                    change={weeklyComparison.changes.cacheHitRate * 100}
-                  />
-                </div>
-
-                {(weeklyComparison.improvements.length > 0 ||
-                  weeklyComparison.concerns.length > 0) && (
-                  <div className="border-border flex gap-4 border-t pt-4">
-                    {weeklyComparison.improvements.length > 0 && (
-                      <div className="flex-1">
-                        <p className="text-success mb-1 text-sm font-medium">
-                          Improvements
-                        </p>
-                        <ul className="text-muted-foreground space-y-1 text-sm">
-                          {weeklyComparison.improvements.map((item) => (
-                            <li key={item}>+ {item}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-                    {weeklyComparison.concerns.length > 0 && (
-                      <div className="flex-1">
-                        <p className="text-destructive mb-1 text-sm font-medium">
-                          Concerns
-                        </p>
-                        <ul className="text-muted-foreground space-y-1 text-sm">
-                          {weeklyComparison.concerns.map((item) => (
-                            <li key={item}>- {item}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </>
-            </LoadingBoundary>
-          </CardContent>
-        </Card>
-      )}
     </Section>
   );
 }
