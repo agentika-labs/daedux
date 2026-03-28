@@ -600,7 +600,10 @@ export class SessionAnalyticsService extends Effect.Service<SessionAnalyticsServ
                     sql<number>`SUM(COALESCE(${schema.sessions.savedByCaching}, 0))`.as(
                       "total_saved"
                     ),
-                  totalSessions: count(),
+                  totalSessions:
+                    sql<number>`SUM(CASE WHEN ${schema.sessions.isSubagent} = 0 THEN 1 ELSE 0 END)`.as(
+                      "total_sessions"
+                    ),
                   totalSubagents:
                     sql<number>`SUM(CASE WHEN ${schema.sessions.isSubagent} = 1 THEN 1 ELSE 0 END)`.as(
                       "total_subagents"
@@ -1176,7 +1179,10 @@ export class SessionAnalyticsService extends Effect.Service<SessionAnalyticsServ
                     sql<number>`SUM(${schema.sessions.queryCount})`.as(
                       "total_queries"
                     ),
-                  totalSessions: count(),
+                  totalSessions:
+                    sql<number>`SUM(CASE WHEN ${schema.sessions.isSubagent} = 0 THEN 1 ELSE 0 END)`.as(
+                      "total_sessions"
+                    ),
                   totalSubagents:
                     sql<number>`SUM(CASE WHEN ${schema.sessions.isSubagent} = 1 THEN 1 ELSE 0 END)`.as(
                       "total_subagents"

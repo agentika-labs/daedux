@@ -136,7 +136,7 @@ describe("AnalyticsService", () => {
         })
       );
 
-      expect(result.totalSessions).toBe(3);
+      expect(result.totalSessions).toBe(1);
       expect(result.totalSubagents).toBe(2);
     });
   });

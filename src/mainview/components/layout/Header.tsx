@@ -264,24 +264,26 @@ export function Header() {
               <div className="bg-muted flex items-center gap-1 rounded-lg p-1">
                 {HARNESS_OPTIONS.map(({ value, Logo, tooltip, comingSoon }) => (
                   <Tooltip key={value}>
-                    <TooltipTrigger className="flex">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          !comingSoon && handleHarnessChange(value)
-                        }
-                        aria-disabled={comingSoon || undefined}
-                        className={cn(
-                          "rounded-md p-1.5 transition-colors",
-                          comingSoon
-                            ? "cursor-default opacity-30"
-                            : harness === value
-                              ? "bg-background shadow-sm cursor-pointer"
-                              : "text-muted-foreground hover:text-foreground cursor-pointer"
-                        )}
-                      >
-                        <Logo className="h-4 w-4" />
-                      </button>
+                    <TooltipTrigger
+                      render={
+                        <button
+                          type="button"
+                          onClick={() =>
+                            !comingSoon && handleHarnessChange(value)
+                          }
+                          aria-disabled={comingSoon || undefined}
+                          className={cn(
+                            "rounded-md p-1.5 transition-colors",
+                            comingSoon
+                              ? "cursor-default opacity-30"
+                              : harness === value
+                                ? "bg-background shadow-sm cursor-pointer"
+                                : "text-muted-foreground hover:text-foreground cursor-pointer"
+                          )}
+                        />
+                      }
+                    >
+                      <Logo className="h-4 w-4" />
                     </TooltipTrigger>
                     <TooltipContent side="bottom" sideOffset={8}>
                       {tooltip}

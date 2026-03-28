@@ -217,7 +217,7 @@ export function ExpensivePromptsCard({
           <div className="space-y-1">
             {topPrompts.map((prompt, index) => (
               <PromptRow
-                key={prompt.sessionId}
+                key={`${prompt.sessionId}-${index}`}
                 prompt={prompt}
                 rank={index + 1}
                 maxCost={maxCost}
