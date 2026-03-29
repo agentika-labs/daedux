@@ -27,6 +27,9 @@ export default {
     },
     win: { bundleCEF: false, icon: "icon.ico" },
   },
+  scripts: {
+    postBuild: "./scripts/post-build.ts",
+  },
   release: {
     baseUrl: "https://github.com/agentika-labs/daedux/releases/download/",
   },
