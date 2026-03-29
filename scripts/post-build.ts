@@ -15,7 +15,9 @@ const BUILD_DIR = process.env.ELECTROBUN_BUILD_DIR;
 const APP_NAME = process.env.ELECTROBUN_APP_NAME;
 
 if (!DEVELOPER_ID) {
-  console.log("postBuild: No ELECTROBUN_DEVELOPER_ID, skipping native lib signing");
+  console.log(
+    "postBuild: No ELECTROBUN_DEVELOPER_ID, skipping native lib signing"
+  );
   process.exit(0);
 }
 
@@ -24,7 +26,12 @@ if (!BUILD_DIR || !APP_NAME) {
   process.exit(0);
 }
 
-const resourcesPath = join(BUILD_DIR, `${APP_NAME}.app`, "Contents", "Resources");
+const resourcesPath = join(
+  BUILD_DIR,
+  `${APP_NAME}.app`,
+  "Contents",
+  "Resources"
+);
 
 function findDylibs(dir: string): string[] {
   const results: string[] = [];
@@ -49,7 +56,7 @@ const dylibs = findDylibs(resourcesPath);
 for (const dylib of dylibs) {
   console.log(`postBuild: Signing ${dylib}`);
   execSync(
-    `codesign --force --verbose --timestamp --options runtime --sign "${DEVELOPER_ID}" "${dylib}"`,
+    `codesign --force --verbose --timestamp --options runtime --sign "${DEVELOPER_ID}" "${dylib}"`
   );
 }
 
