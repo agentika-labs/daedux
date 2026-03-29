@@ -202,8 +202,8 @@ export function ExpensivePromptsCard({
         {loading ? (
           <div className="space-y-4">
             {/* Skeleton placeholders - index keys safe for static arrays that never reorder/filter */}
-            {[1, 2, 3].map((i) => (
-              <div key={`skeleton-${i}`} className="flex gap-3">
+            {["s1", "s2", "s3"].map((id) => (
+              <div key={id} className="flex gap-3">
                 <Skeleton className="h-6 w-6 shrink-0 rounded-full" />
                 <div className="flex-1 space-y-2">
                   <Skeleton className="h-2 w-full" />
@@ -217,7 +217,7 @@ export function ExpensivePromptsCard({
           <div className="space-y-1">
             {topPrompts.map((prompt, index) => (
               <PromptRow
-                key={`${prompt.sessionId}-${index}`}
+                key={`${prompt.sessionId}-${prompt.date}-${prompt.cost}`}
                 prompt={prompt}
                 rank={index + 1}
                 maxCost={maxCost}

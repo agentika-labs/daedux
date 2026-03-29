@@ -1,3 +1,4 @@
+import { createSyncStoragePersister } from "@tanstack/query-sync-storage-persister";
 /**
  * TanStack Query client configuration with localStorage persistence.
  *
@@ -7,7 +8,6 @@
  */
 import { QueryClient, QueryCache, MutationCache } from "@tanstack/react-query";
 import { persistQueryClient } from "@tanstack/react-query-persist-client";
-import { createSyncStoragePersister } from "@tanstack/query-sync-storage-persister";
 
 /** Bump this when persisted query data shapes change to invalidate stale caches. */
 const CACHE_SCHEMA_VERSION = "v1";

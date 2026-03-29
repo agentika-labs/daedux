@@ -835,7 +835,10 @@ const tryOAuthAPIWithMethodTracking = (methodRef: Ref.Ref<MethodState>) =>
       // Re-throw rate_limited errors so fetchUsage can skip CLI.
       // Catch all other failures as null (triggers CLI fallback).
       Effect.catchAll((err) => {
-        if (err instanceof AnthropicUsageError && err.reason === "rate_limited") {
+        if (
+          err instanceof AnthropicUsageError &&
+          err.reason === "rate_limited"
+        ) {
           return Effect.fail(err);
         }
         return Effect.succeed(null);
@@ -949,7 +952,9 @@ export class AnthropicUsageService extends Effect.Service<AnthropicUsageService>
                 // Return credentials-only so the UI shows subscription info.
                 return readKeychainCredentials().pipe(
                   Effect.map(createCredentialsOnlyUsage),
-                  Effect.catchAll(() => Effect.succeed(createUnavailableUsage()))
+                  Effect.catchAll(() =>
+                    Effect.succeed(createUnavailableUsage())
+                  )
                 );
               }
               return Effect.succeed(null);
