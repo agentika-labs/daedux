@@ -26,8 +26,8 @@ import { useState, useMemo, useDeferredValue, useCallback } from "react";
 
 import { Section } from "@/components/layout/Section";
 import { SessionDetailSheet } from "@/components/sections/SessionDetailSheet";
-import { sessionsColumns } from '@/components/sections/sessionsColumns';
-import type { SessionsTableMeta } from '@/components/sections/sessionsColumns';
+import { sessionsColumns } from "@/components/sections/sessionsColumns";
+import type { SessionsTableMeta } from "@/components/sections/sessionsColumns";
 import { SessionsToolbar } from "@/components/sections/SessionsToolbar";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { LoadingBoundary } from "@/components/shared/LoadingBoundary";
