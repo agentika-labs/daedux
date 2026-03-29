@@ -41,7 +41,7 @@ export interface SessionFileOperation {
 export class FileAnalyticsService extends Effect.Service<FileAnalyticsService>()(
   "FileAnalyticsService",
   {
-    effect: Effect.gen(function* () {
+    scoped: Effect.gen(function* () {
       const { db } = yield* DatabaseService;
 
       return {

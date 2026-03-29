@@ -24,7 +24,7 @@ export class ParserRegistry extends Effect.Service<ParserRegistry>()(
   "ParserRegistry",
   {
     dependencies: [ClaudeCodeParserService.Default],
-    effect: Effect.gen(function* () {
+    scoped: Effect.gen(function* () {
       // Yield parser from Effect context (injected via dependencies)
       const ccParser = yield* ClaudeCodeParserService;
       const parsers = new Map<HarnessId, HarnessParser>([

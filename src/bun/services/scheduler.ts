@@ -157,7 +157,7 @@ export const parseDaysOfWeek = (daysJson: string): number[] => {
 export class SchedulerService extends Effect.Service<SchedulerService>()(
   "SchedulerService",
   {
-    effect: Effect.gen(function* () {
+    scoped: Effect.gen(function* () {
       const { db } = yield* DatabaseService;
 
       /**

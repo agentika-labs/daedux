@@ -1,4 +1,3 @@
-import { dlopen, FFIType } from "bun:ffi";
 import { existsSync } from "node:fs";
 import { dirname, join } from "node:path";
 
@@ -27,6 +26,7 @@ import type {
   OtelStatus,
   OtelDashboardData,
 } from "../shared/rpc-types";
+import { parseDateFilter } from "../shared/date-filter";
 import { AgentAnalyticsService } from "./analytics/agent-analytics";
 import { ContextAnalyticsService } from "./analytics/context-analytics";
 import { FileAnalyticsService } from "./analytics/file-analytics";
@@ -34,7 +34,17 @@ import { ModelAnalyticsService } from "./analytics/model-analytics";
 import { SessionAnalyticsService } from "./analytics/session-analytics";
 import { ToolAnalyticsService } from "./analytics/tool-analytics";
 import { initializeDatabase } from "./db/migrate";
+import {
+  configureBackgroundScan,
+  configureScheduler,
+  configureUsageRefresh,
+} from "./lifecycle/intervals";
 import { AppLive } from "./main";
+import {
+  applyMacOSWindowEffects,
+  updateDragExclusionZones,
+} from "./native/macos-effects";
+import type { NativeLib } from "./native/macos-effects";
 import { getOtelStatus, getOtelDashboardData } from "./otel/analytics";
 import {
   handleMetrics,
@@ -48,180 +58,16 @@ import { AnthropicUsageService } from "./services/anthropic-usage";
 import { loadDashboardData } from "./services/dashboard-loader";
 import { SchedulerService, parseDaysOfWeek } from "./services/scheduler";
 import { SyncService } from "./sync";
+import { buildTrayMenu } from "./tray/menu";
 import { toDateString } from "./utils/formatting";
 import { log } from "./utils/log";
-import {
-  formatRateLimitItem,
-  formatExtraUsage,
-  formatSubscriptionHeader,
-  formatDailyStats,
-} from "./utils/tray-formatting";
 
 // ─── App State ──────────────────────────────────────────────────────────────
 
 const isMac = process.platform === "darwin";
 
-// macOS native window effect constants
-const MAC_TRAFFIC_LIGHTS_X = 14;
-const MAC_TRAFFIC_LIGHTS_Y = 22; // Vertically centered with header content
-
-// Header height for native drag region (matches py-3 padding + content)
-const MAC_HEADER_HEIGHT = 60;
-
 // Reference to the loaded native library for drag exclusion zones
-let nativeLib: ReturnType<
-  typeof dlopen<{
-    enableWindowVibrancy: {
-      args: [typeof FFIType.ptr];
-      returns: typeof FFIType.bool;
-    };
-    ensureWindowShadow: {
-      args: [typeof FFIType.ptr];
-      returns: typeof FFIType.bool;
-    };
-    setWindowTrafficLightsPosition: {
-      args: [typeof FFIType.ptr, typeof FFIType.f64, typeof FFIType.f64];
-      returns: typeof FFIType.bool;
-    };
-    setNativeWindowDragRegion: {
-      args: [typeof FFIType.ptr, typeof FFIType.f64, typeof FFIType.f64];
-      returns: typeof FFIType.bool;
-    };
-    setDragExclusionZones: {
-      args: [typeof FFIType.ptr, typeof FFIType.ptr, typeof FFIType.i32];
-      returns: typeof FFIType.bool;
-    };
-    extendTitlebarWithToolbar: {
-      args: [typeof FFIType.ptr];
-      returns: typeof FFIType.bool;
-    };
-  }>
-> | null = null;
-
-/**
- * Update drag exclusion zones - areas where clicks pass through to the WebView.
- * Called from renderer when button positions change.
- */
-function updateDragExclusionZones(
-  zones: { x: number; y: number; width: number; height: number }[]
-) {
-  if (!mainWindow || !nativeLib) {
-    return false;
-  }
-
-  // Flatten zones to contiguous Float64Array: [x1, y1, w1, h1, x2, y2, w2, h2, ...]
-  const flatArray = new Float64Array(zones.length * 4);
-  zones.forEach((zone, i) => {
-    flatArray[i * 4] = zone.x;
-    flatArray[i * 4 + 1] = zone.y;
-    flatArray[i * 4 + 2] = zone.width;
-    flatArray[i * 4 + 3] = zone.height;
-  });
-
-  return nativeLib.symbols.setDragExclusionZones(
-    mainWindow.ptr,
-    flatArray,
-    zones.length
-  );
-}
-
-/**
- * Apply native macOS vibrancy, traffic light positioning, and drag region.
- * Uses FFI to call into libMacWindowEffects.dylib.
- *
- * The native drag view captures mouse events for window dragging, but uses
- * exclusion zones to pass clicks through to buttons in the header.
- */
-function applyMacOSWindowEffects(window: BrowserWindow) {
-  if (!isMac) {
-    return;
-  }
-
-  const dylibPath = join(import.meta.dir, "libMacWindowEffects.dylib");
-
-  if (!existsSync(dylibPath)) {
-    log.warn(
-      "macos",
-      `Native effects lib not found at ${dylibPath}. Falling back to transparent-only mode.`
-    );
-    return;
-  }
-
-  try {
-    nativeLib = dlopen(dylibPath, {
-      enableWindowVibrancy: {
-        args: [FFIType.ptr],
-        returns: FFIType.bool,
-      },
-      ensureWindowShadow: {
-        args: [FFIType.ptr],
-        returns: FFIType.bool,
-      },
-      extendTitlebarWithToolbar: {
-        args: [FFIType.ptr],
-        returns: FFIType.bool,
-      },
-      setDragExclusionZones: {
-        args: [FFIType.ptr, FFIType.ptr, FFIType.i32],
-        returns: FFIType.bool,
-      },
-      setNativeWindowDragRegion: {
-        args: [FFIType.ptr, FFIType.f64, FFIType.f64],
-        returns: FFIType.bool,
-      },
-      setWindowTrafficLightsPosition: {
-        args: [FFIType.ptr, FFIType.f64, FFIType.f64],
-        returns: FFIType.bool,
-      },
-    });
-
-    const vibrancyEnabled = nativeLib.symbols.enableWindowVibrancy(window.ptr);
-    const shadowEnabled = nativeLib.symbols.ensureWindowShadow(window.ptr);
-    const toolbarExtended = nativeLib.symbols.extendTitlebarWithToolbar(
-      window.ptr
-    );
-
-    const alignButtons = () =>
-      nativeLib!.symbols.setWindowTrafficLightsPosition(
-        window.ptr,
-        MAC_TRAFFIC_LIGHTS_X,
-        MAC_TRAFFIC_LIGHTS_Y
-      );
-
-    const buttonsAlignedNow = alignButtons();
-
-    // Set up native drag region for header area
-    // X offset accounts for traffic lights area
-    const dragRegionEnabled = nativeLib.symbols.setNativeWindowDragRegion(
-      window.ptr,
-      0, // Start from left edge - exclusion zones handle traffic lights
-      MAC_HEADER_HEIGHT
-    );
-
-    // Re-align after brief delay (window may still be setting up)
-    setTimeout(() => {
-      alignButtons();
-    }, 120);
-
-    // Re-align on resize and detect fullscreen transitions
-    let wasFullscreen = false;
-    window.on("resize", () => {
-      alignButtons();
-      const isFs = window.isFullScreen();
-      if (isFs !== wasFullscreen) {
-        wasFullscreen = isFs;
-        rpc.send.fullscreenChanged({ isFullscreen: isFs });
-      }
-    });
-
-    log.info(
-      "macos",
-      `Native effects applied (vibrancy=${vibrancyEnabled}, shadow=${shadowEnabled}, toolbar=${toolbarExtended}, trafficLights=${buttonsAlignedNow}, dragRegion=${dragRegionEnabled})`
-    );
-  } catch (error) {
-    log.warn("macos", "Failed to apply native window effects:", error);
-  }
-}
+let nativeLib: NativeLib | null = null;
 
 let isScanning = false;
 let isQuitting = false;
@@ -260,36 +106,6 @@ let settings: AppSettings = {
 Electrobun.events.on("before-quit", () => {
   isQuitting = true;
 });
-
-// ─── Date Filter Parsing ────────────────────────────────────────────────────
-
-const parseDateFilter = (filter?: string): DateFilter => {
-  const now = Date.now();
-
-  switch (filter) {
-    case "today": {
-      const start = new Date();
-      start.setHours(0, 0, 0, 0);
-      return { endTime: now, startTime: start.getTime() };
-    }
-    case "7d": {
-      return { endTime: now, startTime: now - 7 * 86_400_000 };
-    }
-    case "30d": {
-      return { endTime: now, startTime: now - 30 * 86_400_000 };
-    }
-    case "all": {
-      // Explicit full range: epoch to now
-      // This ensures buildComparisonWindows detects hasFilter=true
-      // and uses our bounds instead of defaulting to 7 days
-      return { startTime: 0, endTime: now };
-    }
-    default: {
-      // No filter specified (undefined/null) - returns empty
-      return {};
-    }
-  }
-};
 
 // ─── Effect Pipeline Runners ────────────────────────────────────────────────
 
@@ -529,140 +345,11 @@ const flushPendingWebviewMessages = () => {
 
 // ─── Tray Menu ──────────────────────────────────────────────────────────────
 
-const buildTrayMenu = (stats: TrayStats) => {
-  const { anthropicUsage } = stats;
-
-  type TrayMenuItem =
-    | { label: string; type: "normal"; enabled?: boolean; action?: string }
-    | { type: "separator" };
-
-  const items: TrayMenuItem[] = [];
-
-  // ── Subscription Header ──
-  if (anthropicUsage && anthropicUsage.source !== "unavailable") {
-    if (anthropicUsage.subscription) {
-      items.push({
-        enabled: false,
-        label: formatSubscriptionHeader(anthropicUsage.subscription.type),
-        type: "normal" as const,
-      });
-    }
-
-    // ── Rate Limits Section ── (only with real API data)
-    if (anthropicUsage.source === "oauth" || anthropicUsage.source === "cli") {
-      // Session usage (5-hour window)
-      items.push({
-        enabled: false,
-        label: formatRateLimitItem(
-          "Session",
-          anthropicUsage.session.percentUsed,
-          "5h"
-        ),
-        type: "normal" as const,
-      });
-
-      // Weekly usage (7-day window)
-      items.push({
-        enabled: false,
-        label: formatRateLimitItem(
-          "Weekly",
-          anthropicUsage.weekly.percentUsed,
-          "7d"
-        ),
-        type: "normal" as const,
-      });
-
-      // Model-specific limits if available
-      if (anthropicUsage.opus) {
-        items.push({
-          enabled: false,
-          label: formatRateLimitItem("Opus", anthropicUsage.opus.percentUsed),
-          type: "normal" as const,
-        });
-      }
-
-      if (anthropicUsage.sonnet) {
-        items.push({
-          enabled: false,
-          label: formatRateLimitItem(
-            "Sonnet",
-            anthropicUsage.sonnet.percentUsed
-          ),
-          type: "normal" as const,
-        });
-      }
-
-      // ── Extra Usage Section ── (Max subscribers overage)
-      if (anthropicUsage.extraUsage) {
-        items.push({ type: "separator" as const });
-        items.push({
-          enabled: false,
-          label: formatExtraUsage(
-            anthropicUsage.extraUsage.spentUsd,
-            anthropicUsage.extraUsage.limitUsd
-          ),
-          type: "normal" as const,
-        });
-      }
-    }
-
-    items.push({ type: "separator" as const });
-  }
-
-  // ── Daily Stats Section ──
-  items.push({
-    enabled: false,
-    label: "Today",
-    type: "normal" as const,
-  });
-  items.push({
-    enabled: false,
-    label: formatDailyStats(stats.todaySessions, stats.todayCost),
-    type: "normal" as const,
-  });
-
-  // ── Actions ──
-  items.push(
-    { type: "separator" as const },
-    {
-      action: "show-dashboard",
-      label: "Show Dashboard",
-      type: "normal" as const,
-    },
-    {
-      action: "rescan-sessions",
-      enabled: !isScanning,
-      label: isScanning ? "Scanning..." : "Rescan Sessions",
-      type: "normal" as const,
-    }
-  );
-
-  // ── Update Actions ──
-  if (updateAvailable && updateVersion) {
-    items.push({
-      action: "install-update",
-      label: `Install Update (v${updateVersion})`,
-      type: "normal" as const,
-    });
-  } else {
-    items.push({
-      action: "check-for-updates",
-      label: "Check for Updates",
-      type: "normal" as const,
-    });
-  }
-
-  items.push(
-    { type: "separator" as const },
-    {
-      action: "quit-app",
-      label: "Quit",
-      type: "normal" as const,
-    }
-  );
-
-  return items;
-};
+const getTrayMenuState = () => ({
+  isScanning,
+  updateAvailable,
+  updateVersion,
+});
 
 const updateTrayMenu = async () => {
   if (!tray) {
@@ -671,7 +358,7 @@ const updateTrayMenu = async () => {
 
   try {
     const stats = await getTrayStats();
-    tray.setMenu(buildTrayMenu(stats));
+    tray.setMenu(buildTrayMenu(stats, getTrayMenuState()));
 
     // Push usage data to frontend cache so settings page renders instantly
     if (stats.anthropicUsage) {
@@ -695,7 +382,7 @@ const updateTrayMenuQuick = async () => {
 
   try {
     const stats = await getTrayStatsQuick();
-    tray.setMenu(buildTrayMenu(stats));
+    tray.setMenu(buildTrayMenu(stats, getTrayMenuState()));
   } catch (error) {
     log.warn("tray", "Failed to update stats (quick)", error);
   }
@@ -736,7 +423,9 @@ const createMainWindow = () => {
 
   // Apply native macOS vibrancy effects
   if (isMac) {
-    applyMacOSWindowEffects(window);
+    nativeLib = applyMacOSWindowEffects(window, import.meta.dir, (isFullscreen) => {
+      rpc.send.fullscreenChanged({ isFullscreen });
+    });
   }
 
   const webviewWithEvents = window.webview as unknown as {
@@ -801,93 +490,34 @@ const quitApp = () => {
   Utils.quit();
 };
 
-// ─── Background Scan ────────────────────────────────────────────────────────
+// ─── Background Task Helpers ────────────────────────────────────────────────
 
-const configureBackgroundScan = (intervalMinutes: number) => {
+const resetBackgroundScan = (intervalMinutes: number) => {
   if (scanIntervalId) {
     clearInterval(scanIntervalId);
     scanIntervalId = null;
   }
-
-  const safeMinutes = Number.isFinite(intervalMinutes)
-    ? Math.max(1, Math.floor(intervalMinutes))
-    : 5;
-  scanIntervalId = setInterval(() => {
+  scanIntervalId = configureBackgroundScan(intervalMinutes, () => {
     void runSyncWithNotifications(false);
-  }, safeMinutes * 60_000);
+  });
 };
 
-// ─── Scheduler Configuration ─────────────────────────────────────────────────
-
-const configureScheduler = (enabled: boolean) => {
-  // Clear existing interval if any
+const resetScheduler = (enabled: boolean) => {
   if (schedulerIntervalId) {
     clearInterval(schedulerIntervalId);
     schedulerIntervalId = null;
   }
-
-  if (!enabled) {
-    log.info("scheduler", "Disabled");
-    return;
-  }
-
-  log.info("scheduler", "Starting schedule checker (every 60s)");
-
-  // Check schedules every minute
-  schedulerIntervalId = setInterval(() => {
-    void runEffect(
-      Effect.gen(function* schedulerIntervalId() {
-        const scheduler = yield* SchedulerService;
-        yield* scheduler.checkSchedules();
-      })
-    ).catch((error) => {
-      log.warn("scheduler", "Check failed:", error);
-    });
-  }, 60_000);
-
-  // Also run an immediate check for any missed schedules
-  void runEffect(
-    Effect.gen(function* configureScheduler() {
-      const scheduler = yield* SchedulerService;
-      const missed = yield* scheduler.checkMissedSchedules();
-      if (missed.length > 0) {
-        log.info("scheduler", `Executed ${missed.length} missed schedule(s)`);
-      }
-    })
-  ).catch((error) => {
-    log.warn("scheduler", "Missed check failed:", error);
-  });
+  schedulerIntervalId = configureScheduler(enabled, runEffect);
 };
 
-// ─── Usage Refresh Configuration ─────────────────────────────────────────────
-
-/**
- * Configure periodic refresh of Anthropic usage data.
- * Keeps tray menu usage limits up-to-date without relying on user actions.
- */
-const configureUsageRefresh = (intervalMinutes = 5) => {
+const resetUsageRefresh = (intervalMinutes = 5) => {
   if (usageIntervalId) {
     clearInterval(usageIntervalId);
     usageIntervalId = null;
   }
-
-  log.info("usage", `Starting usage refresh (every ${intervalMinutes}m)`);
-
-  usageIntervalId = setInterval(() => {
-    void runEffect(
-      Effect.gen(function* usageIntervalId() {
-        const anthropicService = yield* AnthropicUsageService;
-        // refreshUsage bypasses cache, forcing a fresh CLI probe
-        yield* anthropicService.refreshUsage();
-      })
-    )
-      .then(() => {
-        void updateTrayMenu();
-      })
-      .catch((error) => {
-        log.warn("usage", "Refresh failed:", error);
-      });
-  }, intervalMinutes * 60_000);
+  usageIntervalId = configureUsageRefresh(intervalMinutes, runEffect, () => {
+    void updateTrayMenu();
+  });
 };
 
 // ─── RPC Definition ─────────────────────────────────────────────────────────
@@ -1104,11 +734,11 @@ const rpc = BrowserView.defineRPC<UsageMonitorRPC>({
         settings = { ...settings, ...patch };
 
         if (patch.scanIntervalMinutes !== undefined) {
-          configureBackgroundScan(patch.scanIntervalMinutes);
+          resetBackgroundScan(patch.scanIntervalMinutes);
         }
 
         if (patch.schedulerEnabled !== undefined) {
-          configureScheduler(patch.schedulerEnabled);
+          resetScheduler(patch.schedulerEnabled);
         }
 
         if (patch.theme !== undefined) {
@@ -1260,7 +890,10 @@ const rpc = BrowserView.defineRPC<UsageMonitorRPC>({
       },
 
       updateDragExclusionZones: async ({ zones }) => {
-        const success = updateDragExclusionZones(zones);
+        if (!mainWindow || !nativeLib) {
+          return { success: false };
+        }
+        const success = updateDragExclusionZones(zones, mainWindow.ptr, nativeLib);
         return { success };
       },
     },
@@ -1605,14 +1238,14 @@ const bootstrap = async () => {
   refreshApplicationMenu();
 
   // Configure background scan
-  configureBackgroundScan(settings.scanIntervalMinutes);
+  resetBackgroundScan(settings.scanIntervalMinutes);
 
   // Configure periodic usage refresh (every 5 minutes)
-  configureUsageRefresh(5);
+  resetUsageRefresh(5);
 
   // Configure scheduler if enabled
   if (settings.schedulerEnabled) {
-    configureScheduler(true);
+    resetScheduler(true);
   }
 
   // Initial sync if enabled

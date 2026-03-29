@@ -4,11 +4,11 @@
  * This is the landing page that provides a quick scan of Claude Code usage.
  */
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useRef } from "react";
+
 import { z } from "zod";
 
 import { OverviewSection } from "@/components/sections/OverviewSection";
-import { useIsDesktop } from "@/hooks/useApi";
+import { useDesktopRefetch } from "@/hooks/useDesktopRefetch";
 import { queryClient } from "@/lib/query-client";
 import { useDashboardQuery, dashboardQueryOptions } from "@/queries/dashboard";
 
@@ -43,32 +43,12 @@ export const Route = createFileRoute("/")({
 
 function OverviewRoute() {
   const { filter, harness } = Route.useSearch();
-  const isDesktop = useIsDesktop();
   const { data, isLoading, error, refetch } = useDashboardQuery(
     filter,
     harness
   );
 
-  const refetchRef = useRef(refetch);
-  refetchRef.current = refetch;
-
-  // Listen for desktop updates
-  useEffect(() => {
-    if (!isDesktop) {
-      return;
-    }
-
-    let cleanup: (() => void) | undefined;
-
-    import("@/hooks/useRPC").then(({ electroview }) => {
-      const handleUpdate = () => refetchRef.current();
-      electroview.addMessageListener("sessionsUpdated", handleUpdate);
-      cleanup = () =>
-        electroview.removeMessageListener("sessionsUpdated", handleUpdate);
-    });
-
-    return () => cleanup?.();
-  }, [isDesktop]);
+  useDesktopRefetch(refetch);
 
   if (error && !data) {
     return (

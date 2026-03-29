@@ -147,16 +147,3 @@ export const useUpdateSettingsMutation = () => {
   });
 };
 
-/**
- * @deprecated Use useAnthropicUsageQuery().refetch() instead.
- * The query hook provides refetch() and isFetching for refresh functionality.
- */
-export const useRefreshAnthropicUsageMutation = () => {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: () => api.getAnthropicUsage(),
-    onSuccess: (data) => {
-      queryClient.setQueryData(["anthropicUsage"], data);
-    },
-  });
-};

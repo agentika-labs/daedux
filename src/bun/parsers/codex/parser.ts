@@ -20,7 +20,7 @@ import type {
 export class CodexParserService extends Effect.Service<CodexParserService>()(
   "CodexParser",
   {
-    effect: Effect.gen(function* () {
+    scoped: Effect.gen(function* () {
       return {
         harness: "codex" as const,
         name: "Codex",

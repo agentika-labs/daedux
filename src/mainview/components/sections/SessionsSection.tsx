@@ -1,7 +1,6 @@
 import {
   ArrowRight01Icon,
   Clock01Icon,
-  Search01Icon,
   ArrowLeft01Icon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
@@ -10,7 +9,6 @@ import type {
   SessionSummary,
   ProjectSummary,
 } from "@shared/rpc-types";
-import { HARNESS_LABELS } from "@shared/rpc-types";
 import {
   useReactTable,
   getCoreRowModel,
@@ -20,22 +18,21 @@ import {
   flexRender,
 } from "@tanstack/react-table";
 import type {
-  ColumnDef,
   SortingState,
   PaginationState,
   FilterFn,
 } from "@tanstack/react-table";
-import { useState, useMemo, useDeferredValue, useEffect } from "react";
+import { useState, useMemo, useDeferredValue, useEffect, useCallback } from "react";
 
 import { Section } from "@/components/layout/Section";
 import { SessionDetailSheet } from "@/components/sections/SessionDetailSheet";
+import { sessionsColumns } from "@/components/sections/sessionsColumns";
+import { SessionsToolbar } from "@/components/sections/SessionsToolbar";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { LoadingBoundary } from "@/components/shared/LoadingBoundary";
 import { SectionHeader } from "@/components/shared/SectionHeader";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -43,12 +40,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  formatCurrency,
-  formatTokens,
-  cn,
-  computeSmartProjectNames,
-} from "@/lib/utils";
+import { cn, computeSmartProjectNames } from "@/lib/utils";
 import type { SmartProjectName } from "@/lib/utils";
 
 // ─── Stable Empty Arrays (prevent useMemo dep changes on rerenders) ──────────
@@ -146,159 +138,18 @@ export function SessionsSection({ data, loading }: SessionsSectionProps) {
     );
   }, [sessions, showSubagents, data?.projects]);
 
-  // Column definitions
-  const columns = useMemo<ColumnDef<SessionRow>[]>(
-    () => [
-      {
-        accessorFn: (row) => row.smartName.primary,
-        cell: ({ row }) => {
-          const session = row.original;
-          return (
-            <div className="flex items-center gap-2">
-              {session.isSubagent && (
-                <Badge variant="outline" className="text-xs">
-                  Subagent
-                </Badge>
-              )}
-              <div>
-                <div className="max-w-[200px] truncate font-medium">
-                  {session.smartName.primary}
-                </div>
-                {session.smartName.secondary && (
-                  <div className="text-muted-foreground text-xs">
-                    in {session.smartName.secondary}
-                  </div>
-                )}
-              </div>
-            </div>
-          );
-        },
-        enableSorting: false,
-        header: "Project",
-        id: "project",
-      },
-      {
-        accessorKey: "startTime",
-        cell: ({ row }) => (
-          <span className="text-muted-foreground text-sm">
-            {row.original.date}
-          </span>
-        ),
-        header: ({ column }) => (
-          <SortableHeaderCell
-            label="Date"
-            sorted={column.getIsSorted()}
-            onToggle={() =>
-              column.toggleSorting(column.getIsSorted() === "asc")
-            }
-          />
-        ),
-        id: "date",
-      },
-      {
-        accessorKey: "queryCount",
-        cell: ({ row }) => (
-          <span className="text-sm">{row.original.queryCount}</span>
-        ),
-        header: ({ column }) => (
-          <SortableHeaderCell
-            label="Queries"
-            sorted={column.getIsSorted()}
-            onToggle={() =>
-              column.toggleSorting(column.getIsSorted() === "asc")
-            }
-            align="right"
-          />
-        ),
-        id: "queries",
-        meta: { align: "right" },
-      },
-      {
-        accessorKey: "turnCount",
-        cell: ({ row }) => (
-          <span className="text-sm">{row.original.turnCount}</span>
-        ),
-        header: ({ column }) => (
-          <SortableHeaderCell
-            label="Turns"
-            sorted={column.getIsSorted()}
-            onToggle={() =>
-              column.toggleSorting(column.getIsSorted() === "asc")
-            }
-            align="right"
-          />
-        ),
-        id: "turns",
-        meta: { align: "right" },
-      },
-      {
-        accessorKey: "totalTokens",
-        cell: ({ row }) => (
-          <span className="text-sm">
-            {formatTokens(row.original.totalTokens)}
-          </span>
-        ),
-        header: ({ column }) => (
-          <SortableHeaderCell
-            label="Tokens"
-            sorted={column.getIsSorted()}
-            onToggle={() =>
-              column.toggleSorting(column.getIsSorted() === "asc")
-            }
-            align="right"
-          />
-        ),
-        id: "tokens",
-        meta: { align: "right" },
-      },
-      {
-        accessorKey: "totalCost",
-        cell: ({ row }) => (
-          <span className="text-sm font-medium">
-            {formatCurrency(row.original.totalCost)}
-          </span>
-        ),
-        header: ({ column }) => (
-          <SortableHeaderCell
-            label="Cost"
-            sorted={column.getIsSorted()}
-            onToggle={() =>
-              column.toggleSorting(column.getIsSorted() === "asc")
-            }
-            align="right"
-          />
-        ),
-        id: "cost",
-        meta: { align: "right" },
-      },
-      {
-        accessorKey: "harness",
-        cell: ({ row }) => (
-          <Badge variant="outline" className="text-xs">
-            {HARNESS_LABELS[row.original.harness]}
-          </Badge>
-        ),
-        enableSorting: false,
-        header: "Agent",
-        id: "agent",
-      },
-      {
-        cell: () => (
-          <Button variant="ghost" size="icon-sm">
-            <HugeiconsIcon icon={ArrowRight01Icon} className="h-4 w-4" />
-          </Button>
-        ),
-        enableSorting: false,
-        header: () => <span className="sr-only">Details</span>,
-        id: "details",
-        meta: { align: "right" },
-      },
-    ],
-    []
-  );
+  const handleSearchChange = useCallback((value: string) => {
+    setSearchInput(value);
+    // Reset to first page when searching
+    setPagination((prev) => ({ ...prev, pageIndex: 0 }));
+  }, []);
+
+  const handleToggleSubagents = useCallback(() => {
+    setShowSubagents((prev) => !prev);
+  }, []);
 
   const table = useReactTable({
-    columns,
+    columns: sessionsColumns,
     data: tableData,
     getCoreRowModel: getCoreRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
@@ -324,32 +175,12 @@ export function SessionsSection({ data, loading }: SessionsSectionProps) {
         title="Sessions Browser"
         subtitle={`${totalFiltered} sessions`}
       >
-        <div className="flex items-center gap-2">
-          {/* Search Input */}
-          <div className="relative">
-            <HugeiconsIcon
-              icon={Search01Icon}
-              className="text-muted-foreground absolute top-1/2 left-2.5 h-4 w-4 -translate-y-1/2"
-            />
-            <Input
-              placeholder="Search sessions..."
-              value={searchInput}
-              onChange={(e) => {
-                setSearchInput(e.target.value);
-                // Reset to first page when searching
-                setPagination((prev) => ({ ...prev, pageIndex: 0 }));
-              }}
-              className="w-[200px] pl-8"
-            />
-          </div>
-          <Button
-            variant={showSubagents ? "default" : "outline"}
-            size="sm"
-            onClick={() => setShowSubagents(!showSubagents)}
-          >
-            {showSubagents ? "Hide" : "Show"} Subagents
-          </Button>
-        </div>
+        <SessionsToolbar
+          searchInput={searchInput}
+          onSearchChange={handleSearchChange}
+          showSubagents={showSubagents}
+          onToggleSubagents={handleToggleSubagents}
+        />
       </SectionHeader>
 
       {/* Sessions Table */}
@@ -510,37 +341,5 @@ export function SessionsSection({ data, loading }: SessionsSectionProps) {
         onClose={() => setSelectedSession(null)}
       />
     </Section>
-  );
-}
-
-// ─── Helper Components ────────────────────────────────────────────────────────
-
-interface SortableHeaderCellProps {
-  label: string;
-  sorted: false | "asc" | "desc";
-  onToggle: () => void;
-  align?: "left" | "right";
-}
-
-function SortableHeaderCell({
-  label,
-  sorted,
-  onToggle,
-  align = "left",
-}: SortableHeaderCellProps) {
-  return (
-    <button
-      type="button"
-      className={cn(
-        "flex items-center gap-1 hover:text-foreground transition-colors",
-        align === "right" && "justify-end w-full"
-      )}
-      onClick={onToggle}
-    >
-      {label}
-      {sorted && (
-        <span className="text-xs">{sorted === "asc" ? "↑" : "↓"}</span>
-      )}
-    </button>
   );
 }

@@ -7,10 +7,9 @@
  * - Desktop RPC listener for real-time updates
  */
 import { createFileRoute, Outlet, Link } from "@tanstack/react-router";
-import { useEffect, useRef } from "react";
 import { z } from "zod";
 
-import { useIsDesktop } from "@/hooks/useApi";
+import { useDesktopRefetch } from "@/hooks/useDesktopRefetch";
 import { queryClient } from "@/lib/query-client";
 import { cn } from "@/lib/utils";
 import { dashboardQueryOptions } from "@/queries/dashboard";
@@ -58,29 +57,10 @@ const SUB_TABS = [
 
 function AnalyticsLayout() {
   const { filter, harness } = Route.useSearch();
-  const isDesktop = useIsDesktop();
 
-  // Refetch data when desktop receives update notification
-  const refetchRef = useRef(() => {
+  useDesktopRefetch(() => {
     queryClient.invalidateQueries({ queryKey: ["dashboard"] });
   });
-
-  useEffect(() => {
-    if (!isDesktop) {
-      return;
-    }
-
-    let cleanup: (() => void) | undefined;
-
-    import("@/hooks/useRPC").then(({ electroview }) => {
-      const handleUpdate = () => refetchRef.current();
-      electroview.addMessageListener("sessionsUpdated", handleUpdate);
-      cleanup = () =>
-        electroview.removeMessageListener("sessionsUpdated", handleUpdate);
-    });
-
-    return () => cleanup?.();
-  }, [isDesktop]);
 
   return (
     <div className="flex h-full flex-col">

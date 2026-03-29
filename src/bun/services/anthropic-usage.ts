@@ -8,6 +8,7 @@ import type {
   AnthropicUsageWindow,
 } from "../../shared/rpc-types";
 import { AnthropicUsageError } from "../errors";
+import { stripAnsi } from "../utils/ansi";
 import { debugLog, log } from "../utils/log";
 
 // Tracks which method (OAuth API vs CLI) is currently working.
@@ -112,14 +113,7 @@ const CACHE_TTL = Duration.seconds(30);
  * ```
  */
 const parseUsageOutput = (output: string): AnthropicUsage => {
-  // Strip all ANSI escape sequences comprehensively
-  const clean = output
-    .replaceAll(/\u001B\[[0-9;?]*[a-zA-Z]/g, "") // CSI sequences (colors, cursor)
-    .replaceAll(/\u001B\][^\u0007]*\u0007/g, "") // OSC sequences (title, etc)
-    .replaceAll(/\u001B[PX^_][^\u001B]*\u001B\\/g, "") // DCS/PM/APC sequences
-    .replaceAll(/\u001B[()][AB012]/g, "") // Character set selection
-    .replaceAll(/\u001B[=>]/g, "") // Keypad mode
-    .replaceAll(/[\u0000-\u0008\u000B\u000C\u000E-\u001A]/g, ""); // Control chars except \t\n\r
+  const clean = stripAnsi(output);
 
   // DEBUG: Find ALL percentage patterns in the output
   const allPercentages = clean.match(/\d+%/g) || [];
@@ -480,14 +474,7 @@ const tryCliUsage = () =>
             proc.kill();
             cleanupSandbox();
 
-            // Strip ANSI for debug display
-            const cleanedForDebug = output
-              .replaceAll(/\u001B\[[0-9;?]*[a-zA-Z]/g, "")
-              .replaceAll(/\u001B\][^\u0007]*\u0007/g, "")
-              .replaceAll(/\u001B[PX^_][^\u001B]*\u001B\\/g, "")
-              .replaceAll(/\u001B[()][AB012]/g, "")
-              .replaceAll(/\u001B[=>]/g, "")
-              .replaceAll(/[\u0000-\u0008\u000B\u000C\u000E-\u001A]/g, "");
+            const cleanedForDebug = stripAnsi(output);
 
             // Log state at timeout so we can see what the PTY received
             log.info("usage", "CLI probe timeout debug:", {
@@ -535,13 +522,7 @@ const tryCliUsage = () =>
                   .replaceAll("\r", "\\r"),
               );
 
-              // Strip ANSI codes before pattern matching (same logic as parseUsageOutput)
-              const clean = output
-                .replaceAll(/\u001B\[[0-9;?]*[a-zA-Z]/g, "") // CSI sequences
-                .replaceAll(/\u001B\][^\u0007]*\u0007/g, "") // OSC sequences
-                .replaceAll(/\u001B[PX^_][^\u001B]*\u001B\\/g, "") // DCS/PM/APC
-                .replaceAll(/\u001B[()][AB012]/g, "") // Character set
-                .replaceAll(/\u001B[=>]/g, ""); // Keypad mode
+              const clean = stripAnsi(output);
 
               // Safety net: Detect MCP server prompt and bypass it.
               // Even with sandbox cwd, global MCP servers from ~/.claude/ could prompt.

@@ -37,7 +37,7 @@ export interface ModelBreakdown {
 export class ModelAnalyticsService extends Effect.Service<ModelAnalyticsService>()(
   "ModelAnalyticsService",
   {
-    effect: Effect.gen(function* () {
+    scoped: Effect.gen(function* () {
       const { db } = yield* DatabaseService;
 
       return {

@@ -107,7 +107,7 @@ export interface SkillImpactComparison {
 export class AgentAnalyticsService extends Effect.Service<AgentAnalyticsService>()(
   "AgentAnalyticsService",
   {
-    effect: Effect.gen(function* () {
+    scoped: Effect.gen(function* () {
       const { db } = yield* DatabaseService;
 
       return {

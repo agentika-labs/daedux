@@ -58,7 +58,7 @@ export interface PeakContextData {
 export class ContextAnalyticsService extends Effect.Service<ContextAnalyticsService>()(
   "ContextAnalyticsService",
   {
-    effect: Effect.gen(function* () {
+    scoped: Effect.gen(function* () {
       const { db } = yield* DatabaseService;
 
       return {

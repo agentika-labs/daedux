@@ -24,6 +24,7 @@ import { loadDashboardData } from "../bun/services/dashboard-loader";
 import { SyncService } from "../bun/sync";
 import { log } from "../bun/utils/log";
 import { transformSessionToRPC } from "../bun/utils/session-transformer";
+import { parseDateFilter } from "../shared/date-filter";
 import type { DateFilter, HarnessId, SyncResult } from "../shared/rpc-types";
 
 export interface ServerOptions {
@@ -49,34 +50,6 @@ const runEffect = <A, E>(
       })
     )
   );
-
-export const parseDateFilter = (filter?: string | null): DateFilter => {
-  const now = Date.now();
-
-  switch (filter) {
-    case "today": {
-      const start = new Date();
-      start.setHours(0, 0, 0, 0);
-      return { endTime: now, startTime: start.getTime() };
-    }
-    case "7d": {
-      return { endTime: now, startTime: now - 7 * 86_400_000 };
-    }
-    case "30d": {
-      return { endTime: now, startTime: now - 30 * 86_400_000 };
-    }
-    case "all": {
-      // Explicit full range: epoch to now
-      // This ensures buildComparisonWindows detects hasFilter=true
-      // and uses our bounds instead of defaulting to 7 days
-      return { startTime: 0, endTime: now };
-    }
-    default: {
-      // No filter specified (undefined/null) - returns empty
-      return {};
-    }
-  }
-};
 
 // loadDashboardData is imported from ../bun/services/dashboard-loader
 

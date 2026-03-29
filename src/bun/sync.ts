@@ -300,7 +300,7 @@ const getCachedMtimes = (): Effect.Effect<
  * Discovers session files from all registered parsers and stores aggregated data.
  */
 export class SyncService extends Effect.Service<SyncService>()("SyncService", {
-  effect: Effect.gen(function* () {
+  scoped: Effect.gen(function* () {
     const registry = yield* ParserRegistry;
 
     return {

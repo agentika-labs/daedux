@@ -112,7 +112,7 @@ export { categorizeErrorsByPattern, FIX_SUGGESTIONS, getFixSuggestions };
 export class InsightsAnalyticsService extends Effect.Service<InsightsAnalyticsService>()(
   "InsightsAnalyticsService",
   {
-    effect: Effect.gen(function* () {
+    scoped: Effect.gen(function* () {
       const { db } = yield* DatabaseService;
 
       return {

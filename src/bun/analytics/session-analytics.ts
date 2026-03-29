@@ -7,7 +7,12 @@ import * as schema from "../db/schema";
 import { DatabaseError } from "../errors";
 import { cacheHitRatio, totalInputWithCache } from "../metrics";
 import type { HarnessId } from "../parsers/types";
-import { buildDateConditions, buildHarnessConditions } from "./shared";
+import {
+  buildDateConditions,
+  buildHarnessConditions,
+  combineConditions,
+  withDateFilter,
+} from "./shared";
 import type { DateFilter } from "./shared";
 
 export interface Totals {
@@ -160,7 +165,7 @@ export interface DashboardStats {
 export class SessionAnalyticsService extends Effect.Service<SessionAnalyticsService>()(
   "SessionAnalyticsService",
   {
-    effect: Effect.gen(function* () {
+    scoped: Effect.gen(function* () {
       const { db } = yield* DatabaseService;
 
       return {
@@ -255,147 +260,102 @@ export class SessionAnalyticsService extends Effect.Service<SessionAnalyticsServ
               const dateConditions = buildDateConditions(dateFilter);
               const harnessConditions = buildHarnessConditions(dateFilter);
               const allConditions = [...dateConditions, ...harnessConditions];
-              const hasFilter = allConditions.length > 0;
+              const filterWhere = combineConditions(allConditions);
 
               // ─── Session Counts ─────────────────────────────────────────────
-              let mainSessionsResult;
-              let subagentSessionsResult;
-
-              if (hasFilter) {
-                mainSessionsResult = await db
-                  .select({ count: count() })
-                  .from(schema.sessions)
-                  .where(
-                    and(eq(schema.sessions.isSubagent, false), ...allConditions)
-                  );
-                subagentSessionsResult = await db
-                  .select({ count: count() })
-                  .from(schema.sessions)
-                  .where(
-                    and(eq(schema.sessions.isSubagent, true), ...allConditions)
-                  );
-              } else {
-                mainSessionsResult = await db
-                  .select({ count: count() })
-                  .from(schema.sessions)
-                  .where(eq(schema.sessions.isSubagent, false));
-                subagentSessionsResult = await db
-                  .select({ count: count() })
-                  .from(schema.sessions)
-                  .where(eq(schema.sessions.isSubagent, true));
-              }
+              const mainSessionsResult = await db
+                .select({ count: count() })
+                .from(schema.sessions)
+                .where(
+                  combineConditions(
+                    allConditions,
+                    eq(schema.sessions.isSubagent, false)
+                  )
+                );
+              const subagentSessionsResult = await db
+                .select({ count: count() })
+                .from(schema.sessions)
+                .where(
+                  combineConditions(
+                    allConditions,
+                    eq(schema.sessions.isSubagent, true)
+                  )
+                );
 
               const mainSessions = mainSessionsResult[0]?.count ?? 0;
               const subagentSessions = subagentSessionsResult[0]?.count ?? 0;
               const totalSessions = mainSessions + subagentSessions;
 
               // ─── Agent Invocations (Task tool calls) ────────────────────────
-              let agentInvocationsResult;
-              if (hasFilter) {
-                agentInvocationsResult = await db
-                  .select({ count: count() })
-                  .from(schema.agentSpawns)
-                  .innerJoin(
-                    schema.sessions,
-                    eq(schema.agentSpawns.sessionId, schema.sessions.sessionId)
-                  )
-                  .where(and(...allConditions));
-              } else {
-                agentInvocationsResult = await db
-                  .select({ count: count() })
-                  .from(schema.agentSpawns);
-              }
+              const agentInvocationsResult = await withDateFilter(
+                allConditions,
+                () =>
+                  db
+                    .select({ count: count() })
+                    .from(schema.agentSpawns),
+                () =>
+                  db
+                    .select({ count: count() })
+                    .from(schema.agentSpawns)
+                    .innerJoin(
+                      schema.sessions,
+                      eq(
+                        schema.agentSpawns.sessionId,
+                        schema.sessions.sessionId
+                      )
+                    )
+                    .where(and(...allConditions))
+              );
               const agentInvocations = agentInvocationsResult[0]?.count ?? 0;
 
               // ─── Token Totals by Session Type ───────────────────────────────
-              let mainTokensResult;
-              let subagentTokensResult;
-
-              if (hasFilter) {
-                mainTokensResult = await db
-                  .select({
-                    total:
-                      sql<number>`SUM(COALESCE(${schema.sessions.totalInputTokens}, 0) + COALESCE(${schema.sessions.totalOutputTokens}, 0))`.as(
-                        "total"
-                      ),
-                  })
-                  .from(schema.sessions)
-                  .where(
-                    and(eq(schema.sessions.isSubagent, false), ...allConditions)
-                  );
-                subagentTokensResult = await db
-                  .select({
-                    total:
-                      sql<number>`SUM(COALESCE(${schema.sessions.totalInputTokens}, 0) + COALESCE(${schema.sessions.totalOutputTokens}, 0))`.as(
-                        "total"
-                      ),
-                  })
-                  .from(schema.sessions)
-                  .where(
-                    and(eq(schema.sessions.isSubagent, true), ...allConditions)
-                  );
-              } else {
-                mainTokensResult = await db
-                  .select({
-                    total:
-                      sql<number>`SUM(COALESCE(${schema.sessions.totalInputTokens}, 0) + COALESCE(${schema.sessions.totalOutputTokens}, 0))`.as(
-                        "total"
-                      ),
-                  })
-                  .from(schema.sessions)
-                  .where(eq(schema.sessions.isSubagent, false));
-                subagentTokensResult = await db
-                  .select({
-                    total:
-                      sql<number>`SUM(COALESCE(${schema.sessions.totalInputTokens}, 0) + COALESCE(${schema.sessions.totalOutputTokens}, 0))`.as(
-                        "total"
-                      ),
-                  })
-                  .from(schema.sessions)
-                  .where(eq(schema.sessions.isSubagent, true));
-              }
+              const tokenSelect = {
+                total:
+                  sql<number>`SUM(COALESCE(${schema.sessions.totalInputTokens}, 0) + COALESCE(${schema.sessions.totalOutputTokens}, 0))`.as(
+                    "total"
+                  ),
+              };
+              const mainTokensResult = await db
+                .select(tokenSelect)
+                .from(schema.sessions)
+                .where(
+                  combineConditions(
+                    allConditions,
+                    eq(schema.sessions.isSubagent, false)
+                  )
+                );
+              const subagentTokensResult = await db
+                .select(tokenSelect)
+                .from(schema.sessions)
+                .where(
+                  combineConditions(
+                    allConditions,
+                    eq(schema.sessions.isSubagent, true)
+                  )
+                );
 
               const mainSessionTokens = mainTokensResult[0]?.total ?? 0;
               const agentTokens = subagentTokensResult[0]?.total ?? 0;
 
               // ─── Cache Metrics (single source of truth) ─────────────────────
-              let cacheResult;
-              if (hasFilter) {
-                cacheResult = await db
-                  .select({
-                    cacheRead:
-                      sql<number>`SUM(COALESCE(${schema.sessions.totalCacheRead}, 0))`.as(
-                        "cache_read"
-                      ),
-                    cacheWrite:
-                      sql<number>`SUM(COALESCE(${schema.sessions.totalCacheWrite}, 0))`.as(
-                        "cache_write"
-                      ),
-                    totalInput:
-                      sql<number>`SUM(COALESCE(${schema.sessions.totalInputTokens}, 0))`.as(
-                        "total_input"
-                      ),
-                  })
-                  .from(schema.sessions)
-                  .where(and(...allConditions));
-              } else {
-                cacheResult = await db
-                  .select({
-                    cacheRead:
-                      sql<number>`SUM(COALESCE(${schema.sessions.totalCacheRead}, 0))`.as(
-                        "cache_read"
-                      ),
-                    cacheWrite:
-                      sql<number>`SUM(COALESCE(${schema.sessions.totalCacheWrite}, 0))`.as(
-                        "cache_write"
-                      ),
-                    totalInput:
-                      sql<number>`SUM(COALESCE(${schema.sessions.totalInputTokens}, 0))`.as(
-                        "total_input"
-                      ),
-                  })
-                  .from(schema.sessions);
-              }
+              const cacheSelect = {
+                cacheRead:
+                  sql<number>`SUM(COALESCE(${schema.sessions.totalCacheRead}, 0))`.as(
+                    "cache_read"
+                  ),
+                cacheWrite:
+                  sql<number>`SUM(COALESCE(${schema.sessions.totalCacheWrite}, 0))`.as(
+                    "cache_write"
+                  ),
+                totalInput:
+                  sql<number>`SUM(COALESCE(${schema.sessions.totalInputTokens}, 0))`.as(
+                    "total_input"
+                  ),
+              };
+              const cacheResult = await db
+                .select(cacheSelect)
+                .from(schema.sessions)
+                .where(filterWhere);
 
               const totalInputTokens = cacheResult[0]?.totalInput ?? 0;
               const cacheRead = cacheResult[0]?.cacheRead ?? 0;
@@ -427,33 +387,26 @@ export class SessionAnalyticsService extends Effect.Service<SessionAnalyticsServ
                 agentInvocations > 0 || subagentSessions > 0;
 
               // ─── Tool Success Rate ──────────────────────────────────────────
-              let toolStatsResult;
-              if (hasFilter) {
-                toolStatsResult = await db
-                  .select({
-                    errors:
-                      sql<number>`SUM(CASE WHEN ${schema.toolUses.hasError} = 1 THEN 1 ELSE 0 END)`.as(
-                        "errors"
-                      ),
-                    total: count(),
-                  })
-                  .from(schema.toolUses)
-                  .innerJoin(
-                    schema.sessions,
-                    eq(schema.toolUses.sessionId, schema.sessions.sessionId)
-                  )
-                  .where(and(...allConditions));
-              } else {
-                toolStatsResult = await db
-                  .select({
-                    errors:
-                      sql<number>`SUM(CASE WHEN ${schema.toolUses.hasError} = 1 THEN 1 ELSE 0 END)`.as(
-                        "errors"
-                      ),
-                    total: count(),
-                  })
-                  .from(schema.toolUses);
-              }
+              const toolStatsSelect = {
+                errors:
+                  sql<number>`SUM(CASE WHEN ${schema.toolUses.hasError} = 1 THEN 1 ELSE 0 END)`.as(
+                    "errors"
+                  ),
+                total: count(),
+              };
+              const toolStatsResult = await withDateFilter(
+                allConditions,
+                () => db.select(toolStatsSelect).from(schema.toolUses),
+                () =>
+                  db
+                    .select(toolStatsSelect)
+                    .from(schema.toolUses)
+                    .innerJoin(
+                      schema.sessions,
+                      eq(schema.toolUses.sessionId, schema.sessions.sessionId)
+                    )
+                    .where(and(...allConditions))
+              );
 
               const totalToolCalls = toolStatsResult[0]?.total ?? 0;
               const toolErrors = toolStatsResult[0]?.errors ?? 0;
@@ -463,25 +416,14 @@ export class SessionAnalyticsService extends Effect.Service<SessionAnalyticsServ
                   : 100;
 
               // ─── Query Count for Session Efficiency ─────────────────────────
-              let queryCountResult;
-              if (hasFilter) {
-                queryCountResult = await db
-                  .select({
-                    total: sql<number>`SUM(${schema.sessions.queryCount})`.as(
-                      "total"
-                    ),
-                  })
-                  .from(schema.sessions)
-                  .where(and(...allConditions));
-              } else {
-                queryCountResult = await db
-                  .select({
-                    total: sql<number>`SUM(${schema.sessions.queryCount})`.as(
-                      "total"
-                    ),
-                  })
-                  .from(schema.sessions);
-              }
+              const queryCountResult = await db
+                .select({
+                  total: sql<number>`SUM(${schema.sessions.queryCount})`.as(
+                    "total"
+                  ),
+                })
+                .from(schema.sessions)
+                .where(filterWhere);
 
               const totalQueries = queryCountResult[0]?.total ?? 0;
               const avgQueriesPerSession =

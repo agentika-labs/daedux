@@ -8,7 +8,7 @@ import { Settings02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { Link, useRouter, useMatches } from "@tanstack/react-router";
 import type { FC, SVGProps } from "react";
-import { useEffect, useRef, useCallback, useMemo } from "react";
+import { useEffect, useRef, useCallback, useMemo, startTransition } from "react";
 
 import { buttonVariants } from "@/components/ui/button";
 import {
@@ -161,12 +161,16 @@ export function Header() {
     return "/";
   }, [router.state.location.pathname]);
 
-  // Handle filter changes by navigating with new search params
+  // Handle filter changes by navigating with new search params.
+  // Wrapped in startTransition so React batches the re-render as low-priority,
+  // keeping the UI responsive while all dashboard sections re-fetch.
   const handleFilterChange = useCallback(
     (newFilter: FilterOption) => {
-      router.navigate({
-        to: ".",
-        search: (prev) => ({ ...prev, filter: newFilter }),
+      startTransition(() => {
+        router.navigate({
+          to: ".",
+          search: (prev) => ({ ...prev, filter: newFilter }),
+        });
       });
     },
     [router]
@@ -174,9 +178,11 @@ export function Header() {
 
   const handleHarnessChange = useCallback(
     (newHarness: HarnessFilterOption) => {
-      router.navigate({
-        to: ".",
-        search: (prev) => ({ ...prev, harness: newHarness }),
+      startTransition(() => {
+        router.navigate({
+          to: ".",
+          search: (prev) => ({ ...prev, harness: newHarness }),
+        });
       });
     },
     [router]

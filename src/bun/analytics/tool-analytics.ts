@@ -229,7 +229,7 @@ async function getBashCategoryHealthInternal(
 export class ToolAnalyticsService extends Effect.Service<ToolAnalyticsService>()(
   "ToolAnalyticsService",
   {
-    effect: Effect.gen(function* () {
+    scoped: Effect.gen(function* () {
       const { db } = yield* DatabaseService;
 
       return {

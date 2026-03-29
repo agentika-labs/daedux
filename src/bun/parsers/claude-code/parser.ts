@@ -525,7 +525,7 @@ const parseClaudeCodeSession = (
 export class ClaudeCodeParserService extends Effect.Service<ClaudeCodeParserService>()(
   "ClaudeCodeParser",
   {
-    effect: Effect.gen(function* () {
+    scoped: Effect.gen(function* () {
       return {
         harness: "claude-code" as const,
         name: "Claude Code",
