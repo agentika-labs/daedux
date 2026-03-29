@@ -22,7 +22,7 @@ import type {
   PaginationState,
   FilterFn,
 } from "@tanstack/react-table";
-import { useState, useMemo, useDeferredValue, useEffect, useCallback } from "react";
+import { useState, useMemo, useDeferredValue, useCallback } from "react";
 
 import { Section } from "@/components/layout/Section";
 import { SessionDetailSheet } from "@/components/sections/SessionDetailSheet";
@@ -99,12 +99,6 @@ export function SessionsSection({ data, loading }: SessionsSectionProps) {
 
   const sessions = data?.sessions ?? EMPTY_SESSIONS;
 
-  // Reset pagination when underlying data changes (e.g., filter change)
-  // This prevents trying to access non-existent pages when data shrinks
-  useEffect(() => {
-    setPagination((prev) => ({ ...prev, pageIndex: 0 }));
-  }, [sessions]);
-
   const tableData = useMemo(() => {
     // Filter subagents first
     const filtered = showSubagents
@@ -148,6 +142,17 @@ export function SessionsSection({ data, loading }: SessionsSectionProps) {
     setShowSubagents((prev) => !prev);
   }, []);
 
+  // Clamp pageIndex to valid range when data shrinks (e.g., filter change).
+  // This avoids a useEffect → setState → extra render cycle.
+  const maxPageIndex = Math.max(
+    0,
+    Math.ceil(tableData.length / pagination.pageSize) - 1
+  );
+  const clampedPagination =
+    pagination.pageIndex > maxPageIndex
+      ? { ...pagination, pageIndex: maxPageIndex }
+      : pagination;
+
   const table = useReactTable({
     columns: sessionsColumns,
     data: tableData,
@@ -158,7 +163,11 @@ export function SessionsSection({ data, loading }: SessionsSectionProps) {
     globalFilterFn,
     onPaginationChange: setPagination,
     onSortingChange: setSorting,
-    state: { globalFilter: deferredSearch, pagination, sorting },
+    state: {
+      globalFilter: deferredSearch,
+      pagination: clampedPagination,
+      sorting,
+    },
   });
 
   const totalFiltered = table.getFilteredRowModel().rows.length;

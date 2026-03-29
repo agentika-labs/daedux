@@ -13,6 +13,7 @@ import Electrobun, {
   Utils,
 } from "electrobun/bun";
 
+import { parseDateFilter } from "../shared/date-filter";
 import type {
   UsageMonitorRPC,
   TrayStats,
@@ -26,7 +27,6 @@ import type {
   OtelStatus,
   OtelDashboardData,
 } from "../shared/rpc-types";
-import { parseDateFilter } from "../shared/date-filter";
 import { AgentAnalyticsService } from "./analytics/agent-analytics";
 import { ContextAnalyticsService } from "./analytics/context-analytics";
 import { FileAnalyticsService } from "./analytics/file-analytics";
@@ -423,9 +423,13 @@ const createMainWindow = () => {
 
   // Apply native macOS vibrancy effects
   if (isMac) {
-    nativeLib = applyMacOSWindowEffects(window, import.meta.dir, (isFullscreen) => {
-      rpc.send.fullscreenChanged({ isFullscreen });
-    });
+    nativeLib = applyMacOSWindowEffects(
+      window,
+      import.meta.dir,
+      (isFullscreen) => {
+        rpc.send.fullscreenChanged({ isFullscreen });
+      }
+    );
   }
 
   const webviewWithEvents = window.webview as unknown as {
@@ -893,7 +897,11 @@ const rpc = BrowserView.defineRPC<UsageMonitorRPC>({
         if (!mainWindow || !nativeLib) {
           return { success: false };
         }
-        const success = updateDragExclusionZones(zones, mainWindow.ptr, nativeLib);
+        const success = updateDragExclusionZones(
+          zones,
+          mainWindow.ptr,
+          nativeLib
+        );
         return { success };
       },
     },

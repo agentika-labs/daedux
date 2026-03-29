@@ -8,7 +8,7 @@ import { Settings02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { Link, useRouter, useMatches } from "@tanstack/react-router";
 import type { FC, SVGProps } from "react";
-import { useEffect, useRef, useCallback, useMemo, startTransition } from "react";
+import { useRef, useCallback, useMemo, startTransition } from "react";
 
 import { buttonVariants } from "@/components/ui/button";
 import {
@@ -18,7 +18,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useIsFullscreen } from "@/hooks/useApi";
-import { rpcRequest } from "@/hooks/useRPC";
+import { useDragExclusionZones } from "@/hooks/useDragExclusionZones";
 import { cn } from "@/lib/utils";
 import type { HarnessFilterOption, FilterOption } from "@/queries/dashboard";
 
@@ -188,48 +188,8 @@ export function Header() {
     [router]
   );
 
-  // ─── macOS Drag Exclusion Zones ──────────────────────────────────────────────
-
-  const updateExclusionZones = useCallback(() => {
-    if (!headerRef.current || !isMacOS) {
-      return;
-    }
-
-    const buttons = headerRef.current.querySelectorAll(
-      'button, [role="button"], a'
-    );
-    const zones = [...buttons].map((btn) => {
-      const rect = btn.getBoundingClientRect();
-      return { height: rect.height, width: rect.width, x: rect.x, y: rect.y };
-    });
-
-    rpcRequest("updateDragExclusionZones", { zones }).catch(() => {
-      // Silently ignore - drag region is nice-to-have
-    });
-  }, []);
-
-  useEffect(() => {
-    if (!isMacOS) {
-      return;
-    }
-
-    const initialTimeout = setTimeout(updateExclusionZones, 100);
-    window.addEventListener("resize", updateExclusionZones);
-
-    return () => {
-      clearTimeout(initialTimeout);
-      window.removeEventListener("resize", updateExclusionZones);
-    };
-  }, [updateExclusionZones]);
-
-  // Update zones when filters change
-  useEffect(() => {
-    if (!isMacOS) {
-      return;
-    }
-    const timeout = setTimeout(updateExclusionZones, 50);
-    return () => clearTimeout(timeout);
-  }, [filter, harness, updateExclusionZones]);
+  // Update macOS drag exclusion zones on mount, resize, and filter changes
+  useDragExclusionZones(headerRef, [filter, harness]);
 
   return (
     <header

@@ -51,8 +51,10 @@ export const appInfoQueryOptions = queryOptions({
 export const anthropicUsageQueryOptions = queryOptions({
   queryKey: ["anthropicUsage"],
   queryFn: () => api.getAnthropicUsage(),
-  // Usage data can fail if not authenticated
+  // Usage data can fail if not authenticated or rate limited
   retry: false,
+  // Backend pushes updates via usageUpdated — don't refetch aggressively
+  staleTime: 60_000,
 });
 
 /**
@@ -146,4 +148,3 @@ export const useUpdateSettingsMutation = () => {
     },
   });
 };
-

@@ -36,7 +36,7 @@ const OAuthUsageResponse = Schema.Struct({
     Schema.Struct({
       limit_usd: Schema.NullOr(Schema.Number),
       spent_usd: Schema.Number,
-    }),
+    })
   ),
   five_hour: Schema.Struct({
     percent_used: Schema.Number,
@@ -50,13 +50,13 @@ const OAuthUsageResponse = Schema.Struct({
     Schema.Struct({
       percent_used: Schema.Number,
       reset_at: Schema.NullOr(Schema.Number),
-    }),
+    })
   ),
   seven_day_sonnet: Schema.optional(
     Schema.Struct({
       percent_used: Schema.Number,
       reset_at: Schema.NullOr(Schema.Number),
-    }),
+    })
   ),
 });
 
@@ -134,7 +134,7 @@ const parseUsageOutput = (output: string): AnthropicUsage => {
   const timePatterns = clean.match(/\d+(?::\d+)?(?:am|pm)\s*\([^)]+\)/gi) || [];
   const dateTimePatterns =
     clean.match(
-      /(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d+(?:\s+at\s+\d+(?:am|pm))?\s*\([^)]+\)/gi,
+      /(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d+(?:\s+at\s+\d+(?:am|pm))?\s*\([^)]+\)/gi
     ) || [];
 
   // Combine and dedupe (dateTime patterns may overlap with time-only patterns)
@@ -156,12 +156,12 @@ const parseUsageOutput = (output: string): AnthropicUsage => {
   // Try the original regex approach first
   const sessionMatch = clean.match(/Current session[\s\S]*?(\d+)%\s*used/i);
   const weeklyMatch = clean.match(
-    /Current week\s*\(all models\)[\s\S]*?(\d+)%\s*used/i,
+    /Current week\s*\(all models\)[\s\S]*?(\d+)%\s*used/i
   );
   const sonnetMatch = clean.match(/Sonnet only[\s\S]*?(\d+)%\s*used/i);
   const extraUsageMatch = clean.match(/Extra usage[\s\S]*?(\d+)%\s*used/i);
   const extraSpendingMatch = clean.match(
-    /\$([0-9.]+)\s*\/\s*\$([0-9.]+)\s*spent/i,
+    /\$([0-9.]+)\s*\/\s*\$([0-9.]+)\s*spent/i
   );
 
   // FALLBACK: Use positional extraction from "X% used" patterns
@@ -181,7 +181,7 @@ const parseUsageOutput = (output: string): AnthropicUsage => {
     debugLog(
       "anthropic-usage",
       "Using positional extraction from:",
-      allUsedPatterns,
+      allUsedPatterns
     );
     sessionPct = extractPct(allUsedPatterns[0]!);
     weeklyPct = extractPct(allUsedPatterns[1]!);
@@ -308,7 +308,7 @@ const parseResetTimeFromDate = (dateStr: string): number | null => {
 
   // Try to parse "Mar 3 at 4pm" format
   const dateTimeMatch = cleanDate.match(
-    /^(\w+)\s+(\d{1,2})\s+at\s+(\d{1,2})(am|pm)$/i,
+    /^(\w+)\s+(\d{1,2})\s+at\s+(\d{1,2})(am|pm)$/i
   );
   if (
     dateTimeMatch &&
@@ -332,7 +332,7 @@ const parseResetTimeFromDate = (dateStr: string): number | null => {
       "dec",
     ];
     const monthIndex = monthNames.indexOf(
-      dateTimeMatch[1].toLowerCase().slice(0, 3),
+      dateTimeMatch[1].toLowerCase().slice(0, 3)
     );
     const day = Number.parseInt(dateTimeMatch[2], 10);
     let hours = Number.parseInt(dateTimeMatch[3], 10);
@@ -373,7 +373,7 @@ const parseResetTimeFromDate = (dateStr: string): number | null => {
       "dec",
     ];
     const monthIndex = monthNames.indexOf(
-      dateOnlyMatch[1].toLowerCase().slice(0, 3),
+      dateOnlyMatch[1].toLowerCase().slice(0, 3)
     );
     const day = Number.parseInt(dateOnlyMatch[2], 10);
 
@@ -438,7 +438,7 @@ const tryCliUsage = () =>
           "anthropic-usage",
           "claude not in PATH. PATH:",
           process.env.PATH?.split(":").slice(0, 5).join(":"),
-          "...",
+          "..."
         );
         throw new Error("claude binary not found in PATH");
       }
@@ -491,11 +491,11 @@ const tryCliUsage = () =>
             log.info(
               "usage",
               "CLI probe output:",
-              cleanedForDebug.slice(0, 1000),
+              cleanedForDebug.slice(0, 1000)
             );
             reject(new Error("CLI probe timed out after 8s"));
           }
-        }, 8_000);
+        }, 8000);
 
         // Use Bun's native PTY API - this provides real terminal emulation
         // that the Claude CLI's TUI requires to render properly.
@@ -519,7 +519,7 @@ const tryCliUsage = () =>
                 chunk
                   .slice(0, 100)
                   .replaceAll("\n", "\\n")
-                  .replaceAll("\r", "\\r"),
+                  .replaceAll("\r", "\\r")
               );
 
               const clean = stripAnsi(output);
@@ -579,7 +579,7 @@ const tryCliUsage = () =>
               ) {
                 log.info(
                   "usage",
-                  "Permissions warning detected, selecting 'Yes, I accept'...",
+                  "Permissions warning detected, selecting 'Yes, I accept'..."
                 );
                 permissionsHandled = true;
                 output = ""; // Clear buffer to prevent re-detection
@@ -591,7 +591,7 @@ const tryCliUsage = () =>
                   if (!resolved && proc.terminal) {
                     debugLog(
                       "anthropic-usage",
-                      "Confirming permissions selection...",
+                      "Confirming permissions selection..."
                     );
                     proc.terminal.write("\r"); // Enter to confirm
                   }
@@ -633,7 +633,7 @@ const tryCliUsage = () =>
                   if (!resolved && proc.terminal) {
                     debugLog(
                       "anthropic-usage",
-                      "Pressing Enter to select menu item...",
+                      "Pressing Enter to select menu item..."
                     );
                     proc.terminal.write("\r");
                   }
@@ -652,7 +652,7 @@ const tryCliUsage = () =>
               if (hasCliError && usageCommandSent) {
                 debugLog(
                   "anthropic-usage",
-                  "CLI error detected (rate limited), exiting probe early",
+                  "CLI error detected (rate limited), exiting probe early"
                 );
                 if (!resolved) {
                   resolved = true;
@@ -660,7 +660,7 @@ const tryCliUsage = () =>
                   terminal.write("/exit\r");
                   cleanupSandbox();
                   reject(
-                    new Error("CLI rate limited - usage data unavailable"),
+                    new Error("CLI rate limited - usage data unavailable")
                   );
                 }
                 return;
@@ -723,7 +723,7 @@ const tryCliUsage = () =>
         debugLog(
           "anthropic-usage",
           "PTY spawned, terminal exists:",
-          !!proc.terminal,
+          !!proc.terminal
         );
 
         // NOTE: We no longer use a fixed timeout here. Instead, we detect
@@ -738,15 +738,20 @@ const tryCliUsage = () =>
  * Retries once with 500ms delay between attempts.
  * Budget: ~8s per attempt + 500ms delay = ~16.5s max, fits within 15s phase timeout.
  */
+/** Retry schedule for CLI probe: jittered exponential backoff, max 2 retries.
+ * Produces delays of ~30s, ~60s before giving up (vs. 500ms previously). */
+const cliRetrySchedule = Schedule.intersect(
+  Schedule.jittered(Schedule.exponential("30 seconds")),
+  Schedule.recurs(2)
+);
+
 const tryCliUsageWithRetry = () =>
   tryCliUsage().pipe(
-    Effect.retry(
-      Schedule.recurs(1).pipe(Schedule.addDelay(() => Duration.millis(500))),
-    ),
+    Effect.retry(cliRetrySchedule),
     Effect.catchAll((err) => {
       log.info("usage", "CLI probe failed after retries:", err);
       return Effect.succeed(null);
-    }),
+    })
   );
 
 /**
@@ -761,7 +766,7 @@ const tryOAuthAPIWithMethodTracking = (methodRef: Ref.Ref<MethodState>) =>
       Effect.catchAll((err) => {
         log.info("usage", "Failed to read credentials:", err);
         return Effect.succeed(null);
-      }),
+      })
     );
 
     if (!credentials) {
@@ -771,30 +776,39 @@ const tryOAuthAPIWithMethodTracking = (methodRef: Ref.Ref<MethodState>) =>
     debugLog(
       "anthropic-usage",
       "Credentials found, subscription:",
-      credentials.claudeAiOauth.subscriptionType,
+      credentials.claudeAiOauth.subscriptionType
     );
 
     // Try to fetch usage from API
     log.info("usage", "Trying OAuth API...");
     const apiResult = yield* fetchUsageFromAPI(
-      credentials.claudeAiOauth.accessToken,
+      credentials.claudeAiOauth.accessToken
     ).pipe(
       Effect.catchTag("AnthropicUsageError", (error) => {
         log.info("usage", "OAuth API error:", error.reason, error.message);
 
-        // If OAuth is not supported or rate limited, switch to CLI mode
-        if (
-          error.reason === "not_supported" ||
-          error.message.includes("Rate limit")
-        ) {
+        // If OAuth is not supported, switch to CLI mode
+        if (error.reason === "not_supported") {
           debugLog(
             "anthropic-usage",
-            "OAuth API unavailable, switching to CLI-only mode",
+            "OAuth API not supported, switching to CLI-only mode"
           );
           return Ref.set(methodRef, {
             method: "cli" as const,
             determinedAt: Date.now(),
           }).pipe(Effect.as(null));
+        }
+
+        // If rate limited, propagate the error so fetchUsage can skip CLI
+        // (CLI hits the same backend endpoint and will also be rate limited)
+        if (error.message.includes("Rate limit")) {
+          log.info("usage", "Rate limited by Anthropic, skipping CLI fallback");
+          return Effect.fail(
+            new AnthropicUsageError({
+              message: "Rate limited",
+              reason: "rate_limited",
+            })
+          );
         }
 
         // If token expired, try to refresh and retry
@@ -804,13 +818,13 @@ const tryOAuthAPIWithMethodTracking = (methodRef: Ref.Ref<MethodState>) =>
             yield* refreshOAuthToken().pipe(Effect.catchAll(() => Effect.void));
             // Re-read credentials (token may have changed)
             const newCredentials = yield* readKeychainCredentials().pipe(
-              Effect.catchAll(() => Effect.succeed(null)),
+              Effect.catchAll(() => Effect.succeed(null))
             );
             if (!newCredentials) {
               return null;
             }
             return yield* fetchUsageFromAPI(
-              newCredentials.claudeAiOauth.accessToken,
+              newCredentials.claudeAiOauth.accessToken
             ).pipe(Effect.catchAll(() => Effect.succeed(null)));
           });
         }
@@ -818,7 +832,14 @@ const tryOAuthAPIWithMethodTracking = (methodRef: Ref.Ref<MethodState>) =>
         // For other API errors, return null to trigger CLI fallback
         return Effect.succeed(null);
       }),
-      Effect.catchAll(() => Effect.succeed(null)),
+      // Re-throw rate_limited errors so fetchUsage can skip CLI.
+      // Catch all other failures as null (triggers CLI fallback).
+      Effect.catchAll((err) => {
+        if (err instanceof AnthropicUsageError && err.reason === "rate_limited") {
+          return Effect.fail(err);
+        }
+        return Effect.succeed(null);
+      })
     );
 
     // If API succeeded, update method preference and return
@@ -851,7 +872,7 @@ const tryCliUsageWithMethodTracking = (methodRef: Ref.Ref<MethodState>) =>
   Effect.gen(function* () {
     // Read credentials for subscription info
     const credentials = yield* readKeychainCredentials().pipe(
-      Effect.catchAll(() => Effect.succeed(null)),
+      Effect.catchAll(() => Effect.succeed(null))
     );
 
     log.info("usage", "Trying CLI probe via native PTY...");
@@ -921,8 +942,20 @@ export class AnthropicUsageService extends Effect.Service<AnthropicUsageService>
 
         if (shouldTryOAuth) {
           const result = yield* tryOAuthAPIWithMethodTracking(methodRef).pipe(
+            // Catch rate limit before timeout wraps the error type
+            Effect.catchTag("AnthropicUsageError", (err) => {
+              if (err.reason === "rate_limited") {
+                // Rate limited — skip CLI fallback (same backend endpoint).
+                // Return credentials-only so the UI shows subscription info.
+                return readKeychainCredentials().pipe(
+                  Effect.map(createCredentialsOnlyUsage),
+                  Effect.catchAll(() => Effect.succeed(createUnavailableUsage()))
+                );
+              }
+              return Effect.succeed(null);
+            }),
             Effect.timeout("12 seconds"),
-            Effect.catchAll(() => Effect.succeed(null)),
+            Effect.catchAll(() => Effect.succeed(null))
           );
           if (result) {
             return result;
@@ -930,21 +963,21 @@ export class AnthropicUsageService extends Effect.Service<AnthropicUsageService>
         } else {
           debugLog(
             "anthropic-usage",
-            "Skipping OAuth (CLI preferred), using CLI directly",
+            "Skipping OAuth (CLI preferred), using CLI directly"
           );
         }
 
         // CLI probe fallback
         return yield* tryCliUsageWithMethodTracking(methodRef).pipe(
           Effect.timeout("15 seconds"),
-          Effect.catchAll(() => Effect.succeed(createUnavailableUsage())),
+          Effect.catchAll(() => Effect.succeed(createUnavailableUsage()))
         );
       }).pipe(Effect.catchAll(() => Effect.succeed(createUnavailableUsage())));
 
       // Cached version with TTL and manual invalidation
       const [cachedFetch, invalidate] = yield* Effect.cachedInvalidateWithTTL(
         fetchUsage,
-        CACHE_TTL,
+        CACHE_TTL
       );
 
       return {
@@ -953,7 +986,7 @@ export class AnthropicUsageService extends Effect.Service<AnthropicUsageService>
         clearCache: () => invalidate,
       } as const;
     }),
-  },
+  }
 ) {}
 
 // ─── Implementation ─────────────────────────────────────────────────────────
@@ -975,7 +1008,7 @@ const createUnavailableUsage = (): AnthropicUsage => ({
  * This at least shows subscription info even without usage percentages.
  */
 const createCredentialsOnlyUsage = (
-  creds: Schema.Schema.Type<typeof KeychainCredentials>,
+  creds: Schema.Schema.Type<typeof KeychainCredentials>
 ): AnthropicUsage => ({
   fetchedAt: Date.now(),
   opus: null,
@@ -1007,7 +1040,7 @@ const readKeychainCredentials = () =>
       {
         stderr: "pipe",
         stdout: "pipe",
-      },
+      }
     );
 
     const exitCode = yield* Effect.promise(() => proc.exited);
@@ -1020,7 +1053,7 @@ const readKeychainCredentials = () =>
     }
 
     const credentialsJson = yield* Effect.promise(() =>
-      new Response(proc.stdout).text(),
+      new Response(proc.stdout).text()
     );
 
     // Parse and validate the JSON
@@ -1035,7 +1068,7 @@ const readKeychainCredentials = () =>
 
     // Validate against schema
     const credentials = yield* Schema.decodeUnknown(KeychainCredentials)(
-      parseResult,
+      parseResult
     ).pipe(
       Effect.mapError(
         (error) =>
@@ -1043,8 +1076,8 @@ const readKeychainCredentials = () =>
             cause: error,
             message: "Keychain credentials don't match expected schema",
             reason: "parse_error",
-          }),
-      ),
+          })
+      )
     );
 
     return credentials;
@@ -1089,7 +1122,7 @@ const fetchUsageFromAPI = (accessToken: string) =>
           reason = "not_supported";
           debugLog(
             "anthropic-usage",
-            "OAuth API not supported by Anthropic yet",
+            "OAuth API not supported by Anthropic yet"
           );
         } else if (response.status === 401) {
           reason = "token_expired";
@@ -1123,8 +1156,8 @@ const fetchUsageFromAPI = (accessToken: string) =>
             cause: error,
             message: "API response doesn't match expected schema",
             reason: "parse_error",
-          }),
-      ),
+          })
+      )
     );
 
     return usage;
@@ -1134,11 +1167,11 @@ const fetchUsageFromAPI = (accessToken: string) =>
  * Transform API response to our internal AnthropicUsage type.
  */
 const transformUsageResponse = (
-  response: Schema.Schema.Type<typeof OAuthUsageResponse>,
+  response: Schema.Schema.Type<typeof OAuthUsageResponse>
 ): AnthropicUsage => {
   const makeWindow = (
     data: { percent_used: number; reset_at: number | null },
-    limitDesc: string,
+    limitDesc: string
   ): AnthropicUsageWindow => ({
     percentUsed: data.percent_used,
     resetAt: data.reset_at,
@@ -1157,8 +1190,8 @@ const transformUsageResponse = (
                 Math.round(
                   (response.extra_usage.spent_usd /
                     response.extra_usage.limit_usd) *
-                    100,
-                ),
+                    100
+                )
               )
             : 0,
           resetAtRaw: null,
@@ -1198,7 +1231,7 @@ const refreshOAuthToken = () =>
 
     if (exitCode !== 0) {
       const stderr = yield* Effect.promise(() =>
-        new Response(proc.stderr).text(),
+        new Response(proc.stderr).text()
       );
       return yield* new AnthropicUsageError({
         message: `Failed to refresh OAuth token: ${stderr.trim()}`,

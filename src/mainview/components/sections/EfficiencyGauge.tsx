@@ -1,6 +1,5 @@
-import React from "react";
-
 import type { DashboardData } from "@shared/rpc-types";
+import React from "react";
 
 import { LoadingBoundary } from "@/components/shared/LoadingBoundary";
 import { ScoreBar } from "@/components/shared/ScoreBar";

@@ -89,6 +89,8 @@ const App = () => {
       return;
     }
 
+    let cleanup: (() => void) | undefined;
+
     // Dynamically import RPC for desktop mode
     import("./hooks/useRPC").then(({ electroview }) => {
       const themeListener = (payload: unknown) => {
@@ -121,7 +123,7 @@ const App = () => {
       electroview.addMessageListener("themeChanged", themeListener);
       electroview.addMessageListener("fullscreenChanged", fullscreenListener);
       electroview.addMessageListener("usageUpdated", usageListener);
-      return () => {
+      cleanup = () => {
         electroview.removeMessageListener("themeChanged", themeListener);
         electroview.removeMessageListener(
           "fullscreenChanged",
@@ -130,6 +132,8 @@ const App = () => {
         electroview.removeMessageListener("usageUpdated", usageListener);
       };
     });
+
+    return () => cleanup?.();
   }, [isDesktop]);
 
   return <RouterProvider router={router} />;

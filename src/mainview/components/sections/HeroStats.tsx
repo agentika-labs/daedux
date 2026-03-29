@@ -1,6 +1,5 @@
-import React from "react";
-
 import type { DashboardData } from "@shared/rpc-types";
+import React from "react";
 
 import { InfoTooltip } from "@/components/shared/InfoTooltip";
 import { StatCard } from "@/components/shared/StatCard";
@@ -101,9 +100,7 @@ export const HeroStats = React.memo(function HeroStats({
             : "Track your shipped work"
         }
         loading={loading}
-        variant={
-          (efficiencyScore?.prsCreated ?? 0) > 0 ? "success" : "default"
-        }
+        variant={(efficiencyScore?.prsCreated ?? 0) > 0 ? "success" : "default"}
       />
       <StatCard
         label="Cache Savings"

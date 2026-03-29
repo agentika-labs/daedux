@@ -6,7 +6,7 @@
  */
 import { ArrowLeft01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import type { AppSettings } from "@shared/rpc-types";
+import type { AppSettings, OtelSettings } from "@shared/rpc-types";
 import { Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useRef } from "react";
 
@@ -18,6 +18,7 @@ import {
   CardContent,
 } from "@/components/ui/card";
 import { useIsDesktop } from "@/hooks/useApi";
+import { useDragExclusionZones } from "@/hooks/useDragExclusionZones";
 import { rpcRequest } from "@/hooks/useRPC";
 import {
   useSettingsQuery,
@@ -66,54 +67,45 @@ export const SettingsScreen = () => {
     return () => clearTimeout(timer);
   }, []);
 
-  const handleRefreshUsage = async () => {
+  const handleRefreshUsage = useCallback(async () => {
     try {
       await refetchUsage();
     } catch (error) {
       console.error("Failed to refresh usage:", error);
     }
-  };
+  }, [refetchUsage]);
 
-  const handleThemeChange = async (theme: AppSettings["theme"]) => {
-    try {
-      if (isDesktop) {
-        await rpcRequest("updateSettings", { theme });
+  const handleThemeChange = useCallback(
+    async (theme: AppSettings["theme"]) => {
+      try {
+        if (isDesktop) {
+          await rpcRequest("updateSettings", { theme });
+        }
+        updateSettingsMutation.mutate({ theme });
+      } catch (error) {
+        console.error("Failed to update theme:", error);
       }
-      updateSettingsMutation.mutate({ theme });
-    } catch (error) {
-      console.error("Failed to update theme:", error);
-    }
-  };
+    },
+    [isDesktop, updateSettingsMutation]
+  );
 
-  // Calculate button bounds and send to main process for native drag exclusion zones
-  const updateExclusionZones = useCallback(() => {
-    if (!headerRef.current || !isMacOS || !isDesktop) {
-      return;
-    }
-    const buttons = headerRef.current.querySelectorAll(
-      'button, [role="button"], a'
-    );
-    const zones = [...buttons].map((btn) => {
-      const rect = btn.getBoundingClientRect();
-      return { height: rect.height, width: rect.width, x: rect.x, y: rect.y };
-    });
-    rpcRequest("updateDragExclusionZones", { zones }).catch(() => {
-      // Silently ignore errors - drag region is a nice-to-have
-    });
-  }, [isDesktop]);
+  const handleOtelSettingsChange = useCallback(
+    (otelSettings: Partial<OtelSettings>) => {
+      const currentOtel = settings?.otel ?? {
+        enabled: true,
+        retentionDays: 30,
+        roiHourlyDevCost: 50,
+        roiMinutesPerLoc: 3,
+        roiMinutesPerCommit: 15,
+      };
+      const newOtel = { ...currentOtel, ...otelSettings };
+      updateSettingsMutation.mutate({ otel: newOtel });
+    },
+    [settings?.otel, updateSettingsMutation]
+  );
 
-  // Update exclusion zones on mount and resize
-  useEffect(() => {
-    if (!isMacOS || !isDesktop) {
-      return;
-    }
-    const initialTimeout = setTimeout(updateExclusionZones, 100);
-    window.addEventListener("resize", updateExclusionZones);
-    return () => {
-      clearTimeout(initialTimeout);
-      window.removeEventListener("resize", updateExclusionZones);
-    };
-  }, [updateExclusionZones, isDesktop]);
+  // Update macOS drag exclusion zones on mount and resize
+  useDragExclusionZones(headerRef);
 
   return (
     <div className="flex h-full flex-col">
@@ -183,17 +175,7 @@ export const SettingsScreen = () => {
             status={otelStatus ?? null}
             isLoading={isLoadingSettings}
             isStatusLoading={isPendingOtelStatus}
-            onSettingsChange={(otelSettings) => {
-              const currentOtel = settings?.otel ?? {
-                enabled: true,
-                retentionDays: 30,
-                roiHourlyDevCost: 50,
-                roiMinutesPerLoc: 3,
-                roiMinutesPerCommit: 15,
-              };
-              const newOtel = { ...currentOtel, ...otelSettings };
-              updateSettingsMutation.mutate({ otel: newOtel });
-            }}
+            onSettingsChange={handleOtelSettingsChange}
           />
 
           <AboutCard

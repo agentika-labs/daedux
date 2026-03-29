@@ -3,11 +3,10 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { HARNESS_LABELS } from "@shared/rpc-types";
 import type { ColumnDef } from "@tanstack/react-table";
 
+import type { SessionRow } from "@/components/sections/SessionsSection";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatCurrency, formatTokens, cn } from "@/lib/utils";
-
-import type { SessionRow } from "@/components/sections/SessionsSection";
 
 // ─── Helper Components ────────────────────────────────────────────────────────
 
@@ -75,9 +74,7 @@ export const sessionsColumns: ColumnDef<SessionRow>[] = [
   {
     accessorKey: "startTime",
     cell: ({ row }) => (
-      <span className="text-muted-foreground text-sm">
-        {row.original.date}
-      </span>
+      <span className="text-muted-foreground text-sm">{row.original.date}</span>
     ),
     header: ({ column }) => (
       <SortableHeaderCell
@@ -123,9 +120,7 @@ export const sessionsColumns: ColumnDef<SessionRow>[] = [
   {
     accessorKey: "totalTokens",
     cell: ({ row }) => (
-      <span className="text-sm">
-        {formatTokens(row.original.totalTokens)}
-      </span>
+      <span className="text-sm">{formatTokens(row.original.totalTokens)}</span>
     ),
     header: ({ column }) => (
       <SortableHeaderCell

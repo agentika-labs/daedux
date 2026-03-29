@@ -1,4 +1,5 @@
-import { dlopen, FFIType, type Pointer } from "bun:ffi";
+import { dlopen, FFIType } from "bun:ffi";
+import type { Pointer } from "bun:ffi";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 
@@ -48,9 +49,7 @@ export type NativeLib = ReturnType<typeof dlopen<typeof NATIVE_LIB_SYMBOLS>>;
  * Load the native macOS window effects dylib.
  * Returns null if the dylib is not found (e.g., non-macOS or dev builds without the binary).
  */
-export const loadNativeLib = (
-  basePath: string
-): NativeLib | null => {
+export const loadNativeLib = (basePath: string): NativeLib | null => {
   const dylibPath = join(basePath, "libMacWindowEffects.dylib");
 
   if (!existsSync(dylibPath)) {

@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/card";
 import { Progress, ProgressLabel } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
-import { cn } from "@/lib/utils";
+import { cn, formatRelativeTime } from "@/lib/utils";
 
 interface UsageLimitsCardProps {
   usage: AnthropicUsage | null;
@@ -161,6 +161,11 @@ export const UsageLimitsCard = ({
                 <Badge variant="secondary">
                   {formatSubscriptionType(usage.subscription.type)}
                 </Badge>
+                {usage.fetchedAt && (
+                  <span className="text-muted-foreground/60 ml-auto text-xs">
+                    {formatRelativeTime(usage.fetchedAt)}
+                  </span>
+                )}
               </div>
             )}
 

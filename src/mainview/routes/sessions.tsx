@@ -31,10 +31,9 @@ export type SessionsSearch = z.infer<typeof sessionsSearchSchema>;
 
 export const Route = createFileRoute("/sessions")({
   validateSearch: sessionsSearchSchema,
-  loader: async () => {
-    await queryClient.ensureQueryData(
-      dashboardQueryOptions("7d", "claude-code")
-    );
+  loaderDeps: ({ search: { filter, harness } }) => ({ filter, harness }),
+  loader: async ({ deps: { filter, harness } }) => {
+    await queryClient.ensureQueryData(dashboardQueryOptions(filter, harness));
   },
   component: SessionsRoute,
 });

@@ -289,10 +289,7 @@ export class SessionAnalyticsService extends Effect.Service<SessionAnalyticsServ
               // ─── Agent Invocations (Task tool calls) ────────────────────────
               const agentInvocationsResult = await withDateFilter(
                 allConditions,
-                () =>
-                  db
-                    .select({ count: count() })
-                    .from(schema.agentSpawns),
+                () => db.select({ count: count() }).from(schema.agentSpawns),
                 () =>
                   db
                     .select({ count: count() })

@@ -49,7 +49,8 @@ export class AnthropicUsageError extends Schema.TaggedError<AnthropicUsageError>
       "api_error",
       "token_expired",
       "parse_error",
-      "not_supported"
+      "not_supported",
+      "rate_limited"
     ),
     message: Schema.String,
     cause: Schema.optional(Schema.Defect),

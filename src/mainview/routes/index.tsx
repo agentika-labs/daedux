@@ -4,7 +4,6 @@
  * This is the landing page that provides a quick scan of Claude Code usage.
  */
 import { createFileRoute } from "@tanstack/react-router";
-
 import { z } from "zod";
 
 import { OverviewSection } from "@/components/sections/OverviewSection";

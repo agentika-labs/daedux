@@ -78,28 +78,28 @@ export function initializeDatabase(): void {
   // Add columns to sessions if they don't exist (for existing databases)
   try {
     sqlite.exec(
-      `ALTER TABLE sessions ADD COLUMN compactions INTEGER DEFAULT 0`,
+      `ALTER TABLE sessions ADD COLUMN compactions INTEGER DEFAULT 0`
     );
   } catch {
     /* column may already exist */
   }
   try {
     sqlite.exec(
-      `ALTER TABLE sessions ADD COLUMN saved_by_caching REAL DEFAULT 0`,
+      `ALTER TABLE sessions ADD COLUMN saved_by_caching REAL DEFAULT 0`
     );
   } catch {
     /* column may already exist */
   }
   try {
     sqlite.exec(
-      `ALTER TABLE sessions ADD COLUMN total_ephemeral_5m_tokens INTEGER DEFAULT 0`,
+      `ALTER TABLE sessions ADD COLUMN total_ephemeral_5m_tokens INTEGER DEFAULT 0`
     );
   } catch {
     /* column may already exist */
   }
   try {
     sqlite.exec(
-      `ALTER TABLE sessions ADD COLUMN total_ephemeral_1h_tokens INTEGER DEFAULT 0`,
+      `ALTER TABLE sessions ADD COLUMN total_ephemeral_1h_tokens INTEGER DEFAULT 0`
     );
   } catch {
     /* column may already exist */
@@ -111,7 +111,7 @@ export function initializeDatabase(): void {
   }
   try {
     sqlite.exec(
-      `ALTER TABLE sessions ADD COLUMN harness TEXT DEFAULT 'claude-code'`,
+      `ALTER TABLE sessions ADD COLUMN harness TEXT DEFAULT 'claude-code'`
     );
   } catch {
     /* column may already exist */
@@ -140,14 +140,14 @@ export function initializeDatabase(): void {
   // Add ephemeral token columns to queries if they don't exist (for existing databases)
   try {
     sqlite.exec(
-      `ALTER TABLE queries ADD COLUMN ephemeral_5m_tokens INTEGER DEFAULT 0`,
+      `ALTER TABLE queries ADD COLUMN ephemeral_5m_tokens INTEGER DEFAULT 0`
     );
   } catch {
     /* column may already exist */
   }
   try {
     sqlite.exec(
-      `ALTER TABLE queries ADD COLUMN ephemeral_1h_tokens INTEGER DEFAULT 0`,
+      `ALTER TABLE queries ADD COLUMN ephemeral_1h_tokens INTEGER DEFAULT 0`
     );
   } catch {
     /* column may already exist */
@@ -316,104 +316,104 @@ export function initializeDatabase(): void {
 
   // Create indexes for common query patterns
   sqlite.exec(
-    `CREATE INDEX IF NOT EXISTS sessions_project_idx ON sessions(project_path)`,
+    `CREATE INDEX IF NOT EXISTS sessions_project_idx ON sessions(project_path)`
   );
   sqlite.exec(
-    `CREATE INDEX IF NOT EXISTS sessions_start_time_idx ON sessions(start_time)`,
+    `CREATE INDEX IF NOT EXISTS sessions_start_time_idx ON sessions(start_time)`
   );
   sqlite.exec(
-    `CREATE INDEX IF NOT EXISTS sessions_parent_idx ON sessions(parent_session_id)`,
+    `CREATE INDEX IF NOT EXISTS sessions_parent_idx ON sessions(parent_session_id)`
   );
   sqlite.exec(
-    `CREATE INDEX IF NOT EXISTS queries_session_idx ON queries(session_id)`,
+    `CREATE INDEX IF NOT EXISTS queries_session_idx ON queries(session_id)`
   );
   sqlite.exec(
-    `CREATE INDEX IF NOT EXISTS queries_timestamp_idx ON queries(timestamp)`,
+    `CREATE INDEX IF NOT EXISTS queries_timestamp_idx ON queries(timestamp)`
   );
   sqlite.exec(`CREATE INDEX IF NOT EXISTS queries_model_idx ON queries(model)`);
   sqlite.exec(
-    `CREATE INDEX IF NOT EXISTS tool_uses_query_idx ON tool_uses(query_id)`,
+    `CREATE INDEX IF NOT EXISTS tool_uses_query_idx ON tool_uses(query_id)`
   );
   sqlite.exec(
-    `CREATE INDEX IF NOT EXISTS tool_uses_session_idx ON tool_uses(session_id)`,
+    `CREATE INDEX IF NOT EXISTS tool_uses_session_idx ON tool_uses(session_id)`
   );
   sqlite.exec(
-    `CREATE INDEX IF NOT EXISTS tool_uses_tool_name_idx ON tool_uses(tool_name)`,
+    `CREATE INDEX IF NOT EXISTS tool_uses_tool_name_idx ON tool_uses(tool_name)`
   );
   sqlite.exec(
-    `CREATE INDEX IF NOT EXISTS tool_uses_target_path_idx ON tool_uses(target_path)`,
+    `CREATE INDEX IF NOT EXISTS tool_uses_target_path_idx ON tool_uses(target_path)`
   );
   sqlite.exec(
-    `CREATE INDEX IF NOT EXISTS file_ops_session_idx ON file_operations(session_id)`,
+    `CREATE INDEX IF NOT EXISTS file_ops_session_idx ON file_operations(session_id)`
   );
   sqlite.exec(
-    `CREATE INDEX IF NOT EXISTS file_ops_path_idx ON file_operations(file_path)`,
+    `CREATE INDEX IF NOT EXISTS file_ops_path_idx ON file_operations(file_path)`
   );
   sqlite.exec(
-    `CREATE INDEX IF NOT EXISTS hook_events_session_idx ON hook_events(session_id)`,
+    `CREATE INDEX IF NOT EXISTS hook_events_session_idx ON hook_events(session_id)`
   );
   sqlite.exec(
-    `CREATE INDEX IF NOT EXISTS hook_events_type_idx ON hook_events(hook_type)`,
+    `CREATE INDEX IF NOT EXISTS hook_events_type_idx ON hook_events(hook_type)`
   );
 
   // New table indexes
   sqlite.exec(
-    `CREATE INDEX IF NOT EXISTS bash_commands_session_idx ON bash_commands(session_id)`,
+    `CREATE INDEX IF NOT EXISTS bash_commands_session_idx ON bash_commands(session_id)`
   );
   sqlite.exec(
-    `CREATE INDEX IF NOT EXISTS bash_commands_category_idx ON bash_commands(category)`,
+    `CREATE INDEX IF NOT EXISTS bash_commands_category_idx ON bash_commands(category)`
   );
   sqlite.exec(
-    `CREATE INDEX IF NOT EXISTS api_errors_session_idx ON api_errors(session_id)`,
+    `CREATE INDEX IF NOT EXISTS api_errors_session_idx ON api_errors(session_id)`
   );
   sqlite.exec(
-    `CREATE INDEX IF NOT EXISTS api_errors_type_idx ON api_errors(error_type)`,
+    `CREATE INDEX IF NOT EXISTS api_errors_type_idx ON api_errors(error_type)`
   );
   sqlite.exec(
-    `CREATE INDEX IF NOT EXISTS skill_invocations_session_idx ON skill_invocations(session_id)`,
+    `CREATE INDEX IF NOT EXISTS skill_invocations_session_idx ON skill_invocations(session_id)`
   );
   sqlite.exec(
-    `CREATE INDEX IF NOT EXISTS skill_invocations_skill_idx ON skill_invocations(skill_name)`,
+    `CREATE INDEX IF NOT EXISTS skill_invocations_skill_idx ON skill_invocations(skill_name)`
   );
   sqlite.exec(
-    `CREATE INDEX IF NOT EXISTS agent_spawns_session_idx ON agent_spawns(session_id)`,
+    `CREATE INDEX IF NOT EXISTS agent_spawns_session_idx ON agent_spawns(session_id)`
   );
   sqlite.exec(
-    `CREATE INDEX IF NOT EXISTS agent_spawns_type_idx ON agent_spawns(agent_type)`,
+    `CREATE INDEX IF NOT EXISTS agent_spawns_type_idx ON agent_spawns(agent_type)`
   );
   sqlite.exec(
-    `CREATE INDEX IF NOT EXISTS slash_commands_session_idx ON slash_commands(session_id)`,
+    `CREATE INDEX IF NOT EXISTS slash_commands_session_idx ON slash_commands(session_id)`
   );
   sqlite.exec(
-    `CREATE INDEX IF NOT EXISTS slash_commands_command_idx ON slash_commands(command)`,
+    `CREATE INDEX IF NOT EXISTS slash_commands_command_idx ON slash_commands(command)`
   );
   sqlite.exec(
-    `CREATE INDEX IF NOT EXISTS context_usage_session_idx ON context_window_usage(session_id)`,
+    `CREATE INDEX IF NOT EXISTS context_usage_session_idx ON context_window_usage(session_id)`
   );
   sqlite.exec(
-    `CREATE INDEX IF NOT EXISTS context_usage_query_idx ON context_window_usage(query_index)`,
+    `CREATE INDEX IF NOT EXISTS context_usage_query_idx ON context_window_usage(query_index)`
   );
   sqlite.exec(
-    `CREATE INDEX IF NOT EXISTS pr_links_session_idx ON pr_links(session_id)`,
+    `CREATE INDEX IF NOT EXISTS pr_links_session_idx ON pr_links(session_id)`
   );
   sqlite.exec(
-    `CREATE INDEX IF NOT EXISTS pr_links_repo_idx ON pr_links(pr_repository)`,
+    `CREATE INDEX IF NOT EXISTS pr_links_repo_idx ON pr_links(pr_repository)`
   );
 
   // Schedule indexes
   sqlite.exec(
-    `CREATE INDEX IF NOT EXISTS schedule_exec_schedule_idx ON schedule_executions(schedule_id)`,
+    `CREATE INDEX IF NOT EXISTS schedule_exec_schedule_idx ON schedule_executions(schedule_id)`
   );
   sqlite.exec(
-    `CREATE INDEX IF NOT EXISTS schedule_exec_time_idx ON schedule_executions(executed_at)`,
+    `CREATE INDEX IF NOT EXISTS schedule_exec_time_idx ON schedule_executions(executed_at)`
   );
 
   // Harness indexes
   sqlite.exec(
-    `CREATE INDEX IF NOT EXISTS sessions_harness_idx ON sessions(harness)`,
+    `CREATE INDEX IF NOT EXISTS sessions_harness_idx ON sessions(harness)`
   );
   sqlite.exec(
-    `CREATE INDEX IF NOT EXISTS sessions_harness_time_idx ON sessions(harness, start_time)`,
+    `CREATE INDEX IF NOT EXISTS sessions_harness_time_idx ON sessions(harness, start_time)`
   );
 
   // ─── OTEL Tables ────────────────────────────────────────────────────────────
@@ -484,28 +484,28 @@ export function initializeDatabase(): void {
   // Add productivity columns to otel_sessions if they don't exist
   try {
     sqlite.exec(
-      `ALTER TABLE otel_sessions ADD COLUMN commit_count INTEGER DEFAULT 0`,
+      `ALTER TABLE otel_sessions ADD COLUMN commit_count INTEGER DEFAULT 0`
     );
   } catch {
     /* column may already exist */
   }
   try {
     sqlite.exec(
-      `ALTER TABLE otel_sessions ADD COLUMN pr_count INTEGER DEFAULT 0`,
+      `ALTER TABLE otel_sessions ADD COLUMN pr_count INTEGER DEFAULT 0`
     );
   } catch {
     /* column may already exist */
   }
   try {
     sqlite.exec(
-      `ALTER TABLE otel_sessions ADD COLUMN lines_added INTEGER DEFAULT 0`,
+      `ALTER TABLE otel_sessions ADD COLUMN lines_added INTEGER DEFAULT 0`
     );
   } catch {
     /* column may already exist */
   }
   try {
     sqlite.exec(
-      `ALTER TABLE otel_sessions ADD COLUMN lines_removed INTEGER DEFAULT 0`,
+      `ALTER TABLE otel_sessions ADD COLUMN lines_removed INTEGER DEFAULT 0`
     );
   } catch {
     /* column may already exist */
@@ -514,7 +514,7 @@ export function initializeDatabase(): void {
   // Add harness column to otel_sessions for filtering by harness
   try {
     sqlite.exec(
-      `ALTER TABLE otel_sessions ADD COLUMN harness TEXT NOT NULL DEFAULT 'claude-code'`,
+      `ALTER TABLE otel_sessions ADD COLUMN harness TEXT NOT NULL DEFAULT 'claude-code'`
     );
   } catch {
     /* column may already exist */
@@ -522,34 +522,34 @@ export function initializeDatabase(): void {
 
   // OTEL indexes
   sqlite.exec(
-    `CREATE INDEX IF NOT EXISTS otel_sessions_time_idx ON otel_sessions(first_seen_at)`,
+    `CREATE INDEX IF NOT EXISTS otel_sessions_time_idx ON otel_sessions(first_seen_at)`
   );
   sqlite.exec(
-    `CREATE INDEX IF NOT EXISTS otel_sessions_harness_idx ON otel_sessions(harness)`,
+    `CREATE INDEX IF NOT EXISTS otel_sessions_harness_idx ON otel_sessions(harness)`
   );
   sqlite.exec(
-    `CREATE INDEX IF NOT EXISTS otel_sessions_harness_time_idx ON otel_sessions(harness, first_seen_at)`,
+    `CREATE INDEX IF NOT EXISTS otel_sessions_harness_time_idx ON otel_sessions(harness, first_seen_at)`
   );
   sqlite.exec(
-    `CREATE INDEX IF NOT EXISTS otel_metrics_session_idx ON otel_metrics(session_id)`,
+    `CREATE INDEX IF NOT EXISTS otel_metrics_session_idx ON otel_metrics(session_id)`
   );
   sqlite.exec(
-    `CREATE INDEX IF NOT EXISTS otel_metrics_name_idx ON otel_metrics(metric_name)`,
+    `CREATE INDEX IF NOT EXISTS otel_metrics_name_idx ON otel_metrics(metric_name)`
   );
   sqlite.exec(
-    `CREATE INDEX IF NOT EXISTS otel_metrics_time_idx ON otel_metrics(timestamp_ns)`,
+    `CREATE INDEX IF NOT EXISTS otel_metrics_time_idx ON otel_metrics(timestamp_ns)`
   );
   sqlite.exec(
-    `CREATE INDEX IF NOT EXISTS otel_events_session_idx ON otel_events(session_id)`,
+    `CREATE INDEX IF NOT EXISTS otel_events_session_idx ON otel_events(session_id)`
   );
   sqlite.exec(
-    `CREATE INDEX IF NOT EXISTS otel_events_name_idx ON otel_events(event_name)`,
+    `CREATE INDEX IF NOT EXISTS otel_events_name_idx ON otel_events(event_name)`
   );
   sqlite.exec(
-    `CREATE INDEX IF NOT EXISTS otel_events_prompt_idx ON otel_events(prompt_id)`,
+    `CREATE INDEX IF NOT EXISTS otel_events_prompt_idx ON otel_events(prompt_id)`
   );
   sqlite.exec(
-    `CREATE INDEX IF NOT EXISTS otel_events_tool_idx ON otel_events(tool_name)`,
+    `CREATE INDEX IF NOT EXISTS otel_events_tool_idx ON otel_events(tool_name)`
   );
 
   sqlite.close();
