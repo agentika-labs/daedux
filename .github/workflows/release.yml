@@ -128,13 +128,23 @@ jobs:
           VERSION="${{ steps.version.outputs.version }}"
           cd build/stable-macos-arm64
 
+          echo "=== Build directory contents ==="
+          ls -la
+
           # Rename DMG to include version and arch
-          if [ -f "Daedux.dmg" ]; then
-            mv "Daedux.dmg" "daedux-${VERSION}-darwin-arm64.dmg"
+          # Electrobun names it Daedux.dmg (from appFileName for stable builds)
+          DMG_FILE=$(find . -maxdepth 1 -name "*.dmg" | head -1)
+          if [ -n "$DMG_FILE" ]; then
+            mv "$DMG_FILE" "daedux-${VERSION}-darwin-arm64.dmg"
+            echo "Renamed $DMG_FILE -> daedux-${VERSION}-darwin-arm64.dmg"
+          else
+            echo "WARNING: No DMG file found in build output"
           fi
 
-          # Create zip from app bundle
-          zip -r "daedux-${VERSION}-darwin-arm64.zip" "Daedux.app"
+          # Create zip from app bundle (the main one, not self-extractor)
+          if [ -d "Daedux.app" ]; then
+            zip -r "daedux-${VERSION}-darwin-arm64.zip" "Daedux.app"
+          fi
 
       - name: Upload frontend artifact
         uses: actions/upload-artifact@v4
