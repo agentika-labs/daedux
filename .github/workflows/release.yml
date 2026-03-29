@@ -85,28 +85,56 @@ jobs:
           # Update electrobun.config.ts
           sed -i '' "s/version: \".*\"/version: \"$VERSION\"/" electrobun.config.ts
 
+      - name: Install Apple signing certificate
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+        run: |
+          KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
+          KEYCHAIN_PASSWORD=$(openssl rand -base64 32)
+
+          # Create temporary keychain
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+
+          # Import certificate
+          echo "$APPLE_CERTIFICATE" | base64 --decode > $RUNNER_TEMP/certificate.p12
+          security import $RUNNER_TEMP/certificate.p12 \
+            -P "$APPLE_CERTIFICATE_PASSWORD" \
+            -A -t cert -f pkcs12 \
+            -k "$KEYCHAIN_PATH"
+
+          # Allow codesign to access the keychain
+          security set-key-partition-list -S apple-tool:,apple: -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security list-keychains -d user -s "$KEYCHAIN_PATH" login.keychain-db
+
       - name: Build native effects library
         run: bun run build:native-effects
 
       - name: Build frontend
         run: bun run build:frontend
 
-      - name: Build Electrobun production app
+      - name: Build Electrobun production app (codesign + notarize)
+        env:
+          ELECTROBUN_DEVELOPER_ID: ${{ secrets.ELECTROBUN_DEVELOPER_ID }}
+          ELECTROBUN_APPLEID: ${{ secrets.ELECTROBUN_APPLEID }}
+          ELECTROBUN_APPLEIDPASS: ${{ secrets.ELECTROBUN_APPLEIDPASS }}
+          ELECTROBUN_TEAMID: ${{ secrets.ELECTROBUN_TEAMID }}
         run: bun run electrobun build --env=stable
 
-      - name: Create artifacts
+      - name: Rename artifacts
         run: |
           VERSION="${{ steps.version.outputs.version }}"
           cd build/stable-macos-arm64
 
+          # Rename DMG to include version and arch
+          if [ -f "Daedux.dmg" ]; then
+            mv "Daedux.dmg" "daedux-${VERSION}-darwin-arm64.dmg"
+          fi
+
           # Create zip from app bundle
           zip -r "daedux-${VERSION}-darwin-arm64.zip" "Daedux.app"
-
-          # Create DMG
-          hdiutil create -volname "Daedux" \
-            -srcfolder "Daedux.app" \
-            -ov -format UDZO \
-            "daedux-${VERSION}-darwin-arm64.dmg"
 
       - name: Upload frontend artifact
         uses: actions/upload-artifact@v4

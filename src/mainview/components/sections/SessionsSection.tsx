@@ -26,7 +26,8 @@ import { useState, useMemo, useDeferredValue, useCallback } from "react";
 
 import { Section } from "@/components/layout/Section";
 import { SessionDetailSheet } from "@/components/sections/SessionDetailSheet";
-import { sessionsColumns } from "@/components/sections/sessionsColumns";
+import { sessionsColumns } from '@/components/sections/sessionsColumns';
+import type { SessionsTableMeta } from '@/components/sections/sessionsColumns';
 import { SessionsToolbar } from "@/components/sections/SessionsToolbar";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { LoadingBoundary } from "@/components/shared/LoadingBoundary";
@@ -142,6 +143,12 @@ export function SessionsSection({ data, loading }: SessionsSectionProps) {
     setShowSubagents((prev) => !prev);
   }, []);
 
+  // Compute max cost for inline bar visualization in cost column
+  const maxCost = useMemo(
+    () => Math.max(...tableData.map((s) => s.totalCost), 1),
+    [tableData]
+  );
+
   // Clamp pageIndex to valid range when data shrinks (e.g., filter change).
   // This avoids a useEffect → setState → extra render cycle.
   const maxPageIndex = Math.max(
@@ -153,6 +160,8 @@ export function SessionsSection({ data, loading }: SessionsSectionProps) {
       ? { ...pagination, pageIndex: maxPageIndex }
       : pagination;
 
+  const tableMeta: SessionsTableMeta = useMemo(() => ({ maxCost }), [maxCost]);
+
   const table = useReactTable({
     columns: sessionsColumns,
     data: tableData,
@@ -161,6 +170,7 @@ export function SessionsSection({ data, loading }: SessionsSectionProps) {
     getPaginationRowModel: getPaginationRowModel(),
     getSortedRowModel: getSortedRowModel(),
     globalFilterFn,
+    meta: tableMeta,
     onPaginationChange: setPagination,
     onSortingChange: setSorting,
     state: {

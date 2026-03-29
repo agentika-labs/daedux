@@ -22,6 +22,8 @@ export default {
     mac: {
       bundleCEF: false,
       icons: "assets/files/iconsets/daedux-labyrinth-emerald-dark.iconset",
+      codesign: true,
+      notarize: true,
     },
     win: { bundleCEF: false, icon: "icon.ico" },
   },

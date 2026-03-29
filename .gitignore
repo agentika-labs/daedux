@@ -17,6 +17,10 @@ build/
 .env.*
 !.env.example
 
+# Certificates
+*.cer
+*.p12
+
 # TypeScript
 *.tsbuildinfo
 
