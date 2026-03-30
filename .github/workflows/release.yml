@@ -126,25 +126,24 @@ jobs:
       - name: Rename artifacts
         run: |
           VERSION="${{ steps.version.outputs.version }}"
-          cd build/stable-macos-arm64
 
-          echo "=== Build directory contents ==="
+          echo "=== Electrobun artifacts directory ==="
+          ls -la artifacts/
+
+          # Rename artifacts from Electrobun's platform-prefixed names to our convention
+          cd artifacts
+          for f in macos-arm64-*.dmg; do
+            [ -f "$f" ] && mv "$f" "daedux-${VERSION}-darwin-arm64.dmg" && echo "Renamed $f"
+          done
+          for f in macos-arm64-*.tar.zst; do
+            [ -f "$f" ] && mv "$f" "daedux-${VERSION}-darwin-arm64.tar.zst" && echo "Renamed $f"
+          done
+          for f in macos-arm64-*update.json; do
+            [ -f "$f" ] && mv "$f" "macos-arm64-update.json" && echo "Renamed $f"
+          done
+
+          echo "=== Final artifacts ==="
           ls -la
-
-          # Rename DMG to include version and arch
-          # Electrobun names it Daedux.dmg (from appFileName for stable builds)
-          DMG_FILE=$(find . -maxdepth 1 -name "*.dmg" | head -1)
-          if [ -n "$DMG_FILE" ]; then
-            mv "$DMG_FILE" "daedux-${VERSION}-darwin-arm64.dmg"
-            echo "Renamed $DMG_FILE -> daedux-${VERSION}-darwin-arm64.dmg"
-          else
-            echo "WARNING: No DMG file found in build output"
-          fi
-
-          # Create zip from app bundle (the main one, not self-extractor)
-          if [ -d "Daedux.app" ]; then
-            zip -r "daedux-${VERSION}-darwin-arm64.zip" "Daedux.app"
-          fi
 
       - name: Upload frontend artifact
         uses: actions/upload-artifact@v4
@@ -157,11 +156,10 @@ jobs:
         with:
           name: desktop-darwin-arm64
           path: |
-            build/stable-macos-arm64/*.zip
-            build/stable-macos-arm64/*.dmg
-            build/stable-macos-arm64/*-update.json
-            build/stable-macos-arm64/*.tar.zst
-            build/stable-macos-arm64/*.patch
+            artifacts/*.dmg
+            artifacts/*.tar.zst
+            artifacts/*-update.json
+            artifacts/*.patch
 
   publish-npm:
     needs: build-desktop
