@@ -12,12 +12,18 @@ import {
   SheetTitle,
   SheetDescription,
 } from "@/components/ui/sheet";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { getModelBadgeStyle } from "@/lib/model-styles";
 import {
   formatCurrency,
   formatTokens,
   formatDuration,
   shortenPath,
+  middleTruncatePath,
   cn,
 } from "@/lib/utils";
 
@@ -83,17 +89,6 @@ function SessionDetail({ session }: { session: SessionRow }) {
           value={formatCurrency(session.totalCost)}
         />
       </div>
-
-      {/* First Prompt — shown early for chronological flow */}
-      {session.firstPrompt && (
-        <div className="space-y-3">
-          <SectionTitle>First Prompt</SectionTitle>
-          <p className="text-muted-foreground max-h-[200px] overflow-y-auto rounded-lg border border-border bg-muted/30 p-3 font-mono text-xs leading-relaxed whitespace-pre-wrap break-words">
-            {session.firstPrompt.slice(0, 500)}
-            {session.firstPrompt.length > 500 && "..."}
-          </p>
-        </div>
-      )}
 
       {/* Session Info */}
       <div className="space-y-3">
@@ -377,9 +372,15 @@ function FileActivitySection({ session }: { session: SessionRow }) {
             key={`${file.filePath}-${file.tool}-${index}`}
             className="flex items-center justify-between py-1 text-xs"
           >
-            <span className="text-muted-foreground max-w-[300px] truncate font-mono text-[0.65rem]">
-              {file.filePath}
-            </span>
+            <Tooltip>
+              <TooltipTrigger
+                render={<span />}
+                className="text-muted-foreground max-w-[300px] truncate font-mono text-[0.65rem]"
+              >
+                {middleTruncatePath(file.filePath)}
+              </TooltipTrigger>
+              <TooltipContent>{shortenPath(file.filePath)}</TooltipContent>
+            </Tooltip>
             <span
               className={cn(
                 "flex-shrink-0 rounded px-1.5 py-0.5 text-[0.6rem] font-medium",

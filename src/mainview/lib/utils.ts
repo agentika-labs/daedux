@@ -83,6 +83,26 @@ export function shortenPath(path: string): string {
   return decoded;
 }
 
+/**
+ * Middle-truncate a file path for display.
+ * Shows leading segments + filename with "…" in between.
+ * Example: "~/Documents/git/daedux/src/mainview/components/sections/File.tsx"
+ *       → "~/Documents/…/File.tsx"
+ */
+export function middleTruncatePath(path: string, maxSegments = 4): string {
+  const shortened = shortenPath(path);
+  const parts = shortened.split("/").filter(Boolean);
+
+  if (parts.length <= maxSegments) {
+    return shortened;
+  }
+
+  const leading = parts.slice(0, 2);
+  const trailing = parts.slice(-1);
+  const prefix = shortened.startsWith("/") ? "/" : "";
+  return prefix + [...leading, "…", ...trailing].join("/");
+}
+
 // ─── Automation Analytics Helpers ───────────────────────────────────────────
 
 export interface ProductivityRating {
