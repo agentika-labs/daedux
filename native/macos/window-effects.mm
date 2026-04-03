@@ -19,6 +19,10 @@ static NSString *const kElectrobunNativeDragViewIdentifier =
 	return self;
 }
 
+- (BOOL)isFlipped {
+	return YES;
+}
+
 - (BOOL)isOpaque {
 	return NO;
 }
@@ -46,6 +50,11 @@ static NSString *const kElectrobunNativeDragViewIdentifier =
 		}
 	}
 	return self; // Capture for drag (only within our header region)
+}
+
+- (BOOL)acceptsFirstMouse:(NSEvent *)event {
+	(void)event;
+	return YES;
 }
 
 - (void)mouseDown:(NSEvent *)event {
@@ -331,8 +340,12 @@ extern "C" bool setNativeWindowDragRegion(void *windowPtr, double x,
 			return;
 		}
 
-		BOOL flipped = [contentView isFlipped];
-		CGFloat dragY = flipped ? 0.0 : contentView.bounds.size.height - dragHeight;
+		// Frame is in the contentView's coordinate system.
+		// Non-flipped (default): y=0 at bottom → place at top.
+		// Flipped: y=0 at top → place at 0.
+		BOOL cvFlipped = [contentView isFlipped];
+		CGFloat dragY =
+			cvFlipped ? 0.0 : contentView.bounds.size.height - dragHeight;
 		dragY = MAX(0.0, dragY);
 
 		ElectrobunNativeDragView *dragView = findNativeDragView(contentView);
@@ -342,7 +355,11 @@ extern "C" bool setNativeWindowDragRegion(void *windowPtr, double x,
 		}
 
 		[dragView setFrame:NSMakeRect(dragX, dragY, dragWidth, dragHeight)];
-		[dragView setAutoresizingMask:NSViewWidthSizable];
+		// Pin to top: make the bottom margin flexible.
+		// Non-flipped: MinY = bottom. Flipped: MaxY = bottom.
+		NSAutoresizingMaskOptions mask = NSViewWidthSizable;
+		mask |= cvFlipped ? NSViewMaxYMargin : NSViewMinYMargin;
+		[dragView setAutoresizingMask:mask];
 
 		if ([dragView superview] == nil) {
 			[contentView addSubview:dragView
@@ -394,4 +411,54 @@ extern "C" bool setDragExclusionZones(void *windowPtr, double *zones,
 	});
 
 	return success;
+}
+
+extern "C" void debugViewHierarchy(void *windowPtr) {
+	if (windowPtr == nullptr) {
+		return;
+	}
+
+	dispatch_sync(dispatch_get_main_queue(), ^{
+		NSWindow *window = (__bridge NSWindow *)windowPtr;
+		if (![window isKindOfClass:[NSWindow class]]) {
+			return;
+		}
+
+		NSView *contentView = [window contentView];
+		if (contentView == nil) {
+			NSLog(@"[Daedux-Debug] contentView is nil");
+			return;
+		}
+
+		NSLog(@"[Daedux-Debug] ─── View Hierarchy ───");
+		NSLog(@"[Daedux-Debug] contentView: %@ flipped=%d bounds=%@",
+			  [contentView className], [contentView isFlipped],
+			  NSStringFromRect(contentView.bounds));
+
+		NSArray<NSView *> *subviews = [contentView subviews];
+		NSLog(@"[Daedux-Debug] subview count: %lu (back→front order)",
+			  (unsigned long)subviews.count);
+
+		for (NSUInteger i = 0; i < subviews.count; i++) {
+			NSView *sv = subviews[i];
+			NSLog(
+				@"[Daedux-Debug]   [%lu] %@ id=%@ frame=%@ flipped=%d hidden=%d",
+				(unsigned long)i, [sv className],
+				[sv identifier] ?: @"(none)", NSStringFromRect(sv.frame),
+				[sv isFlipped], [sv isHidden]);
+		}
+
+		ElectrobunNativeDragView *dragView = findNativeDragView(contentView);
+		if (dragView) {
+			NSLog(@"[Daedux-Debug] dragView found: frame=%@ bounds=%@ "
+				  @"exclusionZones=%lu superview=%@",
+				  NSStringFromRect(dragView.frame),
+				  NSStringFromRect(dragView.bounds),
+				  (unsigned long)dragView.exclusionZones.count,
+				  [dragView superview] ? @"YES" : @"NO");
+		} else {
+			NSLog(@"[Daedux-Debug] dragView NOT FOUND in hierarchy");
+		}
+		NSLog(@"[Daedux-Debug] ──────────────────────");
+	});
 }

@@ -111,7 +111,7 @@ export const SettingsScreen = () => {
     <div className="flex h-full flex-col">
       <header
         ref={headerRef}
-        className="bg-background desktop:bg-background/60 border-border sticky top-0 z-50 border-b desktop:backdrop-blur"
+        className="bg-background desktop:bg-background/60 border-border sticky top-0 z-50 border-b desktop:backdrop-blur select-none"
       >
         <div className={`px-6 py-3 ${isMacOS && isDesktop ? "pl-24" : ""}`}>
           <div className="flex items-center gap-4">

@@ -16,6 +16,10 @@ const MAC_HEADER_HEIGHT = 60;
 
 /** The FFI symbol signature for the native effects library. */
 const NATIVE_LIB_SYMBOLS = {
+  debugViewHierarchy: {
+    args: [FFIType.ptr],
+    returns: FFIType.void,
+  },
   enableWindowVibrancy: {
     args: [FFIType.ptr],
     returns: FFIType.bool,
@@ -132,12 +136,16 @@ export const applyMacOSWindowEffects = (
     // Re-align after brief delay (window may still be setting up)
     setTimeout(() => {
       alignButtons();
-    }, 120);
+      // Debug: dump the view hierarchy to Console.app / stdout
+      lib.symbols.debugViewHierarchy(window.ptr);
+    }, 500);
 
     // Re-align on resize and detect fullscreen transitions
     let wasFullscreen = false;
     window.on("resize", () => {
       alignButtons();
+      // Re-position drag view in case autoresizing didn't keep up
+      lib.symbols.setNativeWindowDragRegion(window.ptr, 0, MAC_HEADER_HEIGHT);
       const isFs = window.isFullScreen();
       if (isFs !== wasFullscreen) {
         wasFullscreen = isFs;

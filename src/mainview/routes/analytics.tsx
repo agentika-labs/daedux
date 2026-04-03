@@ -14,8 +14,6 @@ import { queryClient } from "@/lib/query-client";
 import { cn } from "@/lib/utils";
 import { dashboardQueryOptions } from "@/queries/dashboard";
 
-// ─── Search Params Schema ────────────────────────────────────────────────────
-
 const analyticsSearchSchema = z.object({
   filter: z
     .enum(["today", "7d", "30d", "all"] as const)
@@ -29,20 +27,14 @@ const analyticsSearchSchema = z.object({
 
 export type AnalyticsSearch = z.infer<typeof analyticsSearchSchema>;
 
-// ─── Route Definition ────────────────────────────────────────────────────────
-
 export const Route = createFileRoute("/analytics")({
   validateSearch: analyticsSearchSchema,
-  loader: async () => {
-    // Prefetch dashboard data with default filters
-    await queryClient.ensureQueryData(
-      dashboardQueryOptions("7d", "claude-code")
-    );
+  loaderDeps: ({ search: { filter, harness } }) => ({ filter, harness }),
+  loader: ({ deps: { filter, harness } }) => {
+    queryClient.prefetchQuery(dashboardQueryOptions(filter, harness));
   },
   component: AnalyticsLayout,
 });
-
-// ─── Sub-Tab Configuration ───────────────────────────────────────────────────
 
 const SUB_TABS = [
   { path: "/analytics/cost", label: "Cost" },
@@ -53,8 +45,6 @@ const SUB_TABS = [
   { path: "/analytics/projects", label: "Projects" },
 ] as const;
 
-// ─── Layout Component ────────────────────────────────────────────────────────
-
 function AnalyticsLayout() {
   const { filter, harness } = Route.useSearch();
 
@@ -64,7 +54,6 @@ function AnalyticsLayout() {
 
   return (
     <div className="flex h-full flex-col">
-      {/* Sub-Tab Navigation */}
       <nav className="border-border bg-muted/30 border-b px-6 py-2">
         <div className="mx-auto flex max-w-7xl items-center gap-1">
           {SUB_TABS.map(({ path, label }) => (
