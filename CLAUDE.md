@@ -7,9 +7,10 @@ Claude Code analytics dashboard with dual-mode architecture (Electrobun desktop 
 ```bash
 # Development
 bun run dev           # CLI server (3456) + Vite frontend (5173)
-bun run dev:app       # Desktop app with HMR
-bun run dev:cli       # CLI server only
-bun run dev:frontend  # Vite frontend only
+bun run dev:desktop   # Desktop app (builds dylib, starts Vite + Electrobun)
+
+# Native
+bun run build:native-effects  # Rebuild macOS dylib (auto-runs in dev:desktop)
 
 # Quality
 bun run typecheck     # TypeScript check
@@ -39,6 +40,26 @@ src/
 ├── cli/           # CLI entry point (@effect/cli)
 └── shared/        # RPC types (frontend-backend contract)
 ```
+
+**Native macOS Layer** (desktop only):
+
+```
+native/macos/window-effects.mm          → Objective-C++ source
+    ↓ compiled by scripts/build-macos-effects.sh
+src/bun/libMacWindowEffects.dylib        → loaded via Bun FFI (dlopen)
+    ↓ called from
+src/bun/native/macos-effects.ts          → FFI bridge (symbols + setup)
+    ↓ exclusion zones sent from renderer via RPC
+src/mainview/hooks/useDragExclusionZones.ts → React hook (getBoundingClientRect → RPC)
+```
+
+View hierarchy inside the NSWindow contentView (back → front):
+
+1. `NSVisualEffectView` — frosted glass vibrancy (behind WebView)
+2. `WKWebView` — Electrobun's renderer (the web content)
+3. `ElectrobunNativeDragView` — transparent 60px overlay at top, captures mouseDown for window drag
+
+The drag view uses `hitTest:` to decide per-click: return `self` to drag the window, or return `nil` to pass the click through to the WebView (for buttons). Exclusion zone rects are sent from the renderer whenever header buttons change position.
 
 **Dual Mode:**
 
@@ -86,6 +107,8 @@ Keep solutions simple. Don't create abstractions for one-time operations.
 | `src/bun/errors.ts`            | Domain error definitions                    |
 | `src/bun/main.ts`              | Effect Layer composition                    |
 | `src/mainview/hooks/useApi.ts` | Environment-aware API client                |
+| `native/macos/window-effects.mm`      | Obj-C++ native effects (vibrancy, drag, traffic lights) |
+| `src/bun/native/macos-effects.ts`     | Bun FFI bridge to the native dylib          |
 
 ## Testing
 
@@ -114,7 +137,13 @@ Tests in `tests/unit/` and `tests/integration/`.
    - Windows: `%APPDATA%/Daedux/daedux.db`
    - Linux: `~/.local/share/daedux/daedux.db`
 
-7. **Path aliases**:
+7. **Native view coordinates (two systems in play)**: `setFrame:` uses the *contentView's* coordinate system (check `[contentView isFlipped]` to determine y-axis direction). The drag view's own `isFlipped` (returns YES) only affects its *internal* coordinates — this makes hitTest/exclusion zones align with `getBoundingClientRect()` (y=0 at top). To pin the drag view to the visual top on resize, the *bottom* margin must be flexible: `NSViewMinYMargin` for non-flipped superviews, `NSViewMaxYMargin` for flipped.
+
+8. **Rebuild dylib after .mm changes**: Run `bun run build:native-effects` (or restart `dev:desktop`). A stale dylib silently uses old native code.
+
+9. **Fullscreen vibrancy**: `behindWindow` blending causes a red artifact in fullscreen (no window behind to sample). Native code auto-switches to `withinWindow` on fullscreen entry and hides the invisible toolbar to prevent header overlap.
+
+10. **Path aliases**:
    - `@/*` → `./src/mainview/*`
    - `@shared/*` → `./src/shared/*`
    - `~/*` → `./src/*`
