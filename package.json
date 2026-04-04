@@ -1,6 +1,6 @@
 {
   "name": "@agentika/daedux",
-  "version": "0.4.2",
+  "version": "0.4.3",
   "description": "Claude Code analytics dashboard",
   "keywords": [
     "anthropic",
