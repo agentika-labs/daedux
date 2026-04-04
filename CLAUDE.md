@@ -100,15 +100,15 @@ Keep solutions simple. Don't create abstractions for one-time operations.
 
 ## Key Files
 
-| File                           | Purpose                                     |
-| ------------------------------ | ------------------------------------------- |
-| `src/shared/rpc-types.ts`      | Frontend-backend contract (source of truth) |
-| `src/bun/db/schema.ts`         | Drizzle database schema                     |
-| `src/bun/errors.ts`            | Domain error definitions                    |
-| `src/bun/main.ts`              | Effect Layer composition                    |
-| `src/mainview/hooks/useApi.ts` | Environment-aware API client                |
-| `native/macos/window-effects.mm`      | Obj-C++ native effects (vibrancy, drag, traffic lights) |
-| `src/bun/native/macos-effects.ts`     | Bun FFI bridge to the native dylib          |
+| File                              | Purpose                                                 |
+| --------------------------------- | ------------------------------------------------------- |
+| `src/shared/rpc-types.ts`         | Frontend-backend contract (source of truth)             |
+| `src/bun/db/schema.ts`            | Drizzle database schema                                 |
+| `src/bun/errors.ts`               | Domain error definitions                                |
+| `src/bun/main.ts`                 | Effect Layer composition                                |
+| `src/mainview/hooks/useApi.ts`    | Environment-aware API client                            |
+| `native/macos/window-effects.mm`  | Obj-C++ native effects (vibrancy, drag, traffic lights) |
+| `src/bun/native/macos-effects.ts` | Bun FFI bridge to the native dylib                      |
 
 ## Testing
 
@@ -137,13 +137,14 @@ Tests in `tests/unit/` and `tests/integration/`.
    - Windows: `%APPDATA%/Daedux/daedux.db`
    - Linux: `~/.local/share/daedux/daedux.db`
 
-7. **Native view coordinates (two systems in play)**: `setFrame:` uses the *contentView's* coordinate system (check `[contentView isFlipped]` to determine y-axis direction). The drag view's own `isFlipped` (returns YES) only affects its *internal* coordinates — this makes hitTest/exclusion zones align with `getBoundingClientRect()` (y=0 at top). To pin the drag view to the visual top on resize, the *bottom* margin must be flexible: `NSViewMinYMargin` for non-flipped superviews, `NSViewMaxYMargin` for flipped.
+7. **Native view coordinates (two systems in play)**: `setFrame:` uses the _contentView's_ coordinate system (check `[contentView isFlipped]` to determine y-axis direction). The drag view's own `isFlipped` (returns YES) only affects its _internal_ coordinates — this makes hitTest/exclusion zones align with `getBoundingClientRect()` (y=0 at top). To pin the drag view to the visual top on resize, the _bottom_ margin must be flexible: `NSViewMinYMargin` for non-flipped superviews, `NSViewMaxYMargin` for flipped.
 
 8. **Rebuild dylib after .mm changes**: Run `bun run build:native-effects` (or restart `dev:desktop`). A stale dylib silently uses old native code.
 
 9. **Fullscreen vibrancy**: `behindWindow` blending causes a red artifact in fullscreen (no window behind to sample). Native code auto-switches to `withinWindow` on fullscreen entry and hides the invisible toolbar to prevent header overlap.
 
 10. **Path aliases**:
-   - `@/*` → `./src/mainview/*`
-   - `@shared/*` → `./src/shared/*`
-   - `~/*` → `./src/*`
+
+- `@/*` → `./src/mainview/*`
+- `@shared/*` → `./src/shared/*`
+- `~/*` → `./src/*`

@@ -18,15 +18,12 @@ import {
   YAxis,
 } from "recharts";
 
-import { Section } from "@/components/layout/Section";
 import { ChartCard } from "@/components/shared/ChartCard";
 import { ChartSkeletonGrid } from "@/components/shared/ChartSkeletonGrid";
 import { EmptyChartState } from "@/components/shared/EmptyChartState";
 import { InfoTooltip } from "@/components/shared/InfoTooltip";
 import { LoadingBoundary } from "@/components/shared/LoadingBoundary";
-import { SectionHeader } from "@/components/shared/SectionHeader";
 import { StatCard } from "@/components/shared/StatCard";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   ChartContainer,
   ChartTooltip,
@@ -114,15 +111,9 @@ export function EfficiencySection({
   const vcsRate = calculateDailyRate(vcsActivityCount, days);
 
   return (
-    <Section id="efficiency">
-      <SectionHeader
-        id="efficiency-header"
-        title="Efficiency Analytics"
-        subtitle="Cache performance and context optimization"
-      />
-
-      {/* Summary Cards */}
-      <div className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-4">
+    <div className="flex flex-col">
+      {/* Summary Cards — sealed metric row */}
+      <div className="border-border grid grid-cols-2 border-b md:grid-cols-4">
         <StatCard
           label="Cache Hit Rate"
           value={formatPercent(data?.totals?.cacheEfficiencyRatio ?? 0)}
@@ -207,8 +198,8 @@ export function EfficiencySection({
         />
       </div>
 
-      {/* Charts */}
-      <div className="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
+      {/* Charts — sealed 2-column grid */}
+      <div className="border-border grid grid-cols-1 border-b lg:grid-cols-2">
         {/* Cache Efficiency Over Time */}
         <ChartCard
           title="Cache Efficiency Curve"
@@ -283,6 +274,7 @@ export function EfficiencySection({
           title="Session Length Distribution"
           subtitle="Number of queries per session"
           loading={loading}
+          className="border-border lg:border-l"
         >
           {sessionLengthBuckets.length > 0 ? (
             <ChartContainer
@@ -320,12 +312,12 @@ export function EfficiencySection({
         </ChartCard>
       </div>
 
-      {/* Compaction Analysis */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle>Context Compaction Analysis</CardTitle>
-        </CardHeader>
-        <CardContent>
+      {/* Compaction Analysis — sealed row */}
+      <div className="border-border border-b px-6 py-4">
+        <span className="text-muted-foreground text-[0.6875rem] font-medium uppercase tracking-widest">
+          Context Compaction Analysis
+        </span>
+        <div className="mt-3">
           <LoadingBoundary
             loading={loading}
             fallback={<ChartSkeletonGrid columns={3} rows={1} />}
@@ -355,9 +347,9 @@ export function EfficiencySection({
               exceeded. Consider breaking large tasks into smaller sessions.
             </p>
           )}
-        </CardContent>
-      </Card>
-    </Section>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -376,8 +368,8 @@ function CompactionStat({
 }) {
   return (
     <div className="text-center">
-      <p className="text-muted-foreground mb-1 text-sm">{label}</p>
-      <p className="text-2xl font-semibold">
+      <p className="text-muted-foreground mb-1 text-[11px]">{label}</p>
+      <p className="font-heading text-2xl font-normal">
         {value}
         {total !== undefined && (
           <span className="text-muted-foreground text-sm font-normal">
@@ -386,7 +378,7 @@ function CompactionStat({
         )}
       </p>
       {description && (
-        <p className="text-muted-foreground mt-1 text-xs">{description}</p>
+        <p className="text-muted-foreground mt-1 text-[11px]">{description}</p>
       )}
     </div>
   );

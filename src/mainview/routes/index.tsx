@@ -71,9 +71,7 @@ function OverviewRoute() {
 
   return (
     <div className="flex-1 overflow-auto">
-      <div className="mx-auto max-w-7xl px-6 py-6">
-        <OverviewSection data={data ?? null} loading={isLoading} />
-      </div>
+      <OverviewSection data={data ?? null} loading={isLoading} />
     </div>
   );
 }

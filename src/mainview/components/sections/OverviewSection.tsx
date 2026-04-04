@@ -1,6 +1,5 @@
 import type { DashboardData } from "@shared/rpc-types";
 
-import { Section } from "@/components/layout/Section";
 import { EfficiencyGauge } from "@/components/sections/EfficiencyGauge";
 import { HeroStats } from "@/components/sections/HeroStats";
 import { InsightsPanel } from "@/components/shared/InsightsPanel";
@@ -17,8 +16,8 @@ export function OverviewSection({
   onNavigateToSection,
 }: OverviewSectionProps) {
   return (
-    <Section id="overview">
-      {/* Hero Stats Row */}
+    <div className="flex flex-col">
+      {/* Hero Stats Row — sealed metric cells */}
       <HeroStats
         totals={data?.totals}
         efficiencyScore={data?.efficiencyScore}
@@ -26,8 +25,8 @@ export function OverviewSection({
         loading={loading}
       />
 
-      {/* Efficiency Score + Insights Row */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+      {/* Efficiency Score + Insights Row — sealed grid */}
+      <div className="border-border grid grid-cols-1 border-b lg:grid-cols-3">
         {/* Efficiency Gauge */}
         <EfficiencyGauge
           efficiencyScore={data?.efficiencyScore}
@@ -39,9 +38,9 @@ export function OverviewSection({
           insights={data?.insights ?? []}
           loading={loading}
           onNavigateToSection={onNavigateToSection}
-          className="lg:col-span-2"
+          className="border-border lg:col-span-2 lg:border-l"
         />
       </div>
-    </Section>
+    </div>
   );
 }

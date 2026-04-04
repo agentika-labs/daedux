@@ -15,13 +15,10 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import type { ConfidenceLevel, DashboardData } from "@shared/rpc-types";
 import { useState } from "react";
 
-import { Section } from "@/components/layout/Section";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { InsightCard } from "@/components/shared/InsightCard";
 import { LoadingBoundary } from "@/components/shared/LoadingBoundary";
-import { SectionHeader } from "@/components/shared/SectionHeader";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Collapsible,
   CollapsibleContent,
@@ -51,13 +48,7 @@ export function ToolsSection({ data, loading }: ToolsSectionProps) {
   const toolHealthReport = data?.toolHealthReportCard;
 
   return (
-    <Section id="tools">
-      <SectionHeader
-        id="tools-header"
-        title="Tool Health"
-        subtitle="Track tool reliability and identify friction points"
-      />
-
+    <div className="flex flex-col">
       {/* Health Headline */}
       {toolHealthReport && (
         <InsightCard
@@ -78,125 +69,113 @@ export function ToolsSection({ data, loading }: ToolsSectionProps) {
       )}
 
       {/* Tool Lists */}
-      <div className="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
+      <div className="border-border grid grid-cols-1 border-b lg:grid-cols-2">
         {/* Reliable Tools */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2">
-              <HugeiconsIcon
-                icon={CheckmarkCircle02Icon}
-                className="text-success h-5 w-5"
-              />
-              Reliable Tools
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <LoadingBoundary loading={loading} skeleton="list">
-              {toolHealthReport?.reliableTools &&
-              toolHealthReport.reliableTools.length > 0 ? (
-                <div className="max-h-[300px] space-y-2 overflow-y-auto pr-3">
-                  {toolHealthReport.reliableTools.map((tool) => (
-                    <div
-                      key={tool.name}
-                      className="bg-success/5 border-success/20 flex items-center justify-between rounded-lg border px-3 py-2"
-                    >
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium">{tool.name}</span>
-                        <span className="text-muted-foreground text-xs">
-                          {tool.totalCalls} calls
-                        </span>
-                        <ConfidenceBadge confidence={tool.confidence} />
-                      </div>
-                      <Badge
-                        variant="outline"
-                        className="bg-success/10 text-success border-success/30"
-                        title={`Wilson lower bound: ${tool.reliabilityScore?.toFixed(1)}%`}
-                      >
-                        {formatPercent(tool.successRate)} success
-                      </Badge>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <EmptyState
-                  title="No reliable tools found"
-                  description="Reliable tools appear after more usage"
-                  icon={CheckmarkCircle02Icon}
-                />
-              )}
-            </LoadingBoundary>
-          </CardContent>
-        </Card>
-
-        {/* Friction Points */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2">
-              <HugeiconsIcon
-                icon={AlertCircleIcon}
-                className="text-destructive h-5 w-5"
-              />
-              Friction Points
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <LoadingBoundary loading={loading} skeleton="list">
-              {toolHealthReport?.frictionPoints &&
-              toolHealthReport.frictionPoints.length > 0 ? (
-                <div className="max-h-[400px] space-y-2 overflow-y-auto pr-3">
-                  {/* Sort by friction score descending (worst first) */}
-                  {[...toolHealthReport.frictionPoints]
-                    .toSorted(
-                      (a, b) =>
-                        (b.frictionScore ?? b.errorRate) -
-                        (a.frictionScore ?? a.errorRate)
-                    )
-                    .map((tool) => (
-                      <FrictionPointCard key={tool.name} tool={tool} />
-                    ))}
-                </div>
-              ) : (
-                <EmptyState
-                  title="All tools working well"
-                  description="No friction points detected"
-                  icon={CheckmarkCircle02Icon}
-                />
-              )}
-            </LoadingBoundary>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Bash Deep Dive */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle>Bash Command Analysis</CardTitle>
-        </CardHeader>
-        <CardContent>
+        <div className="border-border border-b px-6 py-4 lg:border-b-0">
+          <div className="mb-2 flex items-center gap-2 font-semibold">
+            <HugeiconsIcon
+              icon={CheckmarkCircle02Icon}
+              className="text-success h-5 w-5"
+            />
+            Reliable Tools
+          </div>
           <LoadingBoundary loading={loading} skeleton="list">
-            {toolHealthReport?.bashDeepDive &&
-            toolHealthReport.bashDeepDive.length > 0 ? (
-              <div className="space-y-2">
-                {toolHealthReport.bashDeepDive.map((category, index) => (
-                  <BashCategoryAccordion
-                    key={category.category}
-                    category={category}
-                    expanded={bashExpansion.isExpanded(index)}
-                    onToggle={() => bashExpansion.toggle(index)}
-                  />
+            {toolHealthReport?.reliableTools &&
+            toolHealthReport.reliableTools.length > 0 ? (
+              <div className="max-h-[300px] space-y-2 overflow-y-auto pr-3">
+                {toolHealthReport.reliableTools.map((tool) => (
+                  <div
+                    key={tool.name}
+                    className="bg-success/5 border-success/20 flex items-center justify-between rounded-lg border px-3 py-2"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium">{tool.name}</span>
+                      <span className="text-muted-foreground text-xs">
+                        {tool.totalCalls} calls
+                      </span>
+                      <ConfidenceBadge confidence={tool.confidence} />
+                    </div>
+                    <Badge
+                      variant="outline"
+                      className="bg-success/10 text-success border-success/30"
+                      title={`Wilson lower bound: ${tool.reliabilityScore?.toFixed(1)}%`}
+                    >
+                      {formatPercent(tool.successRate)} success
+                    </Badge>
+                  </div>
                 ))}
               </div>
             ) : (
               <EmptyState
-                title="No bash commands"
-                description="Bash commands appear after using Claude Code"
-                icon={CodeIcon}
+                title="No reliable tools found"
+                description="Reliable tools appear after more usage"
+                icon={CheckmarkCircle02Icon}
               />
             )}
           </LoadingBoundary>
-        </CardContent>
-      </Card>
-    </Section>
+        </div>
+
+        {/* Friction Points */}
+        <div className="border-border px-6 py-4 lg:border-l">
+          <div className="mb-2 flex items-center gap-2 font-semibold">
+            <HugeiconsIcon
+              icon={AlertCircleIcon}
+              className="text-destructive h-5 w-5"
+            />
+            Friction Points
+          </div>
+          <LoadingBoundary loading={loading} skeleton="list">
+            {toolHealthReport?.frictionPoints &&
+            toolHealthReport.frictionPoints.length > 0 ? (
+              <div className="max-h-[400px] space-y-2 overflow-y-auto pr-3">
+                {/* Sort by friction score descending (worst first) */}
+                {[...toolHealthReport.frictionPoints]
+                  .toSorted(
+                    (a, b) =>
+                      (b.frictionScore ?? b.errorRate) -
+                      (a.frictionScore ?? a.errorRate)
+                  )
+                  .map((tool) => (
+                    <FrictionPointCard key={tool.name} tool={tool} />
+                  ))}
+              </div>
+            ) : (
+              <EmptyState
+                title="All tools working well"
+                description="No friction points detected"
+                icon={CheckmarkCircle02Icon}
+              />
+            )}
+          </LoadingBoundary>
+        </div>
+      </div>
+
+      {/* Bash Deep Dive */}
+      <div className="border-border border-b px-6 py-4">
+        <div className="mb-2 font-semibold">Bash Command Analysis</div>
+        <LoadingBoundary loading={loading} skeleton="list">
+          {toolHealthReport?.bashDeepDive &&
+          toolHealthReport.bashDeepDive.length > 0 ? (
+            <div className="space-y-2">
+              {toolHealthReport.bashDeepDive.map((category, index) => (
+                <BashCategoryAccordion
+                  key={category.category}
+                  category={category}
+                  expanded={bashExpansion.isExpanded(index)}
+                  onToggle={() => bashExpansion.toggle(index)}
+                />
+              ))}
+            </div>
+          ) : (
+            <EmptyState
+              title="No bash commands"
+              description="Bash commands appear after using Claude Code"
+              icon={CodeIcon}
+            />
+          )}
+        </LoadingBoundary>
+      </div>
+    </div>
   );
 }
 

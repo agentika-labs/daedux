@@ -17,10 +17,8 @@ import type {
 import { useMemo } from "react";
 import { PieChart, Pie, Cell, Legend } from "recharts";
 
-import { Section } from "@/components/layout/Section";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { LoadingBoundary } from "@/components/shared/LoadingBoundary";
-import { SectionHeader } from "@/components/shared/SectionHeader";
 import { Badge } from "@/components/ui/badge";
 import {
   Card,
@@ -62,13 +60,13 @@ interface OtelSectionProps {
 export function OtelSection({ data, loading }: OtelSectionProps) {
   if (!data?.hasData && !loading) {
     return (
-      <Section id="otel">
+      <div className="flex flex-col">
         <EmptyState
           title="No telemetry data"
           description="Claude Code's OpenTelemetry integration isn't configured for this harness. Enable OTEL to track real-time metrics like session duration, tool success rates, and cost breakdown."
           icon={WifiIcon}
         />
-      </Section>
+      </div>
     );
   }
 
@@ -80,18 +78,7 @@ export function OtelSection({ data, loading }: OtelSectionProps) {
   const problemPatterns = data?.problemPatterns;
 
   return (
-    <Section id="otel">
-      <SectionHeader
-        id="otel-header"
-        title="Real-Time Telemetry"
-        subtitle="Live metrics from Claude Code via OpenTelemetry"
-      >
-        <Badge variant="secondary" className="gap-1">
-          <HugeiconsIcon icon={WifiIcon} className="h-3 w-3" />
-          OTEL
-        </Badge>
-      </SectionHeader>
-
+    <div className="flex flex-col">
       <Tabs defaultValue="overview">
         <TabsList variant="line" className="mb-4">
           <TabsTrigger value="overview">Overview</TabsTrigger>
@@ -124,7 +111,7 @@ export function OtelSection({ data, loading }: OtelSectionProps) {
           />
         </TabsContent>
       </Tabs>
-    </Section>
+    </div>
   );
 }
 

@@ -5,14 +5,11 @@ import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Cell } from "recharts";
 // ─── Stable Empty Arrays (prevent useMemo dep changes on rerenders) ──────────
 const EMPTY_PROJECTS: ProjectSummary[] = [];
 
-import { Section } from "@/components/layout/Section";
 import { ChartCard } from "@/components/shared/ChartCard";
 import { EmptyChartState } from "@/components/shared/EmptyChartState";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { LoadingBoundary } from "@/components/shared/LoadingBoundary";
-import { SectionHeader } from "@/components/shared/SectionHeader";
 import { StatCard } from "@/components/shared/StatCard";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   ChartContainer,
   ChartTooltip,
@@ -122,15 +119,9 @@ export function ProjectsSection({ data, loading }: ProjectsSectionProps) {
   );
 
   return (
-    <Section id="projects">
-      <SectionHeader
-        id="projects-header"
-        title="Projects Analytics"
-        subtitle={`${totalProjects} projects tracked`}
-      />
-
-      {/* Summary Cards */}
-      <div className="mb-6 grid grid-cols-3 gap-4">
+    <div className="flex flex-col">
+      {/* Summary Cards — sealed metric row */}
+      <div className="border-border grid grid-cols-3 border-b">
         <StatCard
           label="Total Projects"
           value={formatNumber(totalProjects)}
@@ -167,7 +158,7 @@ export function ProjectsSection({ data, loading }: ProjectsSectionProps) {
       </div>
 
       {/* Project Cost Ranking */}
-      <div className="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
+      <div className="border-border grid grid-cols-1 border-b lg:grid-cols-2">
         <ChartCard
           title="Project Cost Ranking"
           subtitle="Top 10 projects by cost"
@@ -239,69 +230,61 @@ export function ProjectsSection({ data, loading }: ProjectsSectionProps) {
         </ChartCard>
 
         {/* Projects List */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle>All Projects</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <LoadingBoundary loading={loading} skeleton="list" count={4}>
-              {sortedProjects.length > 0 ? (
-                <div className="max-h-[300px] space-y-1 overflow-y-auto">
-                  {sortedProjects.map((project, i) => (
-                    <ProjectRow
-                      key={project.projectPath}
-                      project={project}
-                      rank={i + 1}
-                      smartName={smartNames.get(project.projectPath)!}
-                    />
-                  ))}
-                </div>
-              ) : (
-                <EmptyState
-                  title="No projects yet"
-                  description="Projects appear here after your first Claude Code session."
-                />
-              )}
-            </LoadingBoundary>
-          </CardContent>
-        </Card>
+        <div className="border-border px-6 py-4 lg:border-l">
+          <div className="mb-2 font-semibold">All Projects</div>
+          <LoadingBoundary loading={loading} skeleton="list" count={4}>
+            {sortedProjects.length > 0 ? (
+              <div className="max-h-[300px] space-y-1 overflow-y-auto">
+                {sortedProjects.map((project, i) => (
+                  <ProjectRow
+                    key={project.projectPath}
+                    project={project}
+                    rank={i + 1}
+                    smartName={smartNames.get(project.projectPath)!}
+                  />
+                ))}
+              </div>
+            ) : (
+              <EmptyState
+                title="No projects yet"
+                description="Projects appear here after your first Claude Code session."
+              />
+            )}
+          </LoadingBoundary>
+        </div>
       </div>
 
-      {/* Activity Heatmap placeholder */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle>Recent Activity</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <LoadingBoundary loading={loading} skeleton="chart" height={100}>
-            <div className="grid grid-cols-7 gap-1">
-              {/* Simple activity visualization - last 28 days */}
-              {activityData.map((day) => (
-                <div
-                  key={day.date}
-                  className={cn(
-                    "h-6 rounded-sm",
-                    day.sessions === 0 && "bg-muted",
-                    day.sessions > 0 && day.sessions <= 2 && "bg-chart-2/30",
-                    day.sessions > 2 && day.sessions <= 5 && "bg-chart-2/60",
-                    day.sessions > 5 && "bg-chart-2"
-                  )}
-                  title={`${day.date}: ${day.sessions} sessions`}
-                />
-              ))}
-            </div>
-          </LoadingBoundary>
-          <div className="text-muted-foreground mt-4 flex items-center justify-end gap-2 text-xs">
-            <span>Less</span>
-            <div className="bg-muted h-3 w-3 rounded-sm" />
-            <div className="bg-chart-2/30 h-3 w-3 rounded-sm" />
-            <div className="bg-chart-2/60 h-3 w-3 rounded-sm" />
-            <div className="bg-chart-2 h-3 w-3 rounded-sm" />
-            <span>More</span>
+      {/* Activity Heatmap */}
+      <div className="border-border border-b px-6 py-4">
+        <div className="mb-2 font-semibold">Recent Activity</div>
+        <LoadingBoundary loading={loading} skeleton="chart" height={100}>
+          <div className="grid grid-cols-7 gap-1">
+            {/* Simple activity visualization - last 28 days */}
+            {activityData.map((day) => (
+              <div
+                key={day.date}
+                className={cn(
+                  "h-6 rounded-sm",
+                  day.sessions === 0 && "bg-muted",
+                  day.sessions > 0 && day.sessions <= 2 && "bg-chart-2/30",
+                  day.sessions > 2 && day.sessions <= 5 && "bg-chart-2/60",
+                  day.sessions > 5 && "bg-chart-2"
+                )}
+                title={`${day.date}: ${day.sessions} sessions`}
+              />
+            ))}
           </div>
-        </CardContent>
-      </Card>
-    </Section>
+        </LoadingBoundary>
+        <div className="text-muted-foreground mt-4 flex items-center justify-end gap-2 text-xs">
+          <span>Less</span>
+          <div className="bg-muted h-3 w-3 rounded-sm" />
+          <div className="bg-chart-2/30 h-3 w-3 rounded-sm" />
+          <div className="bg-chart-2/60 h-3 w-3 rounded-sm" />
+          <div className="bg-chart-2 h-3 w-3 rounded-sm" />
+          <span>More</span>
+        </div>
+      </div>
+    </div>
   );
 }
 

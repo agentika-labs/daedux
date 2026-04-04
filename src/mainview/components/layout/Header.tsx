@@ -10,7 +10,6 @@ import { Link, useRouter, useMatches } from "@tanstack/react-router";
 import type { FC, SVGProps } from "react";
 import { useRef, useCallback, useMemo, startTransition } from "react";
 
-import { buttonVariants } from "@/components/ui/button";
 import {
   Tooltip,
   TooltipContent,
@@ -194,7 +193,7 @@ export function Header() {
   return (
     <header
       ref={headerRef}
-      className="bg-background desktop:bg-background/60 border-border sticky top-0 z-50 border-b desktop:backdrop-blur select-none"
+      className="bg-card border-border sticky top-0 z-50 border-b desktop:bg-card/90 desktop:backdrop-blur"
     >
       <div className={cn("px-6 py-3", isMacOS && !isFullscreen && "pl-24")}>
         <div className="flex items-center justify-between">
@@ -211,10 +210,10 @@ export function Header() {
                     includeSearch: false,
                   }}
                   className={cn(
-                    "rounded-lg px-3 py-1.5 text-sm font-medium transition-all duration-200",
+                    "px-3 py-1.5 text-sm font-medium transition-colors",
                     activeTab === path
-                      ? "bg-primary text-primary-foreground nav-pill-active"
-                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                      ? "text-foreground border-b-2 border-foreground"
+                      : "text-muted-foreground hover:text-foreground"
                   )}
                 >
                   {label}
@@ -227,7 +226,7 @@ export function Header() {
           <div className="flex items-center gap-3">
             {/* Harness Filter */}
             <TooltipProvider delay={200}>
-              <div className="bg-muted flex items-center gap-1 rounded-lg p-1">
+              <div className="border-border flex items-center gap-1 border p-1">
                 {HARNESS_OPTIONS.map(({ value, Logo, tooltip, comingSoon }) => (
                   <Tooltip key={value}>
                     <TooltipTrigger
@@ -239,12 +238,12 @@ export function Header() {
                           }
                           aria-disabled={comingSoon || undefined}
                           className={cn(
-                            "rounded-md p-1.5 transition-colors",
+                            "p-1.5 transition-colors",
                             comingSoon
                               ? "cursor-default opacity-30"
                               : harness === value
-                                ? "bg-background shadow-sm cursor-pointer"
-                                : "text-muted-foreground hover:text-foreground cursor-pointer"
+                                ? "bg-[#F5F0EA] dark:bg-[#2a2826] cursor-pointer"
+                                : "text-muted-foreground hover:text-foreground hover:bg-[#F5F0EA] dark:hover:bg-[#252321] cursor-pointer"
                           )}
                         />
                       }
@@ -260,17 +259,17 @@ export function Header() {
             </TooltipProvider>
 
             {/* Date Filter */}
-            <div className="bg-muted flex items-center rounded-lg p-1">
+            <div className="border-border flex items-center border p-1">
               {FILTER_OPTIONS.map(({ value, label }) => (
                 <button
                   type="button"
                   key={value}
                   onClick={() => handleFilterChange(value)}
                   className={cn(
-                    "cursor-pointer rounded-md px-3 py-1 text-sm font-medium transition-colors",
+                    "cursor-pointer px-3 py-1 text-sm font-medium transition-colors",
                     filter === value
-                      ? "bg-background text-foreground shadow-sm"
-                      : "text-muted-foreground hover:text-foreground"
+                      ? "bg-[#F5F0EA] text-foreground dark:bg-[#2a2826]"
+                      : "text-muted-foreground hover:text-foreground hover:bg-[#F5F0EA] dark:hover:bg-[#252321]"
                   )}
                 >
                   {label}
@@ -279,19 +278,14 @@ export function Header() {
             </div>
 
             {/* Settings */}
-            <div className="bg-muted flex items-center rounded-lg p-1">
-              <Link
-                to="/settings"
-                preload="intent"
-                className={cn(
-                  buttonVariants({ variant: "ghost", size: "icon-sm" }),
-                  "rounded-md"
-                )}
-                aria-label="Open settings"
-              >
-                <HugeiconsIcon icon={Settings02Icon} className="h-4 w-4" />
-              </Link>
-            </div>
+            <Link
+              to="/settings"
+              preload="intent"
+              className="text-muted-foreground hover:text-foreground p-1.5 transition-colors"
+              aria-label="Open settings"
+            >
+              <HugeiconsIcon icon={Settings02Icon} className="h-4 w-4" />
+            </Link>
           </div>
         </div>
       </div>

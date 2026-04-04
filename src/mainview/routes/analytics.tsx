@@ -54,8 +54,8 @@ function AnalyticsLayout() {
 
   return (
     <div className="flex h-full flex-col">
-      <nav className="border-border bg-muted/30 border-b px-6 py-2">
-        <div className="mx-auto flex max-w-7xl items-center gap-1">
+      <nav className="border-border border-b px-6 py-2">
+        <div className="flex items-center gap-1">
           {SUB_TABS.map(({ path, label }) => (
             <Link
               key={path}
@@ -63,11 +63,11 @@ function AnalyticsLayout() {
               search={{ filter, harness }}
               activeOptions={{ exact: true }}
               className={cn(
-                "rounded-lg px-3 py-1.5 text-sm font-medium transition-all duration-200",
-                "text-muted-foreground hover:bg-muted hover:text-foreground"
+                "px-3 py-1.5 text-sm font-medium transition-colors",
+                "text-muted-foreground hover:text-foreground"
               )}
               activeProps={{
-                className: "bg-background text-foreground shadow-sm",
+                className: "text-foreground border-b-2 border-foreground",
               }}
             >
               {label}
@@ -78,9 +78,7 @@ function AnalyticsLayout() {
 
       {/* Child Route Content */}
       <div className="flex-1 overflow-auto">
-        <div className="mx-auto max-w-7xl px-6 py-6">
-          <Outlet />
-        </div>
+        <Outlet />
       </div>
     </div>
   );
