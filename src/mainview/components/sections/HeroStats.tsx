@@ -62,7 +62,7 @@ export const HeroStats = React.memo(function HeroStats({
     : `${formatPercent(totals?.cacheEfficiencyRatio ?? 0)} hit rate`;
 
   return (
-    <div className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-5">
+    <div className="border-border grid grid-cols-2 border-b md:grid-cols-3 lg:grid-cols-5">
       <StatCard
         label="API Value"
         value={formatCurrency(totals?.totalCost ?? 0)}

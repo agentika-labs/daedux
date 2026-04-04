@@ -2,7 +2,6 @@ import { BulbIcon } from "@hugeicons/core-free-icons";
 import type { Insight, InsightActionTarget } from "@shared/rpc-types";
 import { useMemo } from "react";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
@@ -48,11 +47,11 @@ export function InsightsPanel({
   );
 
   return (
-    <Card className={cn("card-interactive", className)}>
-      <CardHeader className="pb-2">
-        <CardTitle>Insights</CardTitle>
-      </CardHeader>
-      <CardContent>
+    <div className={cn("flex flex-col px-6 py-4", className)}>
+      <span className="text-muted-foreground shrink-0 text-[0.6875rem] font-medium uppercase tracking-widest">
+        Insights
+      </span>
+      <div className="mt-2 min-h-0 flex-1">
         {loading ? (
           <div className="space-y-3">
             <Skeleton className="h-16 w-full" />
@@ -82,8 +81,8 @@ export function InsightsPanel({
             description="Insights will appear as you use Claude Code and patterns emerge."
           />
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }
 

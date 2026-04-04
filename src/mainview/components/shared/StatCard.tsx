@@ -1,4 +1,3 @@
-import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
@@ -32,25 +31,18 @@ export function StatCard({
 }: StatCardProps) {
   const isHero = size === "hero";
 
-  // Gradient background for hero cards
-  const gradientClass = isHero
-    ? variant === "success"
-      ? "hero-gradient-success"
-      : "hero-gradient-primary"
-    : "";
-
   if (loading) {
     return (
-      <Card
-        size="sm"
-        className={cn("min-h-[100px]", isHero && "min-h-[120px]", className)}
+      <div
+        className={cn(
+          "border-border flex flex-col justify-center gap-2 border-l px-6 py-4 first:border-l-0",
+          className
+        )}
       >
-        <CardContent className={cn("pt-4", isHero && "pt-5")}>
-          <Skeleton className={cn("mb-2 h-4 w-20", isHero && "h-5 w-24")} />
-          <Skeleton className={cn("mb-2 h-8 w-24", isHero && "h-10 w-32")} />
-          <Skeleton className="h-3 w-16" />
-        </CardContent>
-      </Card>
+        <Skeleton className="h-3 w-20" />
+        <Skeleton className={cn("h-7 w-24", isHero && "h-8 w-28")} />
+        <Skeleton className="h-3 w-16" />
+      </div>
     );
   }
 
@@ -62,45 +54,33 @@ export function StatCard({
   }[variant];
 
   return (
-    <Card
-      size="sm"
+    <div
       className={cn(
-        "card-interactive min-h-[100px]",
-        isHero && "min-h-[120px]",
-        gradientClass,
+        "border-border flex flex-col justify-center gap-1 border-l px-6 py-4 first:border-l-0",
         className
       )}
     >
-      <CardContent className={cn("pt-4", isHero && "pt-5")}>
-        <div className="mb-1 flex items-center justify-between">
-          <div className="flex items-center gap-1.5">
-            <p
-              className={cn(
-                "text-muted-foreground text-sm",
-                isHero && "font-medium"
-              )}
-            >
-              {label}
-            </p>
-            {tooltip}
-          </div>
-          {trend && (
-            <TrendBadge value={trend.value} direction={trend.direction} />
-          )}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-1.5">
+          <span className="text-muted-foreground text-[11px]">{label}</span>
+          {tooltip}
         </div>
-        <p
-          className={cn(
-            "stat-value font-bold tracking-tight",
-            isHero ? "text-3xl" : "text-2xl",
-            valueColorClass
-          )}
-        >
-          {value}
-        </p>
-        {subtext && (
-          <p className="text-muted-foreground mt-1 text-xs">{subtext}</p>
+        {trend && (
+          <TrendBadge value={trend.value} direction={trend.direction} />
         )}
-      </CardContent>
-    </Card>
+      </div>
+      <span
+        className={cn(
+          "stat-value font-heading font-normal leading-tight tracking-tight",
+          isHero ? "text-[28px]" : "text-2xl",
+          valueColorClass
+        )}
+      >
+        {value}
+      </span>
+      {subtext && (
+        <span className="text-muted-foreground text-[11px]">{subtext}</span>
+      )}
+    </div>
   );
 }

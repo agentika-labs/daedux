@@ -67,12 +67,8 @@ function SessionsRoute() {
   }, [isDesktop]);
 
   return (
-    <div className="flex h-full flex-col">
-      <div className="flex-1 overflow-auto">
-        <div className="mx-auto max-w-7xl px-6 py-6">
-          <SessionsSection data={data ?? null} loading={isLoading} />
-        </div>
-      </div>
+    <div className="flex h-full flex-col overflow-auto">
+      <SessionsSection data={data ?? null} loading={isLoading} />
     </div>
   );
 }

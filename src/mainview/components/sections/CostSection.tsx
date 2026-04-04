@@ -16,11 +16,9 @@ import {
 } from "recharts";
 
 import { ExpensivePromptsCard } from "@/components/cards/ExpensivePromptsCard";
-import { Section } from "@/components/layout/Section";
 import { ChartCard } from "@/components/shared/ChartCard";
 import { EmptyChartState } from "@/components/shared/EmptyChartState";
 import { LegendItem } from "@/components/shared/LegendItem";
-import { SectionHeader } from "@/components/shared/SectionHeader";
 import { StatCard } from "@/components/shared/StatCard";
 import {
   ChartContainer,
@@ -120,15 +118,9 @@ export function CostSection({ data, loading }: CostSectionProps) {
   );
 
   return (
-    <Section id="cost">
-      <SectionHeader
-        id="cost-header"
-        title="Cost Analytics"
-        subtitle="Track spending patterns and identify optimization opportunities"
-      />
-
-      {/* Summary Cards */}
-      <div className="mb-6 grid grid-cols-3 gap-4">
+    <div className="flex flex-col">
+      {/* Summary Cards — sealed metric row */}
+      <div className="border-border grid grid-cols-3 border-b">
         <StatCard
           label="Total Cost"
           value={formatCurrency(totals?.totalCost ?? 0)}
@@ -146,8 +138,8 @@ export function CostSection({ data, loading }: CostSectionProps) {
         />
       </div>
 
-      {/* Charts Row */}
-      <div className="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
+      {/* Charts Row — sealed 2-column grid */}
+      <div className="border-border grid grid-cols-1 border-b lg:grid-cols-2">
         {/* Daily Cost Trend */}
         <ChartCard
           title="Daily Cost Trend"
@@ -251,6 +243,7 @@ export function CostSection({ data, loading }: CostSectionProps) {
           title="Cost by Model"
           subtitle="Which models are costing the most"
           loading={loading}
+          className="border-border lg:border-l"
         >
           {sortedModelBreakdown.length > 0 ? (
             <ChartContainer
@@ -301,8 +294,8 @@ export function CostSection({ data, loading }: CostSectionProps) {
         </ChartCard>
       </div>
 
-      {/* Token Breakdown */}
-      <div className="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
+      {/* Token Breakdown — sealed 2-column grid */}
+      <div className="border-border grid grid-cols-1 border-b lg:grid-cols-2">
         <ChartCard
           title="Token Breakdown"
           subtitle="Distribution of token types"
@@ -448,8 +441,10 @@ export function CostSection({ data, loading }: CostSectionProps) {
         </ChartCard>
 
         {/* Expensive Prompts */}
-        <ExpensivePromptsCard data={data} loading={loading} />
+        <div className="border-border lg:border-l">
+          <ExpensivePromptsCard data={data} loading={loading} />
+        </div>
       </div>
-    </Section>
+    </div>
   );
 }

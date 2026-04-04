@@ -14,10 +14,8 @@ import type {
 import { useMemo } from "react";
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
 
-import { Section } from "@/components/layout/Section";
 import { InsightCard } from "@/components/shared/InsightCard";
 import { LoadingBoundary } from "@/components/shared/LoadingBoundary";
-import { SectionHeader } from "@/components/shared/SectionHeader";
 import { Badge } from "@/components/ui/badge";
 import {
   Card,
@@ -108,13 +106,7 @@ export function AutomationSection({ data, loading }: AutomationSectionProps) {
   }, [agentROI, skillROI, skillImpact, hookStats]);
 
   return (
-    <Section id="automation">
-      <SectionHeader
-        id="automation-header"
-        title="Automation Analytics"
-        subtitle="Track agents, skills, and hooks efficiency"
-      />
-
+    <div className="flex flex-col">
       {/* Headline Insight */}
       {headline && (
         <InsightCard
@@ -156,7 +148,7 @@ export function AutomationSection({ data, loading }: AutomationSectionProps) {
           <HooksTab hooks={hookStats} loading={loading} />
         </TabsContent>
       </Tabs>
-    </Section>
+    </div>
   );
 }
 

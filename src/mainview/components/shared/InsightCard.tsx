@@ -31,12 +31,7 @@ const iconMap: Record<InsightType, typeof CheckmarkCircle02Icon> = {
   warning: AlertCircleIcon,
 };
 
-const borderAccentMap: Record<InsightType, string> = {
-  info: "insight-border-info",
-  success: "insight-border-success",
-  tip: "insight-border-tip",
-  warning: "insight-border-warning",
-};
+// Border accent map removed — shekel-ui uses flat bordered cells
 
 // Map InsightType to SemanticVariant (they align 1:1)
 function getStyles(type: InsightType) {
@@ -46,7 +41,6 @@ function getStyles(type: InsightType) {
 export function InsightCard({
   headline,
   context,
-  priority = "medium",
   type,
   action,
   dollarImpact,
@@ -58,11 +52,8 @@ export function InsightCard({
   return (
     <div
       className={cn(
-        "flex gap-3 rounded-lg border p-3 transition-all duration-200 hover:shadow-sm",
+        "border-border flex gap-3 border-b p-3 last:border-b-0",
         styles.bg,
-        styles.border,
-        borderAccentMap[type],
-        priority === "high" && "ring-1 ring-current/20",
         className
       )}
       role="article"

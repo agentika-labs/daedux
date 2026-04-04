@@ -1,10 +1,3 @@
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-  CardContent,
-} from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
@@ -26,29 +19,25 @@ export function ChartCard({
   children,
 }: ChartCardProps) {
   return (
-    <Card className={cn("card-interactive overflow-hidden", className)}>
-      <CardHeader className="pb-2">
-        <div className="flex items-start justify-between">
-          <div>
-            <CardTitle>{title}</CardTitle>
-            {subtitle && <CardDescription>{subtitle}</CardDescription>}
-          </div>
-          {annotation && (
-            <span className="text-muted-foreground bg-muted rounded px-2 py-1 text-xs">
-              {annotation}
-            </span>
+    <div className={cn("flex min-h-0 flex-col px-6 py-4", className)}>
+      <div className="flex shrink-0 items-start justify-between">
+        <div>
+          <span className="text-muted-foreground text-[0.6875rem] font-medium uppercase tracking-widest">
+            {title}
+          </span>
+          {subtitle && (
+            <p className="text-muted-foreground mt-0.5 text-xs">{subtitle}</p>
           )}
         </div>
-      </CardHeader>
-      <CardContent>
-        {loading ? (
-          <div className="flex flex-col gap-2">
-            <Skeleton className="h-[200px] w-full" />
-          </div>
-        ) : (
-          children
+        {annotation && (
+          <span className="text-muted-foreground text-[11px]">
+            {annotation}
+          </span>
         )}
-      </CardContent>
-    </Card>
+      </div>
+      <div className="mt-2 min-h-0 flex-1">
+        {loading ? <Skeleton className="h-full w-full" /> : children}
+      </div>
+    </div>
   );
 }
