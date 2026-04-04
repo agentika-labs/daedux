@@ -1,10 +1,12 @@
-import { $ } from "bun";
 import { join } from "node:path";
+
+import { $ } from "bun";
 
 const root = join(import.meta.dir, "..");
 
 // Get latest git tag
-const tag = (await $`git describe --tags --abbrev=0`.text()).trim();
+const result = await $`git describe --tags --abbrev=0`.text();
+const tag = result.trim();
 const version = tag.replace(/^v/, "");
 
 // Update package.json
@@ -23,7 +25,7 @@ const ebPath = join(root, "electrobun.config.ts");
 const ebContent = await Bun.file(ebPath).text();
 const ebUpdated = ebContent.replace(
   /version:\s*"[^"]*"/,
-  `version: "${version}"`,
+  `version: "${version}"`
 );
 await Bun.write(ebPath, ebUpdated);
 
