@@ -143,6 +143,8 @@ Tests in `tests/unit/` and `tests/integration/`.
 
 9. **Fullscreen vibrancy**: `behindWindow` blending causes a red artifact in fullscreen (no window behind to sample). Native code auto-switches to `withinWindow` on fullscreen entry and hides the invisible toolbar to prevent header overlap.
 
+11. **Version sync**: `package.json` and `electrobun.config.ts` versions must match the latest git tag. Run `bun run version:sync` after tagging a release, then commit the result.
+
 10. **Path aliases**:
    - `@/*` → `./src/mainview/*`
    - `@shared/*` → `./src/shared/*`

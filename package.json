@@ -1,6 +1,6 @@
 {
   "name": "@agentika/daedux",
-  "version": "0.1.0",
+  "version": "0.4.2",
   "description": "Claude Code analytics dashboard",
   "keywords": [
     "anthropic",
@@ -42,7 +42,8 @@
     "test:coverage": "bun test --coverage",
     "clean": "rm -rf dist build .electrobun",
     "check": "ultracite check",
-    "fix": "ultracite fix"
+    "fix": "ultracite fix",
+    "version:sync": "bun scripts/sync-version.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.2",
