@@ -247,10 +247,10 @@ describe("parseSessionFile", () => {
       const fileInfo = createFileInfo("multi-model-cache-session.jsonl");
       const result = await runParser(fileInfo);
 
-      // Query 1 (Sonnet): saved = (200*3 - (100*3 + 100*3*0.1)) / 1e6 = 0.00027
-      // Query 2 (Opus):   saved = (200*15 - (100*15 + 100*15*0.1)) / 1e6 = 0.00135
-      // Total saved = 0.00162
-      expect(result!.session.savedByCaching).toBeCloseTo(0.001_62, 8);
+      // Query 1 (Sonnet $3/MTok):   saved = (200*3 - (100*3 + 100*3*0.1)) / 1e6 = 0.00027
+      // Query 2 (Opus 4.6 $5/MTok): saved = (200*5 - (100*5 + 100*5*0.1)) / 1e6 = 0.00045
+      // Total saved = 0.00072
+      expect(result!.session.savedByCaching).toBeCloseTo(0.000_72, 8);
     });
   });
 

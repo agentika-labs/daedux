@@ -107,6 +107,7 @@ export interface SkillImpactComparison {
 export class AgentAnalyticsService extends Effect.Service<AgentAnalyticsService>()(
   "AgentAnalyticsService",
   {
+    accessors: true,
     scoped: Effect.gen(function* () {
       const { db } = yield* DatabaseService;
 
@@ -385,7 +386,7 @@ export class AgentAnalyticsService extends Effect.Service<AgentAnalyticsService>
                 roiScore: efficiencyRankMap.get(skill.skillName) ?? 0,
               }));
             },
-          }),
+          }).pipe(Effect.withSpan("AgentAnalytics.getSkillROI")),
 
         getAgentStats: (dateFilter: DateFilter = {}) =>
           Effect.tryPromise({
@@ -435,7 +436,7 @@ export class AgentAnalyticsService extends Effect.Service<AgentAnalyticsService>
                 errorCount: 0, // Not tracked in current schema
               }));
             },
-          }),
+          }).pipe(Effect.withSpan("AgentAnalytics.getAgentStats")),
 
         getAgentROI: (dateFilter: DateFilter = {}) =>
           Effect.tryPromise({
@@ -673,7 +674,7 @@ export class AgentAnalyticsService extends Effect.Service<AgentAnalyticsService>
 
               return { agents, summary };
             },
-          }),
+          }).pipe(Effect.withSpan("AgentAnalytics.getAgentROI")),
 
         // Agent spawn counts per session for client-side reaggregation
         getSessionAgentCounts: (dateFilter: DateFilter = {}) =>
@@ -716,7 +717,7 @@ export class AgentAnalyticsService extends Effect.Service<AgentAnalyticsService>
               }
               return sessionAgentCounts;
             },
-          }),
+          }).pipe(Effect.withSpan("AgentAnalytics.getSessionAgentCounts")),
 
         getHookStats: (dateFilter: DateFilter = {}) =>
           Effect.tryPromise({
@@ -771,7 +772,7 @@ export class AgentAnalyticsService extends Effect.Service<AgentAnalyticsService>
                 totalExecutions: row.totalExecutions,
               }));
             },
-          }),
+          }).pipe(Effect.withSpan("AgentAnalytics.getHookStats")),
 
         getCommandStats: (dateFilter: DateFilter = {}) =>
           Effect.tryPromise({
@@ -815,7 +816,7 @@ export class AgentAnalyticsService extends Effect.Service<AgentAnalyticsService>
                 avgSessionCost: 0, // Not tracked yet
               }));
             },
-          }),
+          }).pipe(Effect.withSpan("AgentAnalytics.getCommandStats")),
 
         getSkillImpactComparison: (dateFilter: DateFilter = {}) =>
           Effect.tryPromise({
@@ -1015,7 +1016,7 @@ export class AgentAnalyticsService extends Effect.Service<AgentAnalyticsService>
                 withoutSkills: withoutSkillsMetrics,
               };
             },
-          }),
+          }).pipe(Effect.withSpan("AgentAnalytics.getSkillImpactComparison")),
       } as const;
     }),
   }

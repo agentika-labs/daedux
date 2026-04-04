@@ -37,6 +37,7 @@ export interface ModelBreakdown {
 export class ModelAnalyticsService extends Effect.Service<ModelAnalyticsService>()(
   "ModelAnalyticsService",
   {
+    accessors: true,
     scoped: Effect.gen(function* () {
       const { db } = yield* DatabaseService;
 
@@ -167,7 +168,7 @@ export class ModelAnalyticsService extends Effect.Service<ModelAnalyticsService>
 
               return breakdowns.toSorted((a, b) => b.totalCost - a.totalCost);
             },
-          }),
+          }).pipe(Effect.withSpan("ModelAnalytics.getModelBreakdown")),
       } as const;
     }),
   }

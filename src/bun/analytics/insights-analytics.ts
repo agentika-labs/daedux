@@ -112,6 +112,7 @@ export { categorizeErrorsByPattern, FIX_SUGGESTIONS, getFixSuggestions };
 export class InsightsAnalyticsService extends Effect.Service<InsightsAnalyticsService>()(
   "InsightsAnalyticsService",
   {
+    accessors: true,
     scoped: Effect.gen(function* () {
       const { db } = yield* DatabaseService;
 
@@ -606,7 +607,7 @@ export class InsightsAnalyticsService extends Effect.Service<InsightsAnalyticsSe
                 (a, b) => (b.priority ?? 0) - (a.priority ?? 0)
               );
             },
-          }),
+          }).pipe(Effect.withSpan("InsightsAnalytics.generateInsights")),
 
         getEfficiencyScore: (dateFilter: DateFilter = {}) =>
           Effect.tryPromise({
@@ -791,7 +792,7 @@ export class InsightsAnalyticsService extends Effect.Service<InsightsAnalyticsSe
                 trend,
               };
             },
-          }),
+          }).pipe(Effect.withSpan("InsightsAnalytics.getEfficiencyScore")),
 
         getWeeklyComparison: (dateFilter: DateFilter = {}) =>
           Effect.tryPromise({
@@ -1032,7 +1033,7 @@ export class InsightsAnalyticsService extends Effect.Service<InsightsAnalyticsSe
                 thisWeek: thisWeekData,
               };
             },
-          }),
+          }).pipe(Effect.withSpan("InsightsAnalytics.getWeeklyComparison")),
 
         /**
          * Get outcome metrics: VCS activity, PRs created, and PR efficiency.
@@ -1173,7 +1174,7 @@ export class InsightsAnalyticsService extends Effect.Service<InsightsAnalyticsSe
                 vcsActivityCount,
               };
             },
-          }),
+          }).pipe(Effect.withSpan("InsightsAnalytics.getOutcomeMetrics")),
       } as const;
     }),
   }

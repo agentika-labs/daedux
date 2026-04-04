@@ -165,6 +165,7 @@ export interface DashboardStats {
 export class SessionAnalyticsService extends Effect.Service<SessionAnalyticsService>()(
   "SessionAnalyticsService",
   {
+    accessors: true,
     scoped: Effect.gen(function* () {
       const { db } = yield* DatabaseService;
 
@@ -247,7 +248,7 @@ export class SessionAnalyticsService extends Effect.Service<SessionAnalyticsServ
                 uncachedInput: row.uncachedInput ?? 0,
               }));
             },
-          }),
+          }).pipe(Effect.withSpan("SessionAnalytics.getDailyStats")),
 
         getDashboardStats: (dateFilter: DateFilter = {}) =>
           Effect.tryPromise({
@@ -483,7 +484,7 @@ export class SessionAnalyticsService extends Effect.Service<SessionAnalyticsServ
                 },
               };
             },
-          }),
+          }).pipe(Effect.withSpan("SessionAnalytics.getDashboardStats")),
 
         getExtendedTotals: (dateFilter: DateFilter = {}) =>
           Effect.tryPromise({
@@ -728,7 +729,7 @@ export class SessionAnalyticsService extends Effect.Service<SessionAnalyticsServ
                   totalSessions > 0 ? totalAgentSpawns / totalSessions : 0,
               };
             },
-          }),
+          }).pipe(Effect.withSpan("SessionAnalytics.getExtendedTotals")),
 
         getProjectSummaries: (dateFilter: DateFilter = {}) =>
           Effect.tryPromise({
@@ -781,7 +782,7 @@ export class SessionAnalyticsService extends Effect.Service<SessionAnalyticsServ
                 totalQueries: row.totalQueries ?? 0,
               }));
             },
-          }),
+          }).pipe(Effect.withSpan("SessionAnalytics.getProjectSummaries")),
 
         getRecentSessions: (limit: number) =>
           Effect.tryPromise({
@@ -817,7 +818,7 @@ export class SessionAnalyticsService extends Effect.Service<SessionAnalyticsServ
 
               return result;
             },
-          }),
+          }).pipe(Effect.withSpan("SessionAnalytics.getRecentSessions")),
 
         getSessionAgentCounts: (dateFilter: DateFilter = {}) =>
           Effect.tryPromise({
@@ -861,7 +862,7 @@ export class SessionAnalyticsService extends Effect.Service<SessionAnalyticsServ
               }
               return sessionAgentCounts;
             },
-          }),
+          }).pipe(Effect.withSpan("SessionAnalytics.getSessionAgentCounts")),
 
         getSessionPrimaryModels: (dateFilter: DateFilter = {}) =>
           Effect.tryPromise({
@@ -918,7 +919,7 @@ export class SessionAnalyticsService extends Effect.Service<SessionAnalyticsServ
               }
               return sessionModels;
             },
-          }),
+          }).pipe(Effect.withSpan("SessionAnalytics.getSessionPrimaryModels")),
 
         getSessionSummaries: (options: GetSessionSummariesOptions = {}) =>
           Effect.tryPromise({
@@ -979,7 +980,7 @@ export class SessionAnalyticsService extends Effect.Service<SessionAnalyticsServ
 
               return await query;
             },
-          }),
+          }).pipe(Effect.withSpan("SessionAnalytics.getSessionSummaries")),
 
         getTopPrompts: (limit: number, dateFilter: DateFilter = {}) =>
           Effect.tryPromise({
@@ -1082,7 +1083,7 @@ export class SessionAnalyticsService extends Effect.Service<SessionAnalyticsServ
                 totalTokens: row.totalTokens ?? 0,
               }));
             },
-          }),
+          }).pipe(Effect.withSpan("SessionAnalytics.getTopPrompts")),
 
         getTotals: (dateFilter: DateFilter = {}) =>
           Effect.tryPromise({
@@ -1151,7 +1152,7 @@ export class SessionAnalyticsService extends Effect.Service<SessionAnalyticsServ
                 totalToolUses: row?.totalToolUses ?? 0,
               };
             },
-          }),
+          }).pipe(Effect.withSpan("SessionAnalytics.getTotals")),
       } as const;
     }),
   }

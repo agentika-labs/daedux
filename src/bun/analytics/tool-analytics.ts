@@ -229,6 +229,7 @@ async function getBashCategoryHealthInternal(
 export class ToolAnalyticsService extends Effect.Service<ToolAnalyticsService>()(
   "ToolAnalyticsService",
   {
+    accessors: true,
     scoped: Effect.gen(function* () {
       const { db } = yield* DatabaseService;
 
@@ -280,7 +281,7 @@ export class ToolAnalyticsService extends Effect.Service<ToolAnalyticsService>()
                 lastOccurred: row.lastOccurred ?? 0,
               }));
             },
-          }),
+          }).pipe(Effect.withSpan("ToolAnalytics.getApiErrors")),
 
         getBashCategoryHealth: (dateFilter: DateFilter = {}) =>
           Effect.tryPromise({
@@ -295,7 +296,7 @@ export class ToolAnalyticsService extends Effect.Service<ToolAnalyticsService>()
               const allConditions = [...dateConditions, ...harnessConditions];
               return getBashCategoryHealthInternal(db, allConditions);
             },
-          }),
+          }).pipe(Effect.withSpan("ToolAnalytics.getBashCategoryHealth")),
 
         getBashCommandStats: (dateFilter: DateFilter = {}) =>
           Effect.tryPromise({
@@ -357,7 +358,7 @@ export class ToolAnalyticsService extends Effect.Service<ToolAnalyticsService>()
                 };
               });
             },
-          }),
+          }).pipe(Effect.withSpan("ToolAnalytics.getBashCommandStats")),
 
         getSessionToolCounts: (dateFilter: DateFilter = {}) =>
           Effect.tryPromise({
@@ -413,7 +414,7 @@ export class ToolAnalyticsService extends Effect.Service<ToolAnalyticsService>()
               }
               return sessionToolCounts;
             },
-          }),
+          }).pipe(Effect.withSpan("ToolAnalytics.getSessionToolCounts")),
 
         getSessionToolErrorCounts: (dateFilter: DateFilter = {}) =>
           Effect.tryPromise({
@@ -461,7 +462,7 @@ export class ToolAnalyticsService extends Effect.Service<ToolAnalyticsService>()
               }
               return sessionToolErrors;
             },
-          }),
+          }).pipe(Effect.withSpan("ToolAnalytics.getSessionToolErrorCounts")),
 
         getToolHealth: (dateFilter: DateFilter = {}) =>
           Effect.tryPromise({
@@ -522,7 +523,7 @@ export class ToolAnalyticsService extends Effect.Service<ToolAnalyticsService>()
                 totalCalls: row.totalUses,
               }));
             },
-          }),
+          }).pipe(Effect.withSpan("ToolAnalytics.getToolHealth")),
 
         getToolHealthReportCard: (dateFilter: DateFilter = {}) =>
           Effect.tryPromise({
@@ -753,7 +754,7 @@ export class ToolAnalyticsService extends Effect.Service<ToolAnalyticsService>()
                 reliableTools,
               };
             },
-          }),
+          }).pipe(Effect.withSpan("ToolAnalytics.getToolHealthReportCard")),
 
         getToolUsage: (dateFilter: DateFilter = {}) =>
           Effect.tryPromise({
@@ -802,7 +803,7 @@ export class ToolAnalyticsService extends Effect.Service<ToolAnalyticsService>()
                 sessions: row.sessions ?? 0,
               }));
             },
-          }),
+          }).pipe(Effect.withSpan("ToolAnalytics.getToolUsage")),
       } as const;
     }),
   }

@@ -34,6 +34,7 @@ import { ModelAnalyticsService } from "./analytics/model-analytics";
 import { SessionAnalyticsService } from "./analytics/session-analytics";
 import { ToolAnalyticsService } from "./analytics/tool-analytics";
 import { initializeDatabase } from "./db/migrate";
+import { TimeoutError } from "./errors";
 import {
   configureBackgroundScan,
   configureScheduler,
@@ -74,7 +75,7 @@ let isQuitting = false;
 let lastScanAt: string | null = null;
 let scanIntervalId: ReturnType<typeof setInterval> | null = null;
 let schedulerIntervalId: ReturnType<typeof setInterval> | null = null;
-let usageIntervalId: ReturnType<typeof setInterval> | null = null;
+let usageRefreshHandle: { cancel: () => void } | null = null;
 let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
 let isMainViewReady = false;
@@ -142,7 +143,7 @@ const runEffect = <A, E>(
     effect.pipe(
       Effect.timeoutFail({
         duration: Duration.millis(timeoutMs),
-        onTimeout: () => new Error(`Operation timed out after ${timeoutMs}ms`),
+        onTimeout: () => new TimeoutError({ durationMs: timeoutMs }),
       })
     )
   );
@@ -458,7 +459,10 @@ const createMainWindow = () => {
   // a message burst), flush pending messages after a timeout so the app still loads.
   setTimeout(() => {
     if (!isMainViewReady && mainWindow === window) {
-      log.warn("webview", "dom-ready not received within 5s, flushing pending messages");
+      log.warn(
+        "webview",
+        "dom-ready not received within 5s, flushing pending messages"
+      );
       isMainViewReady = true;
       flushPendingWebviewMessages();
     }
@@ -524,12 +528,9 @@ const resetScheduler = (enabled: boolean) => {
   schedulerIntervalId = configureScheduler(enabled, runEffect);
 };
 
-const resetUsageRefresh = (intervalMinutes = 5) => {
-  if (usageIntervalId) {
-    clearInterval(usageIntervalId);
-    usageIntervalId = null;
-  }
-  usageIntervalId = configureUsageRefresh(intervalMinutes, runEffect, () => {
+const resetUsageRefresh = (intervalMinutes = 20) => {
+  usageRefreshHandle?.cancel();
+  usageRefreshHandle = configureUsageRefresh(intervalMinutes, runEffect, () => {
     void updateTrayMenu();
   });
 };
@@ -1258,8 +1259,8 @@ const bootstrap = async () => {
   // Configure background scan
   resetBackgroundScan(settings.scanIntervalMinutes);
 
-  // Configure periodic usage refresh (every 5 minutes)
-  resetUsageRefresh(5);
+  // Configure periodic usage refresh (dynamically adjusts based on retry-after)
+  resetUsageRefresh(20);
 
   // Configure scheduler if enabled
   if (settings.schedulerEnabled) {
@@ -1292,10 +1293,8 @@ process.on("exit", () => {
     schedulerIntervalId = null;
   }
 
-  if (usageIntervalId) {
-    clearInterval(usageIntervalId);
-    usageIntervalId = null;
-  }
+  usageRefreshHandle?.cancel();
+  usageRefreshHandle = null;
 
   if (tray) {
     tray.remove();

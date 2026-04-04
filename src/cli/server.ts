@@ -10,6 +10,7 @@ import type { Layer } from "effect";
 import { FileAnalyticsService } from "../bun/analytics/file-analytics";
 import { SessionAnalyticsService } from "../bun/analytics/session-analytics";
 import { ToolAnalyticsService } from "../bun/analytics/tool-analytics";
+import { TimeoutError } from "../bun/errors";
 import { AppLive } from "../bun/main";
 import { getOtelStatus, getOtelDashboardData } from "../bun/otel/analytics";
 import {
@@ -46,7 +47,7 @@ const runEffect = <A, E>(
     effect.pipe(
       Effect.timeoutFail({
         duration: Duration.millis(timeoutMs),
-        onTimeout: () => new Error(`Operation timed out after ${timeoutMs}ms`),
+        onTimeout: () => new TimeoutError({ durationMs: timeoutMs }),
       })
     )
   );

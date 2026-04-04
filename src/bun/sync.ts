@@ -300,6 +300,7 @@ const getCachedMtimes = (): Effect.Effect<
  * Discovers session files from all registered parsers and stores aggregated data.
  */
 export class SyncService extends Effect.Service<SyncService>()("SyncService", {
+  accessors: true,
   scoped: Effect.gen(function* () {
     const registry = yield* ParserRegistry;
 
@@ -351,20 +352,19 @@ export class SyncService extends Effect.Service<SyncService>()("SyncService", {
               Effect.map(() => {
                 synced++;
               }),
-              Effect.catchAll((error) =>
-                Effect.sync(() => {
-                  if (verbose) {
-                    const cause =
-                      error.cause instanceof Error
-                        ? error.cause.message
-                        : String(error.cause);
-                    console.error(
-                      `Failed to sync: ${fileInfo.filePath} - ${cause}`
-                    );
-                  }
-                  errors++;
-                })
-              )
+              Effect.catchAll((error) => {
+                errors++;
+                if (verbose) {
+                  const cause =
+                    error.cause instanceof Error
+                      ? error.cause.message
+                      : String(error.cause);
+                  return Effect.logWarning(
+                    `Failed to sync: ${fileInfo.filePath} - ${cause}`
+                  );
+                }
+                return Effect.void;
+              })
             );
           }
 
@@ -413,20 +413,19 @@ export class SyncService extends Effect.Service<SyncService>()("SyncService", {
               Effect.map(() => {
                 synced++;
               }),
-              Effect.catchAll((error) =>
-                Effect.sync(() => {
-                  if (verbose) {
-                    const cause =
-                      error.cause instanceof Error
-                        ? error.cause.message
-                        : String(error.cause);
-                    console.error(
-                      `Failed to sync: ${fileInfo.filePath} - ${cause}`
-                    );
-                  }
-                  errors++;
-                })
-              )
+              Effect.catchAll((error) => {
+                errors++;
+                if (verbose) {
+                  const cause =
+                    error.cause instanceof Error
+                      ? error.cause.message
+                      : String(error.cause);
+                  return Effect.logWarning(
+                    `Failed to sync: ${fileInfo.filePath} - ${cause}`
+                  );
+                }
+                return Effect.void;
+              })
             );
           }
 

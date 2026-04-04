@@ -116,6 +116,7 @@ const migrateFromLegacyLocation = (): void => {
 export class DatabaseService extends Effect.Service<DatabaseService>()(
   "DatabaseService",
   {
+    accessors: true,
     scoped: Effect.acquireRelease(
       Effect.sync(() => {
         // Migrate from legacy location if needed
@@ -189,7 +190,10 @@ export const runInTransaction = <A, E>(
     yield* execSql(sqlite, "BEGIN IMMEDIATE");
 
     const result = yield* Effect.catchAll(effect, (error) =>
-      execSql(sqlite, "ROLLBACK").pipe(Effect.flatMap(() => Effect.fail(error)))
+      execSql(sqlite, "ROLLBACK").pipe(
+        Effect.catchAll(() => Effect.void),
+        Effect.andThen(Effect.fail(error))
+      )
     );
 
     yield* execSql(sqlite, "COMMIT");

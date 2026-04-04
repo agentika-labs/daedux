@@ -414,12 +414,16 @@ const commandExists = async (cmd: string): Promise<boolean> => {
  */
 const tryCliUsage = () =>
   Effect.tryPromise({
-    catch: (e) =>
-      new AnthropicUsageError({
+    catch: (e) => {
+      const msg = String(e);
+      const isRateLimited =
+        msg.includes("rate limited") || msg.includes("Rate limit");
+      return new AnthropicUsageError({
         cause: e,
-        message: `CLI probe failed: ${e}`,
-        reason: "api_error",
-      }),
+        message: isRateLimited ? "CLI rate limited" : `CLI probe failed: ${e}`,
+        reason: isRateLimited ? "rate_limited" : "api_error",
+      });
+    },
     try: async () => {
       // Skip CLI probe in test environments to avoid dangling processes
       if (process.env.BUN_TEST === "1" || process.env.NODE_ENV === "test") {
@@ -747,8 +751,17 @@ const cliRetrySchedule = Schedule.intersect(
 
 const tryCliUsageWithRetry = () =>
   tryCliUsage().pipe(
-    Effect.retry(cliRetrySchedule),
-    Effect.catchAll((err) => {
+    // Don't retry rate limits — they won't resolve by retrying
+    Effect.retry({
+      schedule: cliRetrySchedule,
+      while: (err) => err.reason !== "rate_limited",
+    }),
+    Effect.catchTag("AnthropicUsageError", (err) => {
+      // Propagate rate limits so the scheduler can back off
+      if (err.reason === "rate_limited") {
+        log.info("usage", "CLI probe rate limited");
+        return Effect.fail(err);
+      }
       log.info("usage", "CLI probe failed after retries:", err);
       return Effect.succeed(null);
     })
@@ -801,12 +814,19 @@ const tryOAuthAPIWithMethodTracking = (methodRef: Ref.Ref<MethodState>) =>
 
         // If rate limited, propagate the error so fetchUsage can skip CLI
         // (CLI hits the same backend endpoint and will also be rate limited)
-        if (error.message.includes("Rate limit")) {
-          log.info("usage", "Rate limited by Anthropic, skipping CLI fallback");
+        if (
+          error.reason === "rate_limited" ||
+          error.message.includes("Rate limit")
+        ) {
+          log.info(
+            "usage",
+            `Rate limited by Anthropic (retry-after: ${error.retryAfterSeconds ?? "unknown"}s), skipping CLI fallback`
+          );
           return Effect.fail(
             new AnthropicUsageError({
               message: "Rate limited",
               reason: "rate_limited",
+              retryAfterSeconds: error.retryAfterSeconds,
             })
           );
         }
@@ -924,12 +944,16 @@ const tryCliUsageWithMethodTracking = (methodRef: Ref.Ref<MethodState>) =>
 export class AnthropicUsageService extends Effect.Service<AnthropicUsageService>()(
   "AnthropicUsageService",
   {
+    accessors: true,
     scoped: Effect.gen(function* () {
       // State: which method to use (oauth vs cli)
       const methodRef = yield* Ref.make<MethodState>({
         method: "unknown",
         determinedAt: null,
       });
+
+      // State: last retry-after value from a 429 response (for dynamic polling)
+      const retryAfterRef = yield* Ref.make<number | null>(null);
 
       // Core fetch logic that respects method preference
       const fetchUsage = Effect.gen(function* () {
@@ -949,18 +973,29 @@ export class AnthropicUsageService extends Effect.Service<AnthropicUsageService>
             Effect.catchTag("AnthropicUsageError", (err) => {
               if (err.reason === "rate_limited") {
                 // Rate limited — skip CLI fallback (same backend endpoint).
-                // Return credentials-only so the UI shows subscription info.
-                return readKeychainCredentials().pipe(
-                  Effect.map(createCredentialsOnlyUsage),
-                  Effect.catchAll(() =>
-                    Effect.succeed(createUnavailableUsage())
+                // Store retry-after for the scheduler to adjust polling interval.
+                return Ref.set(
+                  retryAfterRef,
+                  err.retryAfterSeconds ?? null
+                ).pipe(
+                  Effect.andThen(
+                    readKeychainCredentials().pipe(
+                      Effect.map(createCredentialsOnlyUsage),
+                      Effect.catchAll(() =>
+                        Effect.succeed(createUnavailableUsage())
+                      )
+                    )
                   )
                 );
               }
               return Effect.succeed(null);
             }),
             Effect.timeout("12 seconds"),
-            Effect.catchAll(() => Effect.succeed(null))
+            Effect.catchAll((err) =>
+              Effect.logDebug("OAuth usage probe failed, falling back to CLI", {
+                error: String(err),
+              }).pipe(Effect.andThen(Effect.succeed(null)))
+            )
           );
           if (result) {
             return result;
@@ -974,10 +1009,32 @@ export class AnthropicUsageService extends Effect.Service<AnthropicUsageService>
 
         // CLI probe fallback
         return yield* tryCliUsageWithMethodTracking(methodRef).pipe(
+          Effect.catchTag("AnthropicUsageError", (err) => {
+            // If CLI detected rate limiting, use a default backoff
+            // since CLI can't provide a retry-after header value
+            if (err.reason === "rate_limited") {
+              const CLI_RATE_LIMIT_BACKOFF_SECONDS = 20 * 60;
+              return Ref.set(
+                retryAfterRef,
+                CLI_RATE_LIMIT_BACKOFF_SECONDS
+              ).pipe(Effect.andThen(Effect.succeed(createUnavailableUsage())));
+            }
+            return Effect.succeed(createUnavailableUsage());
+          }),
           Effect.timeout("15 seconds"),
-          Effect.catchAll(() => Effect.succeed(createUnavailableUsage()))
+          Effect.catchAll((err) =>
+            Effect.logWarning("CLI usage probe failed", {
+              error: String(err),
+            }).pipe(Effect.andThen(Effect.succeed(createUnavailableUsage())))
+          )
         );
-      }).pipe(Effect.catchAll(() => Effect.succeed(createUnavailableUsage())));
+      }).pipe(
+        Effect.catchAll((err) =>
+          Effect.logWarning("Usage fetch failed unexpectedly", {
+            error: String(err),
+          }).pipe(Effect.andThen(Effect.succeed(createUnavailableUsage())))
+        )
+      );
 
       // Cached version with TTL and manual invalidation
       const [cachedFetch, invalidate] = yield* Effect.cachedInvalidateWithTTL(
@@ -989,6 +1046,8 @@ export class AnthropicUsageService extends Effect.Service<AnthropicUsageService>
         getUsage: () => cachedFetch,
         refreshUsage: () => invalidate.pipe(Effect.andThen(cachedFetch)),
         clearCache: () => invalidate,
+        /** Atomically read and clear the last retry-after value (seconds) from a 429 response. */
+        consumeRetryAfterSeconds: () => Ref.getAndSet(retryAfterRef, null),
       } as const;
     }),
   }
@@ -1111,11 +1170,29 @@ const fetchUsageFromAPI = (accessToken: string) =>
     });
 
     if (!response.ok) {
+      // Parse retry-after header before reading body (useful for 429s)
+      const retryAfterHeader = response.headers.get("retry-after");
+      const retryAfterParsed = retryAfterHeader
+        ? Number.parseInt(retryAfterHeader, 10)
+        : undefined;
+      const retryAfterSeconds = Number.isFinite(retryAfterParsed)
+        ? retryAfterParsed
+        : undefined;
+
       // Try to parse error response for better error messages
       const errorResult = yield* Effect.tryPromise({
         catch: () => null,
         try: () => response.json() as Promise<{ error?: { message?: string } }>,
       }).pipe(Effect.catchAll(() => Effect.succeed(null)));
+
+      // Detect 429 explicitly (not just message content)
+      if (response.status === 429) {
+        return yield* new AnthropicUsageError({
+          message: errorResult?.error?.message ?? "Rate limited",
+          reason: "rate_limited",
+          retryAfterSeconds,
+        });
+      }
 
       let errorMessage = `Anthropic API returned status ${response.status}`;
       let reason: "token_expired" | "api_error" | "not_supported" = "api_error";

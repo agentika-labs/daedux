@@ -4,6 +4,10 @@ import { AnthropicUsageService } from "../services/anthropic-usage";
 import { SchedulerService } from "../services/scheduler";
 import { log } from "../utils/log";
 
+/** Callback that runs an Effect against the app's shared ManagedRuntime */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type RunEffectFn = (effect: Effect.Effect<any, any, any>) => Promise<any>;
+
 /**
  * Configure the background session scan interval.
  * Calls the provided `runSync` callback on each tick.
@@ -29,8 +33,7 @@ export const configureBackgroundScan = (
  */
 export const configureScheduler = (
   enabled: boolean,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  runEffectFn: (effect: Effect.Effect<any, any, any>) => Promise<any>
+  runEffectFn: RunEffectFn
 ): ReturnType<typeof setInterval> | null => {
   if (!enabled) {
     log.info("scheduler", "Disabled");
@@ -68,32 +71,73 @@ export const configureScheduler = (
 
 /**
  * Configure periodic refresh of Anthropic usage data.
- * Keeps tray menu usage limits up-to-date without relying on user actions.
+ * Uses dynamic scheduling: respects retry-after from 429 responses
+ * instead of blindly polling at a fixed interval.
  *
  * @param runEffectFn - Callback that runs an Effect with the app's shared runtime.
- * @returns The interval ID.
+ * @returns Handle with cancel() to stop the refresh loop.
  */
 export const configureUsageRefresh = (
-  intervalMinutes: number,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  runEffectFn: (effect: Effect.Effect<any, any, any>) => Promise<any>,
+  defaultIntervalMinutes: number,
+  runEffectFn: RunEffectFn,
   onRefreshed: () => void
-): ReturnType<typeof setInterval> => {
-  log.info("usage", `Starting usage refresh (every ${intervalMinutes}m)`);
+): { cancel: () => void } => {
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
+  let cancelled = false;
 
-  return setInterval(() => {
+  const MIN_INTERVAL_MS = 5 * 60_000; // 5 minutes floor
+  const MAX_INTERVAL_MS = 65 * 60_000; // 65 minutes ceiling
+
+  const scheduleNext = (delayMs: number) => {
+    if (cancelled) {
+      return;
+    }
+    timeoutId = setTimeout(tick, delayMs);
+  };
+
+  const tick = () => {
     void runEffectFn(
       Effect.gen(function* usageRefresh() {
-        const anthropicService = yield* AnthropicUsageService;
-        // refreshUsage bypasses cache, forcing a fresh CLI probe
-        yield* anthropicService.refreshUsage();
+        const service = yield* AnthropicUsageService;
+        yield* service.refreshUsage();
+        return yield* service.consumeRetryAfterSeconds();
       })
     )
-      .then(() => {
+      .then((retryAfter: number | null) => {
         onRefreshed();
+        if (typeof retryAfter === "number" && retryAfter > 0) {
+          const delayMs = Math.min(
+            Math.max((retryAfter + 5) * 1000, MIN_INTERVAL_MS),
+            MAX_INTERVAL_MS
+          );
+          log.info(
+            "usage",
+            `Rate limited, next poll in ${Math.round(delayMs / 60_000)}m (retry-after: ${retryAfter}s)`
+          );
+          scheduleNext(delayMs);
+        } else {
+          scheduleNext(defaultIntervalMinutes * 60_000);
+        }
       })
       .catch((error: unknown) => {
         log.warn("usage", "Refresh failed:", error);
+        scheduleNext(defaultIntervalMinutes * 60_000);
       });
-  }, intervalMinutes * 60_000);
+  };
+
+  log.info(
+    "usage",
+    `Starting usage refresh (every ${defaultIntervalMinutes}m)`
+  );
+  // Immediate first poll
+  scheduleNext(0);
+
+  return {
+    cancel: () => {
+      cancelled = true;
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    },
+  };
 };

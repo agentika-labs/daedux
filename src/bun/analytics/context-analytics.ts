@@ -58,6 +58,7 @@ export interface PeakContextData {
 export class ContextAnalyticsService extends Effect.Service<ContextAnalyticsService>()(
   "ContextAnalyticsService",
   {
+    accessors: true,
     scoped: Effect.gen(function* () {
       const { db } = yield* DatabaseService;
 
@@ -128,7 +129,7 @@ export class ContextAnalyticsService extends Effect.Service<ContextAnalyticsServ
                 sessionCount: row.sessionCount ?? 0,
               }));
             },
-          }),
+          }).pipe(Effect.withSpan("ContextAnalytics.getCacheEfficiencyCurve")),
 
         getCompactionAnalysis: (
           dateFilter: DateFilter = {},
@@ -173,7 +174,7 @@ export class ContextAnalyticsService extends Effect.Service<ContextAnalyticsServ
                 totalSessions: row.totalSessions ?? 0,
               };
             },
-          }),
+          }).pipe(Effect.withSpan("ContextAnalytics.getCompactionAnalysis")),
 
         getContextHeatmap: (
           dateFilter: DateFilter = {},
@@ -270,7 +271,7 @@ export class ContextAnalyticsService extends Effect.Service<ContextAnalyticsServ
 
               return heatmap;
             },
-          }),
+          }).pipe(Effect.withSpan("ContextAnalytics.getContextHeatmap")),
 
         getContextPeakDistribution: (
           dateFilter: DateFilter = {},
@@ -341,7 +342,9 @@ export class ContextAnalyticsService extends Effect.Service<ContextAnalyticsServ
                 sessionId: row.sessionId,
               }));
             },
-          }),
+          }).pipe(
+            Effect.withSpan("ContextAnalytics.getContextPeakDistribution")
+          ),
 
         getContextWindowFill: (
           dateFilter: DateFilter = {},
@@ -439,7 +442,7 @@ export class ContextAnalyticsService extends Effect.Service<ContextAnalyticsServ
                 sessionCount: row.sessionCount ?? 0,
               }));
             },
-          }),
+          }).pipe(Effect.withSpan("ContextAnalytics.getContextWindowFill")),
       } as const;
     }),
   }

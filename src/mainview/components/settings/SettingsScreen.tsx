@@ -86,7 +86,7 @@ export const SettingsScreen = () => {
         console.error("Failed to update theme:", error);
       }
     },
-    [isDesktop, updateSettingsMutation],
+    [isDesktop, updateSettingsMutation]
   );
 
   const handleOtelSettingsChange = useCallback(
@@ -101,7 +101,7 @@ export const SettingsScreen = () => {
       const newOtel = { ...currentOtel, ...otelSettings };
       updateSettingsMutation.mutate({ otel: newOtel });
     },
-    [settings?.otel, updateSettingsMutation],
+    [settings?.otel, updateSettingsMutation]
   );
 
   // Update macOS drag exclusion zones on mount and resize

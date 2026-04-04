@@ -3,7 +3,7 @@ import { Effect, Schema } from "effect";
 
 import { DatabaseService } from "../db";
 import * as schema from "../db/schema";
-import { DatabaseError } from "../errors";
+import { DatabaseError, SchedulerError } from "../errors";
 
 // ─── CLI Response Schemas ───────────────────────────────────────────────────
 
@@ -20,24 +20,6 @@ const ClaudeAuthStatusResponse = Schema.Struct({
   orgName: Schema.optional(Schema.NullOr(Schema.String)),
   subscriptionType: Schema.optional(Schema.String),
 });
-
-// ─── Error Types ─────────────────────────────────────────────────────────────
-
-/** Scheduler operation failed */
-export class SchedulerError extends Error {
-  readonly _tag = "SchedulerError";
-  constructor(
-    readonly operation: string,
-    readonly cause: unknown
-  ) {
-    super(`Scheduler operation failed: ${operation}`);
-  }
-}
-
-/** Auth check failed or not logged in */
-export class AuthError extends Error {
-  readonly _tag = "AuthError";
-}
 
 // ─── Domain Types ────────────────────────────────────────────────────────────
 
@@ -157,6 +139,7 @@ export const parseDaysOfWeek = (daysJson: string): number[] => {
 export class SchedulerService extends Effect.Service<SchedulerService>()(
   "SchedulerService",
   {
+    accessors: true,
     scoped: Effect.gen(function* () {
       const { db } = yield* DatabaseService;
 
@@ -220,7 +203,8 @@ export class SchedulerService extends Effect.Service<SchedulerService>()(
         SchedulerError
       > =>
         Effect.tryPromise({
-          catch: (cause) => new SchedulerError("executeWarmup", cause),
+          catch: (cause) =>
+            new SchedulerError({ operation: "executeWarmup", cause }),
           try: async () => {
             const startTime = Date.now();
 
@@ -298,7 +282,10 @@ export class SchedulerService extends Effect.Service<SchedulerService>()(
 
             const exitCode = yield* Effect.tryPromise({
               catch: (cause) =>
-                new SchedulerError("checkAuthStatus:spawn", cause),
+                new SchedulerError({
+                  operation: "checkAuthStatus:spawn",
+                  cause,
+                }),
               try: () => proc.exited,
             });
 
@@ -308,7 +295,10 @@ export class SchedulerService extends Effect.Service<SchedulerService>()(
 
             const stdout = yield* Effect.tryPromise({
               catch: (cause) =>
-                new SchedulerError("checkAuthStatus:readStdout", cause),
+                new SchedulerError({
+                  operation: "checkAuthStatus:readStdout",
+                  cause,
+                }),
               try: () => new Response(proc.stdout).text(),
             });
 

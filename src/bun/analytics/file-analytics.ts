@@ -41,6 +41,7 @@ export interface SessionFileOperation {
 export class FileAnalyticsService extends Effect.Service<FileAnalyticsService>()(
   "FileAnalyticsService",
   {
+    accessors: true,
     scoped: Effect.gen(function* () {
       const { db } = yield* DatabaseService;
 
@@ -118,7 +119,7 @@ export class FileAnalyticsService extends Effect.Service<FileAnalyticsService>()
                 writes: row.writes ?? 0,
               }));
             },
-          }),
+          }).pipe(Effect.withSpan("FileAnalytics.getFileActivity")),
 
         getFileExtensions: (dateFilter: DateFilter = {}) =>
           Effect.tryPromise({
@@ -171,7 +172,7 @@ export class FileAnalyticsService extends Effect.Service<FileAnalyticsService>()
                 percentage: total > 0 ? (row.count / total) * 100 : 0,
               }));
             },
-          }),
+          }).pipe(Effect.withSpan("FileAnalytics.getFileExtensions")),
 
         getSessionFileOperations: (dateFilter: DateFilter = {}) =>
           Effect.tryPromise({
@@ -241,7 +242,7 @@ export class FileAnalyticsService extends Effect.Service<FileAnalyticsService>()
               }
               return sessionMap;
             },
-          }),
+          }).pipe(Effect.withSpan("FileAnalytics.getSessionFileOperations")),
       } as const;
     }),
   }

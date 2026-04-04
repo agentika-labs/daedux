@@ -54,6 +54,7 @@ export class AnthropicUsageError extends Schema.TaggedError<AnthropicUsageError>
     ),
     message: Schema.String,
     cause: Schema.optional(Schema.Defect),
+    retryAfterSeconds: Schema.optional(Schema.Number),
   }
 ) {}
 
@@ -63,5 +64,28 @@ export class OtelStorageError extends Schema.TaggedError<OtelStorageError>()(
   {
     operation: Schema.String,
     cause: Schema.Defect,
+  }
+) {}
+
+/** Scheduler operation failed */
+export class SchedulerError extends Schema.TaggedError<SchedulerError>()(
+  "SchedulerError",
+  {
+    operation: Schema.String,
+    cause: Schema.Defect,
+  }
+) {}
+
+/** Auth check failed or not logged in */
+export class AuthError extends Schema.TaggedError<AuthError>()(
+  "AuthError",
+  {}
+) {}
+
+/** Effect operation timed out */
+export class TimeoutError extends Schema.TaggedError<TimeoutError>()(
+  "TimeoutError",
+  {
+    durationMs: Schema.Number,
   }
 ) {}
