@@ -454,6 +454,16 @@ const createMainWindow = () => {
     });
   }
 
+  // Fallback: if dom-ready is lost (e.g. FFI bridge garbles the event during
+  // a message burst), flush pending messages after a timeout so the app still loads.
+  setTimeout(() => {
+    if (!isMainViewReady && mainWindow === window) {
+      log.warn("webview", "dom-ready not received within 5s, flushing pending messages");
+      isMainViewReady = true;
+      flushPendingWebviewMessages();
+    }
+  }, 5000);
+
   window.on("close", () => {
     if (mainWindow === window) {
       mainWindow = null;
