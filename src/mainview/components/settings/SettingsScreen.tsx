@@ -86,7 +86,7 @@ export const SettingsScreen = () => {
         console.error("Failed to update theme:", error);
       }
     },
-    [isDesktop, updateSettingsMutation]
+    [isDesktop, updateSettingsMutation],
   );
 
   const handleOtelSettingsChange = useCallback(
@@ -101,7 +101,7 @@ export const SettingsScreen = () => {
       const newOtel = { ...currentOtel, ...otelSettings };
       updateSettingsMutation.mutate({ otel: newOtel });
     },
-    [settings?.otel, updateSettingsMutation]
+    [settings?.otel, updateSettingsMutation],
   );
 
   // Update macOS drag exclusion zones on mount and resize
@@ -135,15 +135,6 @@ export const SettingsScreen = () => {
 
       <main className="flex-1 overflow-auto">
         <div className="mx-auto max-w-3xl space-y-6 px-6 py-6">
-          {isDesktop && (
-            <UsageLimitsCard
-              usage={usage ?? null}
-              isLoading={isPendingUsage}
-              onRefresh={handleRefreshUsage}
-              isRefreshing={isRefreshingUsage}
-            />
-          )}
-
           <Card>
             <CardHeader>
               <CardTitle>Appearance</CardTitle>
@@ -165,6 +156,15 @@ export const SettingsScreen = () => {
               </div>
             </CardContent>
           </Card>
+
+          {isDesktop && (
+            <UsageLimitsCard
+              usage={usage ?? null}
+              isLoading={isPendingUsage}
+              onRefresh={handleRefreshUsage}
+              isRefreshing={isRefreshingUsage}
+            />
+          )}
 
           <ScheduleSettings />
 

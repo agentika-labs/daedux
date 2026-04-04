@@ -295,11 +295,6 @@ export const ScheduleSettings = () => {
                     </Badge>
                   )}
                 </div>
-                {authStatus?.loggedIn && authStatus.email && (
-                  <p className="text-muted-foreground truncate text-xs">
-                    {authStatus.email}
-                  </p>
-                )}
               </div>
 
               {!authStatus?.loggedIn && (
