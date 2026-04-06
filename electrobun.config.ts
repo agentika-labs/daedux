@@ -4,7 +4,7 @@ export default {
   app: {
     identifier: "com.daedux.app",
     name: "Daedux",
-    version: "0.4.3",
+    version: "0.4.4",
   },
   build: {
     bun: {
@@ -31,7 +31,8 @@ export default {
     postBuild: "./scripts/post-build.ts",
   },
   release: {
-    baseUrl: "https://github.com/agentika-labs/daedux/releases/latest/download/",
+    baseUrl:
+      "https://github.com/agentika-labs/daedux/releases/latest/download/",
   },
   runtime: {
     exitOnLastWindowClosed: false,
