@@ -4,6 +4,7 @@ import { Effect, Schema } from "effect";
 import { DatabaseService } from "../db";
 import * as schema from "../db/schema";
 import { DatabaseError, SchedulerError } from "../errors";
+import { getCliSpawnEnv } from "../utils/path";
 
 // ─── CLI Response Schemas ───────────────────────────────────────────────────
 
@@ -209,7 +210,7 @@ export class SchedulerService extends Effect.Service<SchedulerService>()(
             const startTime = Date.now();
 
             const proc = Bun.spawn(WARMUP_COMMAND, {
-              env: { ...process.env, CLAUDECODE: "" },
+              env: getCliSpawnEnv(),
               stderr: "pipe",
               stdout: "pipe",
             });
@@ -248,7 +249,7 @@ export class SchedulerService extends Effect.Service<SchedulerService>()(
       const checkAuth = (): Effect.Effect<{ loggedIn: boolean }, never> =>
         Effect.gen(function* checkAuth() {
           const proc = Bun.spawn(["claude", "auth", "status", "--json"], {
-            env: { ...process.env, CLAUDECODE: "" },
+            env: getCliSpawnEnv(),
             stderr: "pipe",
             stdout: "pipe",
           });
@@ -275,7 +276,7 @@ export class SchedulerService extends Effect.Service<SchedulerService>()(
         checkAuthStatus: () =>
           Effect.gen(function* checkAuthStatus() {
             const proc = Bun.spawn(["claude", "auth", "status", "--json"], {
-              env: { ...process.env, CLAUDECODE: "" },
+              env: getCliSpawnEnv(),
               stderr: "pipe",
               stdout: "pipe",
             });

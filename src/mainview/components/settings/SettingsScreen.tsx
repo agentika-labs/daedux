@@ -8,7 +8,7 @@ import { ArrowLeft01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import type { AppSettings, OtelSettings } from "@shared/rpc-types";
 import { Link } from "@tanstack/react-router";
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
   Card,
@@ -50,9 +50,11 @@ export const SettingsScreen = () => {
   const {
     data: usage,
     refetch: refetchUsage,
-    isFetching: isRefreshingUsage,
     isPending: isPendingUsage,
   } = useAnthropicUsageQuery();
+
+  // Track manual refresh separately from background fetches
+  const [isManuallyRefreshing, setIsManuallyRefreshing] = useState(false);
   const { data: otelStatus, isPending: isPendingOtelStatus } =
     useOtelStatusQuery();
 
@@ -68,10 +70,13 @@ export const SettingsScreen = () => {
   }, []);
 
   const handleRefreshUsage = useCallback(async () => {
+    setIsManuallyRefreshing(true);
     try {
       await refetchUsage();
     } catch (error) {
       console.error("Failed to refresh usage:", error);
+    } finally {
+      setIsManuallyRefreshing(false);
     }
   }, [refetchUsage]);
 
@@ -162,7 +167,7 @@ export const SettingsScreen = () => {
               usage={usage ?? null}
               isLoading={isPendingUsage}
               onRefresh={handleRefreshUsage}
-              isRefreshing={isRefreshingUsage}
+              isRefreshing={isManuallyRefreshing}
             />
           )}
 

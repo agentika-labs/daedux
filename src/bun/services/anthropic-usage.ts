@@ -10,6 +10,7 @@ import type {
 import { AnthropicUsageError } from "../errors";
 import { stripAnsi } from "../utils/ansi";
 import { debugLog, log } from "../utils/log";
+import { getCliSpawnEnv } from "../utils/path";
 
 // Tracks which method (OAuth API vs CLI) is currently working.
 // This avoids wasting requests on OAuth when it consistently fails.
@@ -507,7 +508,7 @@ const tryCliUsage = () =>
         // that would otherwise block the REPL from starting in the sandbox.
         const proc = Bun.spawn(["claude", "--dangerously-skip-permissions"], {
           cwd: sandboxDir, // Sandboxed directory prevents project .mcp.json discovery
-          env: { ...process.env, CLAUDECODE: "" },
+          env: getCliSpawnEnv(),
           terminal: {
             cols: 120,
             rows: 40,
@@ -1304,7 +1305,7 @@ const refreshOAuthToken = () =>
   Effect.gen(function* refreshOAuthToken() {
     // Run auth status which should trigger token refresh if needed
     const proc = Bun.spawn(["claude", "auth", "status"], {
-      env: { ...process.env, CLAUDECODE: "" },
+      env: getCliSpawnEnv(),
       stderr: "pipe",
       stdout: "pipe", // Avoid nested session check
     });
