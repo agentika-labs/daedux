@@ -2,6 +2,31 @@
   "$schema": "./node_modules/oxlint/configuration_schema.json",
   "plugins": ["typescript", "react"],
   "rules": {
+    "typescript/tsconfig-error": "off",
+    "no-deprecated": "warn",
+    "strict-boolean-expressions": "warn",
+    "no-confusing-void-expression": "warn",
+    "promise-function-async": "warn",
+    "no-unsafe-type-assertion": "warn",
+    "prefer-nullish-coalescing": "warn",
+    "no-floating-promises": "warn",
+    "no-unsafe-assignment": "warn",
+    "no-unsafe-return": "warn",
+    "no-unsafe-member-access": "warn",
+    "no-misused-promises": "warn",
+    "no-base-to-string": "warn",
+    "no-unnecessary-type-assertion": "warn",
+    "return-await": "warn",
+    "switch-exhaustiveness-check": "warn",
+    "restrict-template-expressions": "warn",
+    "no-unsafe-argument": "warn",
+    "no-unnecessary-type-arguments": "warn",
+    "require-array-sort-compare": "warn",
+    "prefer-promise-reject-errors": "warn",
+    "only-throw-error": "warn",
+    "non-nullable-type-assertion-style": "warn",
+    "await-thenable": "warn",
+    "no-unsafe-call": "warn",
     "no-unused-vars": "warn",
     "no-console": "off",
     "typescript/no-explicit-any": "warn",
@@ -95,6 +120,25 @@
     "node_modules",
     "coverage",
     "**/routeTree.gen.ts"
+  ],
+  "overrides": [
+    {
+      "files": ["tests/**/*.ts", "scripts/**/*.ts"],
+      "rules": {
+        "no-unnecessary-type-assertion": "off",
+        "no-unsafe-member-access": "off",
+        "no-unsafe-assignment": "off",
+        "no-unsafe-call": "off",
+        "no-unsafe-return": "off",
+        "no-unsafe-argument": "off",
+        "strict-boolean-expressions": "off",
+        "no-deprecated": "off",
+        "promise-function-async": "off",
+        "prefer-nullish-coalescing": "off",
+        "return-await": "off",
+        "no-confusing-void-expression": "off"
+      }
+    }
   ],
   "extends": [
     "./node_modules/ultracite/config/oxlint/core/.oxlintrc.json",

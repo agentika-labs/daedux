@@ -24,7 +24,6 @@
     "plugins": [{ "name": "@effect/language-service" }],
 
     /* Paths */
-    "baseUrl": ".",
     "paths": {
       "~/*": ["./src/*"],
       "@shared/*": ["./src/shared/*"]

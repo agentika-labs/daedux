@@ -41,8 +41,8 @@
     "test:watch": "bun test --watch",
     "test:coverage": "bun test --coverage",
     "clean": "rm -rf dist build .electrobun",
-    "check": "ultracite check",
-    "fix": "ultracite fix",
+    "check": "ultracite check --type-aware",
+    "fix": "ultracite fix --type-aware",
     "version:sync": "bun scripts/sync-version.ts"
   },
   "dependencies": {
@@ -85,6 +85,7 @@
     "drizzle-kit": "^0.30",
     "oxfmt": "^0.35.0",
     "oxlint": "^1.50.0",
+    "oxlint-tsgolint": "^0.20.0",
     "shadcn": "^3.8.5",
     "tailwindcss": "^4.1",
     "typescript": "^5",

@@ -24,7 +24,6 @@
     "noUncheckedIndexedAccess": true,
 
     /* Paths */
-    "baseUrl": ".",
     "paths": {
       "@/*": ["./src/mainview/*"],
       "@shared/*": ["./src/shared/*"]
