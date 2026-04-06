@@ -123,27 +123,10 @@ jobs:
           ELECTROBUN_TEAMID: ${{ secrets.ELECTROBUN_TEAMID }}
         run: bun run electrobun build --env=stable
 
-      - name: Rename artifacts
+      - name: List artifacts
         run: |
-          VERSION="${{ steps.version.outputs.version }}"
-
-          echo "=== Electrobun artifacts directory ==="
+          echo "=== Electrobun build artifacts ==="
           ls -la artifacts/
-
-          # Rename artifacts from Electrobun's platform-prefixed names to our convention
-          cd artifacts
-          for f in macos-arm64-*.dmg; do
-            [ -f "$f" ] && mv "$f" "daedux-${VERSION}-darwin-arm64.dmg" && echo "Renamed $f"
-          done
-          for f in macos-arm64-*.tar.zst; do
-            [ -f "$f" ] && mv "$f" "daedux-${VERSION}-darwin-arm64.tar.zst" && echo "Renamed $f"
-          done
-          for f in macos-arm64-*update.json; do
-            [ -f "$f" ] && mv "$f" "macos-arm64-update.json" && echo "Renamed $f"
-          done
-
-          echo "=== Final artifacts ==="
-          ls -la
 
       - name: Upload frontend artifact
         uses: actions/upload-artifact@v4

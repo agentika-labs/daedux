@@ -31,7 +31,7 @@ export default {
     postBuild: "./scripts/post-build.ts",
   },
   release: {
-    baseUrl: "https://github.com/agentika-labs/daedux/releases/download/",
+    baseUrl: "https://github.com/agentika-labs/daedux/releases/latest/download/",
   },
   runtime: {
     exitOnLastWindowClosed: false,
