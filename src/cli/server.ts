@@ -21,7 +21,7 @@ import {
   buildServerErrorResponse,
 } from "../bun/otel/receiver";
 import { AnthropicUsageService } from "../bun/services/anthropic-usage";
-import { loadDashboardData } from "../bun/services/dashboard-loader";
+import { AnalyticsOrchestrator } from "../bun/services/analytics-orchestrator";
 import { SyncService } from "../bun/sync";
 import { log } from "../bun/utils/log";
 import { transformSessionToRPC } from "../bun/utils/session-transformer";
@@ -52,7 +52,7 @@ const runEffect = async <A, E>(
     )
   );
 
-// loadDashboardData is imported from ../bun/services/dashboard-loader
+// AnalyticsOrchestrator provides dashboard data loading
 
 // ─── Sync Operations ─────────────────────────────────────────────────────────
 
@@ -201,7 +201,12 @@ export async function startServer(options: ServerOptions): Promise<void> {
             ...parseDateFilter(filter),
             harness: harness ?? undefined,
           };
-          const data = await runEffect(loadDashboardData(dateFilter));
+          const data = await runEffect(
+            Effect.gen(function* () {
+              const orchestrator = yield* AnalyticsOrchestrator;
+              return yield* orchestrator.getDashboard({ dateFilter });
+            })
+          );
           return Response.json(data);
         } catch (error) {
           log.error("api", "Dashboard data error:", error);
@@ -436,7 +441,12 @@ export async function outputJson(filter?: string): Promise<void> {
   try {
     const syncResult = await runEffect(runSync(false));
     const dateFilter = parseDateFilter(filter);
-    const data = await runEffect(loadDashboardData(dateFilter));
+    const data = await runEffect(
+      Effect.gen(function* () {
+        const orchestrator = yield* AnalyticsOrchestrator;
+        return yield* orchestrator.getDashboard({ dateFilter });
+      })
+    );
 
     console.log(
       JSON.stringify(

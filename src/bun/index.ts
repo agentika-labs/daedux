@@ -56,7 +56,7 @@ import {
 } from "./otel/receiver";
 import { cleanupOtelData } from "./otel/retention";
 import { AnthropicUsageService } from "./services/anthropic-usage";
-import { loadDashboardData } from "./services/dashboard-loader";
+import { AnalyticsOrchestrator } from "./services/analytics-orchestrator";
 import { SchedulerService, parseDaysOfWeek } from "./services/scheduler";
 import { loadSettings, saveSettings } from "./services/settings";
 import { SyncService } from "./sync";
@@ -568,7 +568,12 @@ const rpc = BrowserView.defineRPC<UsageMonitorRPC>({
           ...parseDateFilter(filter),
           harness,
         };
-        return runEffect(loadDashboardData(dateFilter));
+        return runEffect(
+          Effect.gen(function* () {
+            const orchestrator = yield* AnalyticsOrchestrator;
+            return yield* orchestrator.getDashboard({ dateFilter });
+          })
+        );
       },
 
       getAnalytics: async ({ category, filter }) => {

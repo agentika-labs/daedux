@@ -4,6 +4,7 @@ import { AllAnalyticsServicesLive } from "./analytics/index";
 import { DatabaseService } from "./db";
 import { ParserRegistry } from "./parsers";
 import { AnthropicUsageService } from "./services/anthropic-usage";
+import { AnalyticsOrchestratorLive } from "./services/analytics-orchestrator";
 import { SchedulerService } from "./services/scheduler";
 import { SyncService } from "./sync";
 
@@ -25,11 +26,17 @@ const LoggerLive =
  * 3. Provide DatabaseService to satisfy remaining dependencies
  * 4. Add AnthropicUsageService (no deps) to the final layer
  */
+// AnalyticsOrchestrator needs analytics services provided
+const AnalyticsOrchestratorWithDeps = AnalyticsOrchestratorLive.pipe(
+  Layer.provide(AllAnalyticsServicesLive)
+);
+
 export const AppLive = Layer.mergeAll(
   SyncService.Default,
   AllAnalyticsServicesLive,
   SchedulerService.Default,
-  AnthropicUsageService.Default
+  AnthropicUsageService.Default,
+  AnalyticsOrchestratorWithDeps
 ).pipe(
   Layer.provideMerge(ParserRegistry.Default),
   Layer.provideMerge(DatabaseService.Default),
