@@ -209,21 +209,21 @@ export const ScheduleForm = ({
                 <Button
                   variant="ghost"
                   size="xs"
-                  onClick={() => handleSelectPreset("weekdays")}
+                  onClick={() =>{  handleSelectPreset("weekdays"); }}
                 >
                   Weekdays
                 </Button>
                 <Button
                   variant="ghost"
                   size="xs"
-                  onClick={() => handleSelectPreset("weekends")}
+                  onClick={() =>{  handleSelectPreset("weekends"); }}
                 >
                   Weekends
                 </Button>
                 <Button
                   variant="ghost"
                   size="xs"
-                  onClick={() => handleSelectPreset("everyday")}
+                  onClick={() =>{  handleSelectPreset("everyday"); }}
                 >
                   All
                 </Button>
@@ -241,7 +241,7 @@ export const ScheduleForm = ({
                     "flex-1 min-w-0 px-0",
                     form.daysOfWeek.includes(day.value) && "ring-2 ring-ring/30"
                   )}
-                  onClick={() => toggleDay(day.value)}
+                  onClick={() =>{  toggleDay(day.value); }}
                 >
                   {day.label}
                 </Button>

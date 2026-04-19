@@ -57,10 +57,10 @@ function SessionsRoute() {
     let cleanup: (() => void) | undefined;
 
     import("@/hooks/useRPC").then(({ electroview }) => {
-      const handleUpdate = () => refetchRef.current();
+      const handleUpdate =  async () => refetchRef.current();
       electroview.addMessageListener("sessionsUpdated", handleUpdate);
-      cleanup = () =>
-        electroview.removeMessageListener("sessionsUpdated", handleUpdate);
+      cleanup = () =>{ 
+        electroview.removeMessageListener("sessionsUpdated", handleUpdate); };
     });
 
     return () => cleanup?.();

@@ -58,6 +58,7 @@ import { cleanupOtelData } from "./otel/retention";
 import { AnthropicUsageService } from "./services/anthropic-usage";
 import { loadDashboardData } from "./services/dashboard-loader";
 import { SchedulerService, parseDaysOfWeek } from "./services/scheduler";
+import { loadSettings, saveSettings } from "./services/settings";
 import { SyncService } from "./sync";
 import { buildTrayMenu } from "./tray/menu";
 import { toDateString } from "./utils/formatting";
@@ -89,20 +90,7 @@ let updateAvailable = false;
 let updateVersion: string | null = null;
 
 // App settings (persisted via settings file)
-let settings: AppSettings = {
-  customPaths: {},
-  scanIntervalMinutes: 5,
-  scanOnLaunch: true,
-  schedulerEnabled: false,
-  theme: "system", // Off by default until user enables it
-  otel: {
-    enabled: true,
-    retentionDays: 30,
-    roiHourlyDevCost: 50,
-    roiMinutesPerLoc: 3,
-    roiMinutesPerCommit: 15,
-  },
-};
+let settings: AppSettings = loadSettings();
 
 Electrobun.events.on("before-quit", () => {
   isQuitting = true;
@@ -124,9 +112,7 @@ let managedRuntime: ManagedRuntime.ManagedRuntime<AppContext, never> | null =
   null;
 
 const getRuntime = () => {
-  if (!managedRuntime) {
-    managedRuntime = ManagedRuntime.make(AppLive);
-  }
+  managedRuntime ??= ManagedRuntime.make(AppLive);
   return managedRuntime;
 };
 
@@ -135,7 +121,7 @@ const getRuntime = () => {
  * Using a single runtime ensures semaphores work correctly across all calls.
  * Includes a 30-second timeout to prevent indefinite hangs from blocking the UI.
  */
-const runEffect = <A, E>(
+const runEffect =  async <A, E>(
   effect: Effect.Effect<A, E, AppContext>,
   timeoutMs = 30_000
 ): Promise<A> =>
@@ -747,6 +733,7 @@ const rpc = BrowserView.defineRPC<UsageMonitorRPC>({
 
       updateSettings: async (patch) => {
         settings = { ...settings, ...patch };
+        saveSettings(settings);
 
         if (patch.scanIntervalMinutes !== undefined) {
           resetBackgroundScan(patch.scanIntervalMinutes);

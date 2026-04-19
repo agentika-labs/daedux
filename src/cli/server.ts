@@ -39,7 +39,7 @@ const runtime = ManagedRuntime.make(AppLive);
 // Default timeout for backend operations (30 seconds)
 const DEFAULT_TIMEOUT_MS = 30_000;
 
-const runEffect = <A, E>(
+const runEffect =  async <A, E>(
   effect: Effect.Effect<A, E, Layer.Layer.Success<typeof AppLive>>,
   timeoutMs = DEFAULT_TIMEOUT_MS
 ): Promise<A> =>

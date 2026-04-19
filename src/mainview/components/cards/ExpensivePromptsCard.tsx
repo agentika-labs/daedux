@@ -226,7 +226,7 @@ export function ExpensivePromptsCard({
                   totalOfTop5 > 0 ? (prompt.cost / totalOfTop5) * 100 : 0
                 }
                 expanded={isExpanded(index)}
-                onToggle={() => toggle(index)}
+                onToggle={() =>{  toggle(index); }}
               />
             ))}
           </div>

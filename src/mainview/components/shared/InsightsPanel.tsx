@@ -41,7 +41,7 @@ export function InsightsPanel({
           insight,
           priority: (insight.priority && insight.priority > 5
             ? "high"
-            : "medium") as "high" | "medium",
+            : "medium"),
           type: mapInsightType(insight.type),
         })),
     [insights, maxInsights, onNavigateToSection]
@@ -114,7 +114,7 @@ function buildAction(
 
   return {
     label: insight.actionLabel ?? "View Details",
-    onClick: () =>
-      onNavigateToSection(insight.actionTarget as InsightActionTarget),
+    onClick: () =>{ 
+      onNavigateToSection(insight.actionTarget as InsightActionTarget); },
   };
 }

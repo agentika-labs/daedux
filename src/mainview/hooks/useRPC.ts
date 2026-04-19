@@ -38,7 +38,7 @@ export type RPCMessageParams<K extends RPCMessageName> = BunMessages[K];
 /**
  * Make a typed RPC request to the bun process.
  */
-export const rpcRequest = <K extends RPCRequestName>(
+export const rpcRequest =  async <K extends RPCRequestName>(
   method: K,
   params: RPCRequestParams<K>
 ): Promise<RPCRequestResponse<K>> => {
@@ -76,8 +76,8 @@ export const useRPC = () => electroview;
  */
 export function useLogger() {
   return {
-    error: (msg: string) => rpcSend("log", { level: "error", msg }),
-    info: (msg: string) => rpcSend("log", { level: "info", msg }),
-    warn: (msg: string) => rpcSend("log", { level: "warn", msg }),
+    error: (msg: string) =>{  rpcSend("log", { level: "error", msg }); },
+    info: (msg: string) =>{  rpcSend("log", { level: "info", msg }); },
+    warn: (msg: string) =>{  rpcSend("log", { level: "warn", msg }); },
   };
 }

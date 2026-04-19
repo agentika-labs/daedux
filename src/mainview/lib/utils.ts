@@ -262,18 +262,18 @@ export function computeSmartProjectNames(
       typeof item === "string" ? { cwd: undefined, projectPath: item } : item;
     const fullPath = opts.cwd ?? decodeProjectPath(opts.projectPath);
     const parts = fullPath.split("/").filter(Boolean);
-    const lastSegment = parts.at(-1) || opts.projectPath;
-    const parentSegment = parts.at(-2) || "";
+    const lastSegment = parts.at(-1) ?? opts.projectPath;
+    const parentSegment = parts.at(-2) ?? "";
 
     const key = opts.projectPath; // unique identifier
     itemData.push({ fullPath, key, lastSegment, parentSegment });
-    segmentCounts.set(lastSegment, (segmentCounts.get(lastSegment) || 0) + 1);
+    segmentCounts.set(lastSegment, (segmentCounts.get(lastSegment) ?? 0) + 1);
   }
 
   // Step 2: O(n) - build results using pre-computed counts
   const results = new Map<string, SmartProjectName>();
   for (const { fullPath, key, lastSegment, parentSegment } of itemData) {
-    const needsDisambiguation = (segmentCounts.get(lastSegment) || 0) > 1;
+    const needsDisambiguation = (segmentCounts.get(lastSegment) ?? 0) > 1;
     results.set(key, {
       full: fullPath,
       primary: lastSegment,
@@ -323,8 +323,8 @@ export function getSmartProjectName(
   const parts = fullPath.split("/").filter(Boolean);
 
   // Get last 2 segments for display
-  const lastSegment = parts.at(-1) || projectPath;
-  const parentSegment = parts.at(-2) || "";
+  const lastSegment = parts.at(-1) ?? projectPath;
+  const parentSegment = parts.at(-2) ?? "";
 
   // Check for duplicate last segments among all items
   const duplicates = allItems.filter((item) => {

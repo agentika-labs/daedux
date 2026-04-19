@@ -29,7 +29,7 @@ export const DataCard = () => {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => handleSync(false)}
+            onClick={() =>{  handleSync(false); }}
             disabled={syncMutation.isPending}
             aria-label="Run incremental sync"
           >
@@ -43,7 +43,7 @@ export const DataCard = () => {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => handleSync(true)}
+            onClick={() =>{  handleSync(true); }}
             disabled={syncMutation.isPending}
             aria-label="Run full resync"
           >

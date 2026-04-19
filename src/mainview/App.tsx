@@ -78,9 +78,9 @@ const App = () => {
     applyTheme("system");
 
     const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
-    const handleChange = () => applyTheme("system");
+    const handleChange = () =>{  applyTheme("system"); };
     mediaQuery.addEventListener("change", handleChange);
-    return () => mediaQuery.removeEventListener("change", handleChange);
+    return () =>{  mediaQuery.removeEventListener("change", handleChange); };
   }, [isDesktop]);
 
   // Listen for theme and fullscreen changes from main process (desktop only)

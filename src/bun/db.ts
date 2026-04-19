@@ -135,7 +135,7 @@ export class DatabaseService extends Effect.Service<DatabaseService>()(
 
         return { db, sqlite } as const;
       }),
-      ({ sqlite }) => Effect.sync(() => sqlite.close())
+      ({ sqlite }) => Effect.sync(() =>{  sqlite.close(); })
     ),
   }
 ) {}
@@ -170,7 +170,7 @@ export const dbQuery = <A>(
     const { db } = yield* DatabaseService;
     return yield* Effect.tryPromise({
       catch: (cause) => new DatabaseError({ cause, operation }),
-      try: () => query(db),
+      try:  async () => query(db),
     });
   });
 

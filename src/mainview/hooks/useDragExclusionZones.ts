@@ -61,7 +61,7 @@ export function useDragExclusionZones(
       return;
     }
     const timeout = setTimeout(updateZones, 50);
-    return () => clearTimeout(timeout);
+    return () =>{  clearTimeout(timeout); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [updateZones, isDesktop, ...extraDeps]);
 }

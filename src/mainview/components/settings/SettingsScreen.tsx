@@ -66,7 +66,7 @@ export const SettingsScreen = () => {
     const timer = setTimeout(() => {
       headingRef.current?.focus();
     }, 50);
-    return () => clearTimeout(timer);
+    return () =>{  clearTimeout(timer); };
   }, []);
 
   const handleRefreshUsage = useCallback(async () => {

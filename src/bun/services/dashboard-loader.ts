@@ -147,10 +147,7 @@ export const loadDashboardData = (dateFilter: DateFilter = {}) =>
       dollarImpact: i.dollarImpact,
       priority: i.priority,
       title: i.title,
-      type: (i.type === "tip" ? "info" : i.type) as
-        | "success"
-        | "warning"
-        | "info",
+      type: (i.type === "tip" ? "info" : i.type),
     }));
 
     // Transform topPrompts to include queryCount (default 1 per prompt)

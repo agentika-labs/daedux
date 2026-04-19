@@ -237,7 +237,7 @@ export function Header() {
                           onClick={() =>
                             !comingSoon && handleHarnessChange(value)
                           }
-                          aria-disabled={comingSoon || undefined}
+                          aria-disabled={comingSoon ?? undefined}
                           className={cn(
                             "rounded-md p-1.5 transition-colors",
                             comingSoon
@@ -265,7 +265,7 @@ export function Header() {
                 <button
                   type="button"
                   key={value}
-                  onClick={() => handleFilterChange(value)}
+                  onClick={() =>{  handleFilterChange(value); }}
                   className={cn(
                     "cursor-pointer rounded-md px-3 py-1 text-sm font-medium transition-colors",
                     filter === value

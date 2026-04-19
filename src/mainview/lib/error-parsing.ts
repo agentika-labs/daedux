@@ -214,7 +214,7 @@ export function parseError(message: string): ParsedError {
   }
 
   // Generic fallback
-  const firstLine = message.split("\n")[0] || message;
+  const firstLine = message.split("\n")[0] ?? message;
   return {
     category: "generic",
     isExpandable: isMultiLineError(message),

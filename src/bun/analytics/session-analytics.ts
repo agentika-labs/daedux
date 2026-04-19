@@ -978,7 +978,7 @@ export class SessionAnalyticsService extends Effect.Service<SessionAnalyticsServ
                 query = query.where(and(...conditions)) as typeof query;
               }
 
-              return await query;
+              return  query;
             },
           }).pipe(Effect.withSpan("SessionAnalytics.getSessionSummaries")),
 

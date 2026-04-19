@@ -5,7 +5,7 @@ import { useCallback, useState } from "react";
  * can be expanded at a time.
  */
 export function useExpandedIndex(initialIndex: number | null = null) {
-  const [expandedIndex, setExpandedIndex] = useState<number | null>(
+  const [expandedIndex, setExpandedIndex] = useState(
     initialIndex
   );
 
@@ -15,8 +15,8 @@ export function useExpandedIndex(initialIndex: number | null = null) {
   );
 
   const toggle = useCallback(
-    (index: number) =>
-      setExpandedIndex((current) => (current === index ? null : index)),
+    (index: number) =>{ 
+      setExpandedIndex((current) => (current === index ? null : index)); },
     []
   );
 

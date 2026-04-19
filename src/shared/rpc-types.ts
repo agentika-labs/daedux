@@ -382,6 +382,10 @@ export interface AppSettings {
   customPaths: Record<string, string>;
   schedulerEnabled: boolean;
   otel?: OtelSettings;
+  usageMethod?: {
+    method: "oauth" | "cli" | "unknown";
+    determinedAt: number | null;
+  };
 }
 
 // ─── OTEL Settings ───────────────────────────────────────────────────────────

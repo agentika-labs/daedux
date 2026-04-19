@@ -246,7 +246,7 @@ export class SchedulerService extends Effect.Service<SchedulerService>()(
        * Check Claude CLI auth status using Schema parsing.
        * Returns { loggedIn: false } on any error or parse failure.
        */
-      const checkAuth = (): Effect.Effect<{ loggedIn: boolean }, never> =>
+      const checkAuth = (): Effect.Effect<{ loggedIn: boolean }> =>
         Effect.gen(function* checkAuth() {
           const proc = Bun.spawn(["claude", "auth", "status", "--json"], {
             env: getCliSpawnEnv(),
@@ -254,13 +254,13 @@ export class SchedulerService extends Effect.Service<SchedulerService>()(
             stdout: "pipe",
           });
 
-          const exitCode = yield* Effect.promise(() => proc.exited);
+          const exitCode = yield* Effect.promise( async () => proc.exited);
 
           if (exitCode !== 0) {
             return { loggedIn: false };
           }
 
-          const stdout = yield* Effect.promise(() =>
+          const stdout = yield* Effect.promise( async () =>
             new Response(proc.stdout).text()
           );
 
@@ -287,7 +287,7 @@ export class SchedulerService extends Effect.Service<SchedulerService>()(
                   operation: "checkAuthStatus:spawn",
                   cause,
                 }),
-              try: () => proc.exited,
+              try:  async () => proc.exited,
             });
 
             if (exitCode !== 0) {
@@ -300,7 +300,7 @@ export class SchedulerService extends Effect.Service<SchedulerService>()(
                   operation: "checkAuthStatus:readStdout",
                   cause,
                 }),
-              try: () => new Response(proc.stdout).text(),
+              try:  async () => new Response(proc.stdout).text(),
             });
 
             // Parse and validate with Schema
@@ -522,7 +522,7 @@ export class SchedulerService extends Effect.Service<SchedulerService>()(
             catch: (cause) =>
               new DatabaseError({ cause, operation: "getScheduleHistory" }),
             try: async () =>
-              await db
+               db
                 .select()
                 .from(schema.scheduleExecutions)
                 .where(eq(schema.scheduleExecutions.scheduleId, scheduleId))
@@ -535,7 +535,7 @@ export class SchedulerService extends Effect.Service<SchedulerService>()(
             catch: (cause) =>
               new DatabaseError({ cause, operation: "getSchedules" }),
             try: async () =>
-              await db
+               db
                 .select()
                 .from(schema.sessionSchedules)
                 .orderBy(desc(schema.sessionSchedules.createdAt)),

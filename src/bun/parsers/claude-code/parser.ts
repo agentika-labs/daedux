@@ -69,7 +69,7 @@ const parseClaudeCodeSession = (
     // Stream lines from file (memory efficient - no full file load)
     const lines = yield* Effect.tryPromise({
       catch: (cause) => new ParseError({ cause, filePath: input.filePath }),
-      try: () => streamLinesFromFile(input.filePath),
+      try:  async () => streamLinesFromFile(input.filePath),
     });
 
     if (lines.length === 0) {
@@ -233,9 +233,7 @@ const parseClaudeCodeSession = (
           if (preview && !isSystemContent(preview)) {
             lastUserPreview = preview;
             turnCount++;
-            if (!displayName) {
-              displayName = preview.slice(0, 200);
-            }
+            displayName ??= preview.slice(0, 200);
           }
         }
 

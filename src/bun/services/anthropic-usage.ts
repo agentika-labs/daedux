@@ -11,6 +11,7 @@ import { AnthropicUsageError } from "../errors";
 import { stripAnsi } from "../utils/ansi";
 import { debugLog, log } from "../utils/log";
 import { getCliSpawnEnv } from "../utils/path";
+import { loadSettings, updateSettingsEffect } from "./settings";
 
 // Tracks which method (OAuth API vs CLI) is currently working.
 // This avoids wasting requests on OAuth when it consistently fails.
@@ -117,10 +118,10 @@ const parseUsageOutput = (output: string): AnthropicUsage => {
   const clean = stripAnsi(output);
 
   // DEBUG: Find ALL percentage patterns in the output
-  const allPercentages = clean.match(/\d+%/g) || [];
-  const allUsedPatterns = clean.match(/\d+%\s*used/gi) || [];
+  const allPercentages = clean.match(/\d+%/g) ?? [];
+  const allUsedPatterns = clean.match(/\d+%\s*used/gi) ?? [];
   const allSpentPatterns =
-    clean.match(/\$[\d.]+\s*\/\s*\$[\d.]+\s*spent/gi) || [];
+    clean.match(/\$[\d.]+\s*\/\s*\$[\d.]+\s*spent/gi) ?? [];
 
   // Extract reset patterns with timezone - formats:
   // "Resets 4am (Europe/London)" - session
@@ -132,11 +133,11 @@ const parseUsageOutput = (output: string): AnthropicUsage => {
   // - Time only: "4am (Europe/London)", "3:59pm (America/New_York)"
   // - Date + time: "Mar 3 at 4pm (Europe/London)"
   // - Date only: "Mar 1 (Europe/London)"
-  const timePatterns = clean.match(/\d+(?::\d+)?(?:am|pm)\s*\([^)]+\)/gi) || [];
+  const timePatterns = clean.match(/\d+(?::\d+)?(?:am|pm)\s*\([^)]+\)/gi) ?? [];
   const dateTimePatterns =
     clean.match(
       /(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d+(?:\s+at\s+\d+(?:am|pm))?\s*\([^)]+\)/gi
-    ) || [];
+    ) ?? [];
 
   // Combine and dedupe (dateTime patterns may overlap with time-only patterns)
   const allResetPatterns = [...new Set([...timePatterns, ...dateTimePatterns])];
@@ -170,7 +171,7 @@ const parseUsageOutput = (output: string): AnthropicUsage => {
   // This is more reliable than label-based regex since TUI cursor positioning
   // separates labels from values
   const extractPct = (s: string) =>
-    Number.parseInt(s.match(/(\d+)%/)?.[1] || "0", 10);
+    Number.parseInt(s.match(/(\d+)%/)?.[1] ?? "0", 10);
 
   let sessionPct = 0;
   let weeklyPct = 0;
@@ -807,28 +808,10 @@ const tryOAuthAPIWithMethodTracking = (methodRef: Ref.Ref<MethodState>) =>
             "anthropic-usage",
             "OAuth API not supported, switching to CLI-only mode"
           );
-          return Ref.set(methodRef, {
-            method: "cli" as const,
-            determinedAt: Date.now(),
-          }).pipe(Effect.as(null));
-        }
-
-        // If rate limited, propagate the error so fetchUsage can skip CLI
-        // (CLI hits the same backend endpoint and will also be rate limited)
-        if (
-          error.reason === "rate_limited" ||
-          error.message.includes("Rate limit")
-        ) {
-          log.info(
-            "usage",
-            `Rate limited by Anthropic (retry-after: ${error.retryAfterSeconds ?? "unknown"}s), skipping CLI fallback`
-          );
-          return Effect.fail(
-            new AnthropicUsageError({
-              message: "Rate limited",
-              reason: "rate_limited",
-              retryAfterSeconds: error.retryAfterSeconds,
-            })
+          const newState = { method: "cli" as const, determinedAt: Date.now() };
+          return Ref.set(methodRef, newState).pipe(
+            Effect.tap(() => updateSettingsEffect({ usageMethod: newState })),
+            Effect.as(null)
           );
         }
 
@@ -853,26 +836,16 @@ const tryOAuthAPIWithMethodTracking = (methodRef: Ref.Ref<MethodState>) =>
         // For other API errors, return null to trigger CLI fallback
         return Effect.succeed(null);
       }),
-      // Re-throw rate_limited errors so fetchUsage can skip CLI.
-      // Catch all other failures as null (triggers CLI fallback).
-      Effect.catchAll((err) => {
-        if (
-          err instanceof AnthropicUsageError &&
-          err.reason === "rate_limited"
-        ) {
-          return Effect.fail(err);
-        }
-        return Effect.succeed(null);
-      })
+      // Catch any remaining errors and return null (triggers CLI fallback).
+      Effect.catchAll(() => Effect.succeed(null))
     );
 
     // If API succeeded, update method preference and return
     if (apiResult) {
       log.info("usage", "OAuth API succeeded!");
-      yield* Ref.set(methodRef, {
-        method: "oauth",
-        determinedAt: Date.now(),
-      });
+      const newState = { method: "oauth" as const, determinedAt: Date.now() };
+      yield* Ref.set(methodRef, newState);
+      yield* updateSettingsEffect({ usageMethod: newState });
       const usage = transformUsageResponse(apiResult);
       // Augment with subscription info from credentials
       return {
@@ -904,10 +877,9 @@ const tryCliUsageWithMethodTracking = (methodRef: Ref.Ref<MethodState>) =>
 
     if (cliResult) {
       log.info("usage", "CLI probe succeeded! Source:", cliResult.source);
-      yield* Ref.set(methodRef, {
-        method: "cli",
-        determinedAt: Date.now(),
-      });
+      const newState = { method: "cli" as const, determinedAt: Date.now() };
+      yield* Ref.set(methodRef, newState);
+      yield* updateSettingsEffect({ usageMethod: newState });
       // Augment CLI result with subscription info from credentials
       return {
         ...cliResult,
@@ -948,10 +920,13 @@ export class AnthropicUsageService extends Effect.Service<AnthropicUsageService>
     accessors: true,
     scoped: Effect.gen(function* () {
       // State: which method to use (oauth vs cli)
-      const methodRef = yield* Ref.make<MethodState>({
+      // Initialize from persisted settings if available
+      const persisted = loadSettings();
+      const initialMethod: MethodState = persisted.usageMethod ?? {
         method: "unknown",
         determinedAt: null,
-      });
+      };
+      const methodRef = yield* Ref.make<MethodState>(initialMethod);
 
       // State: last retry-after value from a 429 response (for dynamic polling)
       const retryAfterRef = yield* Ref.make<number | null>(null);
@@ -970,27 +945,6 @@ export class AnthropicUsageService extends Effect.Service<AnthropicUsageService>
 
         if (shouldTryOAuth) {
           const result = yield* tryOAuthAPIWithMethodTracking(methodRef).pipe(
-            // Catch rate limit before timeout wraps the error type
-            Effect.catchTag("AnthropicUsageError", (err) => {
-              if (err.reason === "rate_limited") {
-                // Rate limited — skip CLI fallback (same backend endpoint).
-                // Store retry-after for the scheduler to adjust polling interval.
-                return Ref.set(
-                  retryAfterRef,
-                  err.retryAfterSeconds ?? null
-                ).pipe(
-                  Effect.andThen(
-                    readKeychainCredentials().pipe(
-                      Effect.map(createCredentialsOnlyUsage),
-                      Effect.catchAll(() =>
-                        Effect.succeed(createUnavailableUsage())
-                      )
-                    )
-                  )
-                );
-              }
-              return Effect.succeed(null);
-            }),
             Effect.timeout("12 seconds"),
             Effect.catchAll((err) =>
               Effect.logDebug("OAuth usage probe failed, falling back to CLI", {
@@ -1108,7 +1062,7 @@ const readKeychainCredentials = () =>
       }
     );
 
-    const exitCode = yield* Effect.promise(() => proc.exited);
+    const exitCode = yield* Effect.promise( async () => proc.exited);
 
     if (exitCode !== 0) {
       return yield* new AnthropicUsageError({
@@ -1117,7 +1071,7 @@ const readKeychainCredentials = () =>
       });
     }
 
-    const credentialsJson = yield* Effect.promise(() =>
+    const credentialsJson = yield* Effect.promise( async () =>
       new Response(proc.stdout).text()
     );
 
@@ -1160,7 +1114,7 @@ const fetchUsageFromAPI = (accessToken: string) =>
           message: "Failed to connect to Anthropic API",
           reason: "api_error",
         }),
-      try: (signal) =>
+      try:  async (signal) =>
         fetch("https://api.anthropic.com/api/oauth/usage", {
           headers: {
             Authorization: `Bearer ${accessToken}`,
@@ -1183,7 +1137,7 @@ const fetchUsageFromAPI = (accessToken: string) =>
       // Try to parse error response for better error messages
       const errorResult = yield* Effect.tryPromise({
         catch: () => null,
-        try: () => response.json() as Promise<{ error?: { message?: string } }>,
+        try:  async () => response.json() as Promise<{ error?: { message?: string } }>,
       }).pipe(Effect.catchAll(() => Effect.succeed(null)));
 
       // Detect 429 explicitly (not just message content)
@@ -1228,7 +1182,7 @@ const fetchUsageFromAPI = (accessToken: string) =>
           message: "Failed to parse API response JSON",
           reason: "parse_error",
         }),
-      try: () => response.json(),
+      try:  async () => response.json(),
     });
 
     // Validate against schema
@@ -1310,10 +1264,10 @@ const refreshOAuthToken = () =>
       stdout: "pipe", // Avoid nested session check
     });
 
-    const exitCode = yield* Effect.promise(() => proc.exited);
+    const exitCode = yield* Effect.promise( async () => proc.exited);
 
     if (exitCode !== 0) {
-      const stderr = yield* Effect.promise(() =>
+      const stderr = yield* Effect.promise( async () =>
         new Response(proc.stderr).text()
       );
       return yield* new AnthropicUsageError({

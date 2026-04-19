@@ -366,7 +366,7 @@ export const ScheduleSettings = () => {
                       <Button
                         variant={schedule.enabled ? "default" : "outline"}
                         size="xs"
-                        onClick={() => handleToggleSchedule(schedule)}
+                        onClick={() =>{  handleToggleSchedule(schedule); }}
                       >
                         {schedule.enabled ? "On" : "Off"}
                       </Button>
@@ -376,7 +376,7 @@ export const ScheduleSettings = () => {
                         <Button
                           variant="ghost"
                           size="icon-sm"
-                          onClick={() => handleRunNow(schedule.id)}
+                          onClick={() =>{  handleRunNow(schedule.id); }}
                           disabled={
                             runningScheduleId === schedule.id ||
                             !authStatus?.loggedIn
@@ -409,7 +409,7 @@ export const ScheduleSettings = () => {
                         <Button
                           variant="ghost"
                           size="icon-sm"
-                          onClick={() => setDeleteScheduleId(schedule.id)}
+                          onClick={() =>{  setDeleteScheduleId(schedule.id); }}
                           title="Delete"
                         >
                           <HugeiconsIcon

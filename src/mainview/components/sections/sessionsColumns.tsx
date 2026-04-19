@@ -108,7 +108,7 @@ export const sessionsColumns: ColumnDef<SessionRow>[] = [
       <SortableHeaderCell
         label="Date"
         sorted={column.getIsSorted()}
-        onToggle={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        onToggle={() =>{  column.toggleSorting(column.getIsSorted() === "asc"); }}
       />
     ),
     id: "date",
@@ -124,7 +124,7 @@ export const sessionsColumns: ColumnDef<SessionRow>[] = [
       <SortableHeaderCell
         label="Duration"
         sorted={column.getIsSorted()}
-        onToggle={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        onToggle={() =>{  column.toggleSorting(column.getIsSorted() === "asc"); }}
         align="right"
       />
     ),
@@ -140,7 +140,7 @@ export const sessionsColumns: ColumnDef<SessionRow>[] = [
       <SortableHeaderCell
         label="Queries"
         sorted={column.getIsSorted()}
-        onToggle={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        onToggle={() =>{  column.toggleSorting(column.getIsSorted() === "asc"); }}
         align="right"
       />
     ),
@@ -177,7 +177,7 @@ export const sessionsColumns: ColumnDef<SessionRow>[] = [
       <SortableHeaderCell
         label="Tokens"
         sorted={column.getIsSorted()}
-        onToggle={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        onToggle={() =>{  column.toggleSorting(column.getIsSorted() === "asc"); }}
         align="right"
       />
     ),
@@ -209,7 +209,7 @@ export const sessionsColumns: ColumnDef<SessionRow>[] = [
       <SortableHeaderCell
         label="Cost"
         sorted={column.getIsSorted()}
-        onToggle={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        onToggle={() =>{  column.toggleSorting(column.getIsSorted() === "asc"); }}
         align="right"
       />
     ),

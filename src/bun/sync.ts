@@ -67,11 +67,11 @@ const insertBatch = <T>(
   Effect.gen(function* insertBatch() {
     const batchSize = getSafeBatchSize(name);
     for (let i = 0; i < items.length; i += batchSize) {
-      const batch = items.slice(i, i + batchSize) as T[];
+      const batch = items.slice(i, i + batchSize);
       yield* Effect.tryPromise({
         catch: (cause) =>
           new DatabaseError({ cause, operation: `insertBatch:${name}` }),
-        try: () => insert(batch),
+        try:  async () => insert(batch),
       });
     }
   });

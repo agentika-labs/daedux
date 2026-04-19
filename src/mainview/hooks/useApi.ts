@@ -85,7 +85,7 @@ const createHttpClient = (): ApiClient => ({
     const url = `/api/dashboard${searchParams.toString() ? `?${searchParams}` : ""}`;
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
+    const timeoutId = setTimeout(() =>{  controller.abort(); }, API_TIMEOUT_MS);
 
     try {
       const response = await fetch(url, { signal: controller.signal });
@@ -203,10 +203,8 @@ const createRpcClient = (): ApiClient => {
   // Lazy-load electroview on first request to avoid importing electrobun in browser builds
   let electroviewPromise: Promise<typeof import("./useRPC")> | null = null;
 
-  const getElectroview = () => {
-    if (!electroviewPromise) {
-      electroviewPromise = import("./useRPC");
-    }
+  const getElectroview =  async () => {
+    electroviewPromise ??= import("./useRPC");
     return electroviewPromise;
   };
 
@@ -259,9 +257,7 @@ let cachedClient: ApiClient | null = null;
  * Creates a singleton instance on first call.
  */
 export const getApiClient = (): ApiClient => {
-  if (!cachedClient) {
-    cachedClient = isElectrobun() ? createRpcClient() : createHttpClient();
-  }
+  cachedClient ??= isElectrobun() ? createRpcClient() : createHttpClient();
   return cachedClient;
 };
 
@@ -303,7 +299,7 @@ export const useIsFullscreen = (): boolean => {
       attributes: true,
       attributeFilter: ["class"],
     });
-    return () => observer.disconnect();
+    return () =>{  observer.disconnect(); };
   }, []);
 
   return isFullscreen;

@@ -5,7 +5,7 @@ import {
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import type { OtelSettings, OtelStatus } from "@shared/rpc-types";
-import { useCallback } from "react";
+import { useCallback, useState, useEffect } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -43,6 +43,18 @@ export const OtelSettingsCard = ({
   const roiMinutesPerLoc = settings?.roiMinutesPerLoc ?? 3;
   const roiMinutesPerCommit = settings?.roiMinutesPerCommit ?? 15;
 
+  // Local state for inputs to allow empty intermediate values while editing
+  const [localRetention, setLocalRetention] = useState(String(retentionDays));
+  const [localHourlyCost, setLocalHourlyCost] = useState(String(roiHourlyDevCost));
+  const [localMinutesLoc, setLocalMinutesLoc] = useState(String(roiMinutesPerLoc));
+  const [localMinutesCommit, setLocalMinutesCommit] = useState(String(roiMinutesPerCommit));
+
+  // Sync local state when props change externally
+  useEffect(() => setLocalRetention(String(retentionDays)), [retentionDays]);
+  useEffect(() => setLocalHourlyCost(String(roiHourlyDevCost)), [roiHourlyDevCost]);
+  useEffect(() => setLocalMinutesLoc(String(roiMinutesPerLoc)), [roiMinutesPerLoc]);
+  useEffect(() => setLocalMinutesCommit(String(roiMinutesPerCommit)), [roiMinutesPerCommit]);
+
   const handleToggleEnabled = useCallback(
     (checked: boolean) => {
       onSettingsChange({ enabled: checked });
@@ -50,26 +62,41 @@ export const OtelSettingsCard = ({
     [onSettingsChange]
   );
 
-  const handleRetentionChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const days = Number.parseInt(e.target.value, 10);
-      if (!Number.isNaN(days) && days >= 1 && days <= 365) {
-        onSettingsChange({ retentionDays: days });
-      }
-    },
-    [onSettingsChange]
-  );
+  const handleRetentionBlur = useCallback(() => {
+    const days = Number.parseInt(localRetention, 10);
+    if (!Number.isNaN(days) && days >= 1 && days <= 365) {
+      onSettingsChange({ retentionDays: days });
+    } else {
+      setLocalRetention(String(retentionDays));
+    }
+  }, [localRetention, retentionDays, onSettingsChange]);
 
-  const handleRoiSettingChange = useCallback(
-    (field: "roiHourlyDevCost" | "roiMinutesPerLoc" | "roiMinutesPerCommit") =>
-      (e: React.ChangeEvent<HTMLInputElement>) => {
-        const value = Number.parseFloat(e.target.value);
-        if (!Number.isNaN(value) && value >= 0) {
-          onSettingsChange({ [field]: value });
-        }
-      },
-    [onSettingsChange]
-  );
+  const handleHourlyCostBlur = useCallback(() => {
+    const value = Number.parseFloat(localHourlyCost);
+    if (!Number.isNaN(value) && value >= 0) {
+      onSettingsChange({ roiHourlyDevCost: value });
+    } else {
+      setLocalHourlyCost(String(roiHourlyDevCost));
+    }
+  }, [localHourlyCost, roiHourlyDevCost, onSettingsChange]);
+
+  const handleMinutesLocBlur = useCallback(() => {
+    const value = Number.parseFloat(localMinutesLoc);
+    if (!Number.isNaN(value) && value >= 0) {
+      onSettingsChange({ roiMinutesPerLoc: value });
+    } else {
+      setLocalMinutesLoc(String(roiMinutesPerLoc));
+    }
+  }, [localMinutesLoc, roiMinutesPerLoc, onSettingsChange]);
+
+  const handleMinutesCommitBlur = useCallback(() => {
+    const value = Number.parseFloat(localMinutesCommit);
+    if (!Number.isNaN(value) && value >= 0) {
+      onSettingsChange({ roiMinutesPerCommit: value });
+    } else {
+      setLocalMinutesCommit(String(roiMinutesPerCommit));
+    }
+  }, [localMinutesCommit, roiMinutesPerCommit, onSettingsChange]);
 
   return (
     <Card>
@@ -98,7 +125,7 @@ export const OtelSettingsCard = ({
           <Button
             variant={enabled ? "default" : "outline"}
             size="sm"
-            onClick={() => handleToggleEnabled(!enabled)}
+            onClick={() =>{  handleToggleEnabled(!enabled); }}
             disabled={isLoading}
           >
             {enabled ? "Enabled" : "Disabled"}
@@ -177,8 +204,9 @@ export const OtelSettingsCard = ({
               type="number"
               min={1}
               max={365}
-              value={retentionDays}
-              onChange={handleRetentionChange}
+              value={localRetention}
+              onChange={(e) => setLocalRetention(e.target.value)}
+              onBlur={handleRetentionBlur}
               className="w-20"
               disabled={isLoading}
             />
@@ -206,8 +234,9 @@ export const OtelSettingsCard = ({
                   type="number"
                   min={0}
                   step={5}
-                  value={roiHourlyDevCost}
-                  onChange={handleRoiSettingChange("roiHourlyDevCost")}
+                  value={localHourlyCost}
+                  onChange={(e) => setLocalHourlyCost(e.target.value)}
+                  onBlur={handleHourlyCostBlur}
                   className="w-20"
                   disabled={isLoading}
                 />
@@ -230,8 +259,9 @@ export const OtelSettingsCard = ({
                   type="number"
                   min={0.1}
                   step={0.5}
-                  value={roiMinutesPerLoc}
-                  onChange={handleRoiSettingChange("roiMinutesPerLoc")}
+                  value={localMinutesLoc}
+                  onChange={(e) => setLocalMinutesLoc(e.target.value)}
+                  onBlur={handleMinutesLocBlur}
                   className="w-20"
                   disabled={isLoading}
                 />
@@ -254,8 +284,9 @@ export const OtelSettingsCard = ({
                   type="number"
                   min={1}
                   step={5}
-                  value={roiMinutesPerCommit}
-                  onChange={handleRoiSettingChange("roiMinutesPerCommit")}
+                  value={localMinutesCommit}
+                  onChange={(e) => setLocalMinutesCommit(e.target.value)}
+                  onBlur={handleMinutesCommitBlur}
                   className="w-20"
                   disabled={isLoading}
                 />

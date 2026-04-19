@@ -25,11 +25,11 @@ export const cleanupOtelData = (
     const cutoffMs = Date.now() - retentionDays * 86_400_000;
     const cutoffNs = BigInt(cutoffMs) * 1_000_000n;
 
-    yield* Effect.sync(() =>
+    yield* Effect.sync(() =>{ 
       log.debug(
         "otel",
         `Cleaning up OTEL data older than ${retentionDays} days (cutoff: ${new Date(cutoffMs).toISOString()})`
-      )
+      ); }
     );
 
     // Delete old events first (child table)
@@ -84,11 +84,11 @@ export const cleanupOtelData = (
       deletedEvents: eventsDeleted?.changes ?? 0,
     };
 
-    yield* Effect.sync(() =>
+    yield* Effect.sync(() =>{ 
       log.info(
         "otel",
         `Cleanup complete: ${result.deletedSessions} sessions, ${result.deletedMetrics} metrics, ${result.deletedEvents} events deleted`
-      )
+      ); }
     );
 
     return result;
