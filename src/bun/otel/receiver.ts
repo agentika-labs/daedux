@@ -36,9 +36,9 @@ export const handleMetrics = (
     // Store metrics
     const result = yield* storeMetrics(request);
 
-    yield* Effect.sync(() =>{ 
-      log.debug("otel", `Stored ${result.stored} metrics`); }
-    );
+    yield* Effect.sync(() => {
+      log.debug("otel", `Stored ${result.stored} metrics`);
+    });
 
     return result;
   });
@@ -63,9 +63,9 @@ export const handleLogs = (
     // Store events
     const result = yield* storeEvents(request);
 
-    yield* Effect.sync(() =>{ 
-      log.debug("otel", `Stored ${result.stored} events`); }
-    );
+    yield* Effect.sync(() => {
+      log.debug("otel", `Stored ${result.stored} events`);
+    });
 
     return result;
   });

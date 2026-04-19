@@ -82,8 +82,12 @@ export const ThemeToggle = ({
             aria-checked={isSelected}
             tabIndex={isSelected ? 0 : -1}
             disabled={disabled}
-            onClick={() =>{  onChange(option.value); }}
-            onKeyDown={(e) =>{  handleKeyDown(e, index); }}
+            onClick={() => {
+              onChange(option.value);
+            }}
+            onKeyDown={(e) => {
+              handleKeyDown(e, index);
+            }}
             className={cn(
               "flex min-h-11 items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors duration-150",
               "focus-visible:ring-ring focus-visible:outline-none focus-visible:ring-2",

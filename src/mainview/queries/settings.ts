@@ -40,17 +40,17 @@ const isElectrobun = () =>
 
 export const settingsQueryOptions = queryOptions({
   queryKey: ["settings"],
-  queryFn:  async () => api.getSettings(),
+  queryFn: async () => api.getSettings(),
 });
 
 export const appInfoQueryOptions = queryOptions({
   queryKey: ["appInfo"],
-  queryFn:  async () => api.getAppInfo(),
+  queryFn: async () => api.getAppInfo(),
 });
 
 export const anthropicUsageQueryOptions = queryOptions({
   queryKey: ["anthropicUsage"],
-  queryFn:  async () => api.getAnthropicUsage(),
+  queryFn: async () => api.getAnthropicUsage(),
   // Usage data can fail if not authenticated or rate limited
   retry: false,
   // Backend pushes updates via usageUpdated — don't refetch aggressively

@@ -254,13 +254,13 @@ export class SchedulerService extends Effect.Service<SchedulerService>()(
             stdout: "pipe",
           });
 
-          const exitCode = yield* Effect.promise( async () => proc.exited);
+          const exitCode = yield* Effect.promise(async () => proc.exited);
 
           if (exitCode !== 0) {
             return { loggedIn: false };
           }
 
-          const stdout = yield* Effect.promise( async () =>
+          const stdout = yield* Effect.promise(async () =>
             new Response(proc.stdout).text()
           );
 
@@ -287,7 +287,7 @@ export class SchedulerService extends Effect.Service<SchedulerService>()(
                   operation: "checkAuthStatus:spawn",
                   cause,
                 }),
-              try:  async () => proc.exited,
+              try: async () => proc.exited,
             });
 
             if (exitCode !== 0) {
@@ -300,7 +300,7 @@ export class SchedulerService extends Effect.Service<SchedulerService>()(
                   operation: "checkAuthStatus:readStdout",
                   cause,
                 }),
-              try:  async () => new Response(proc.stdout).text(),
+              try: async () => new Response(proc.stdout).text(),
             });
 
             // Parse and validate with Schema
@@ -522,7 +522,7 @@ export class SchedulerService extends Effect.Service<SchedulerService>()(
             catch: (cause) =>
               new DatabaseError({ cause, operation: "getScheduleHistory" }),
             try: async () =>
-               db
+              db
                 .select()
                 .from(schema.scheduleExecutions)
                 .where(eq(schema.scheduleExecutions.scheduleId, scheduleId))
@@ -535,7 +535,7 @@ export class SchedulerService extends Effect.Service<SchedulerService>()(
             catch: (cause) =>
               new DatabaseError({ cause, operation: "getSchedules" }),
             try: async () =>
-               db
+              db
                 .select()
                 .from(schema.sessionSchedules)
                 .orderBy(desc(schema.sessionSchedules.createdAt)),

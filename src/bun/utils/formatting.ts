@@ -3,14 +3,6 @@
  */
 
 /**
- * Format a ratio (0-1) as a percentage string.
- * @param ratio - Value between 0 and 1
- * @param decimals - Number of decimal places (default: 0)
- */
-export const formatPercentFromRatio = (ratio: number, decimals = 0): string =>
-  `${(ratio * 100).toFixed(decimals)}%`;
-
-/**
  * Format a percentage value as a string.
  * @param percent - Percentage value (already multiplied by 100)
  * @param decimals - Number of decimal places (default: 0)

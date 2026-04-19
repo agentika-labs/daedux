@@ -71,7 +71,7 @@ const insertBatch = <T>(
       yield* Effect.tryPromise({
         catch: (cause) =>
           new DatabaseError({ cause, operation: `insertBatch:${name}` }),
-        try:  async () => insert(batch),
+        try: async () => insert(batch),
       });
     }
   });

@@ -252,7 +252,9 @@ export function SessionsSection({ data, loading }: SessionsSectionProps) {
                         <tr
                           key={row.id}
                           className="table-row-hover border-border/50 hover:bg-muted/50 cursor-pointer border-b last:border-0"
-                          onClick={() =>{  setSelectedSession(row.original); }}
+                          onClick={() => {
+                            setSelectedSession(row.original);
+                          }}
                         >
                           {row.getVisibleCells().map((cell) => {
                             const align = (
@@ -294,12 +296,12 @@ export function SessionsSection({ data, loading }: SessionsSectionProps) {
                         </span>
                         <Select
                           value={pagination.pageSize.toString()}
-                          onValueChange={(value) =>{ 
+                          onValueChange={(value) => {
                             setPagination({
                               pageIndex: 0,
                               pageSize: Number(value),
-                            }); }
-                          }
+                            });
+                          }}
                         >
                           <SelectTrigger className="h-8 w-[70px]">
                             <SelectValue />
@@ -315,7 +317,9 @@ export function SessionsSection({ data, loading }: SessionsSectionProps) {
                         <Button
                           variant="outline"
                           size="icon-sm"
-                          onClick={() =>{  table.previousPage(); }}
+                          onClick={() => {
+                            table.previousPage();
+                          }}
                           disabled={!table.getCanPreviousPage()}
                         >
                           <HugeiconsIcon
@@ -330,7 +334,9 @@ export function SessionsSection({ data, loading }: SessionsSectionProps) {
                         <Button
                           variant="outline"
                           size="icon-sm"
-                          onClick={() =>{  table.nextPage(); }}
+                          onClick={() => {
+                            table.nextPage();
+                          }}
                           disabled={!table.getCanNextPage()}
                         >
                           <HugeiconsIcon
@@ -357,7 +363,9 @@ export function SessionsSection({ data, loading }: SessionsSectionProps) {
       {/* Session Detail Drawer */}
       <SessionDetailSheet
         session={selectedSession}
-        onClose={() =>{  setSelectedSession(null); }}
+        onClose={() => {
+          setSelectedSession(null);
+        }}
       />
     </Section>
   );

@@ -9,14 +9,15 @@ import { eq } from "drizzle-orm";
 import { Effect } from "effect";
 
 import * as schema from "../../src/bun/db/schema";
-import { parseSessionFile } from "../../src/bun/parser";
-import type { FileInfo } from "../../src/bun/parser";
-import { ClaudeCodeParserService } from "../../src/bun/parsers";
+import { ClaudeCodeParserService } from '../../src/bun/parsers';
+import type { ParserInput } from '../../src/bun/parsers';
 import { createTestDb } from "../helpers/test-db";
 
 // ─── Test Helpers ───────────────────────────────────────────────────────────
 
 const FIXTURES_DIR = path.join(import.meta.dir, "../fixtures/jsonl");
+
+type FileInfo = Omit<ParserInput, "harness">;
 
 const createFileInfo = (
   filename: string,
@@ -30,6 +31,17 @@ const createFileInfo = (
   ...overrides,
 });
 
+const runParser = (fileInfo: FileInfo) =>
+  Effect.runPromise(
+    Effect.gen(function* () {
+      const parser = yield* ClaudeCodeParserService;
+      return yield* parser.parseSession({
+        ...fileInfo,
+        harness: "claude-code",
+      });
+    }).pipe(Effect.provide(ClaudeCodeParserService.Default))
+  );
+
 // ─── Tests ──────────────────────────────────────────────────────────────────
 
 describe("Sync Database Operations", () => {
@@ -39,11 +51,7 @@ describe("Sync Database Operations", () => {
 
       // Parse and get records
       const fileInfo = createFileInfo("minimal-session.jsonl");
-      const parsed = await Effect.runPromise(
-        parseSessionFile(fileInfo).pipe(
-          Effect.provide(ClaudeCodeParserService.Default)
-        )
-      );
+      const parsed = await runParser(fileInfo);
 
       expect(parsed).not.toBeNull();
 
@@ -61,11 +69,7 @@ describe("Sync Database Operations", () => {
       const { db } = createTestDb();
 
       const fileInfo = createFileInfo("multi-query-session.jsonl");
-      const parsed = await Effect.runPromise(
-        parseSessionFile(fileInfo).pipe(
-          Effect.provide(ClaudeCodeParserService.Default)
-        )
-      );
+      const parsed = await runParser(fileInfo);
 
       expect(parsed).not.toBeNull();
 
@@ -88,11 +92,7 @@ describe("Sync Database Operations", () => {
       const { db } = createTestDb();
 
       const fileInfo = createFileInfo("session-with-tools.jsonl");
-      const parsed = await Effect.runPromise(
-        parseSessionFile(fileInfo).pipe(
-          Effect.provide(ClaudeCodeParserService.Default)
-        )
-      );
+      const parsed = await runParser(fileInfo);
 
       expect(parsed).not.toBeNull();
 
@@ -118,11 +118,7 @@ describe("Sync Database Operations", () => {
       const { db } = createTestDb();
 
       const fileInfo = createFileInfo("session-with-tools.jsonl");
-      const parsed = await Effect.runPromise(
-        parseSessionFile(fileInfo).pipe(
-          Effect.provide(ClaudeCodeParserService.Default)
-        )
-      );
+      const parsed = await runParser(fileInfo);
 
       expect(parsed).not.toBeNull();
 
@@ -147,11 +143,7 @@ describe("Sync Database Operations", () => {
       const { db } = createTestDb();
 
       const fileInfo = createFileInfo("session-with-tools.jsonl");
-      const parsed = await Effect.runPromise(
-        parseSessionFile(fileInfo).pipe(
-          Effect.provide(ClaudeCodeParserService.Default)
-        )
-      );
+      const parsed = await runParser(fileInfo);
 
       expect(parsed).not.toBeNull();
 
@@ -178,11 +170,7 @@ describe("Sync Database Operations", () => {
       const { db } = createTestDb();
 
       const fileInfo = createFileInfo("session-with-errors.jsonl");
-      const parsed = await Effect.runPromise(
-        parseSessionFile(fileInfo).pipe(
-          Effect.provide(ClaudeCodeParserService.Default)
-        )
-      );
+      const parsed = await runParser(fileInfo);
 
       expect(parsed).not.toBeNull();
 
@@ -210,11 +198,7 @@ describe("Sync Database Operations", () => {
       const { db } = createTestDb();
 
       const fileInfo = createFileInfo("multi-query-session.jsonl");
-      const parsed = await Effect.runPromise(
-        parseSessionFile(fileInfo).pipe(
-          Effect.provide(ClaudeCodeParserService.Default)
-        )
-      );
+      const parsed = await runParser(fileInfo);
 
       expect(parsed).not.toBeNull();
 
@@ -374,11 +358,7 @@ describe("Sync Database Operations", () => {
       const { db } = createTestDb();
 
       const fileInfo = createFileInfo("multi-query-session.jsonl");
-      const parsed = await Effect.runPromise(
-        parseSessionFile(fileInfo).pipe(
-          Effect.provide(ClaudeCodeParserService.Default)
-        )
-      );
+      const parsed = await runParser(fileInfo);
 
       // Insert session and queries
       await db.insert(schema.sessions).values(parsed!.session);
@@ -402,11 +382,7 @@ describe("Sync Database Operations", () => {
       const { db } = createTestDb();
 
       const fileInfo = createFileInfo("session-with-tools.jsonl");
-      const parsed = await Effect.runPromise(
-        parseSessionFile(fileInfo).pipe(
-          Effect.provide(ClaudeCodeParserService.Default)
-        )
-      );
+      const parsed = await runParser(fileInfo);
 
       // Insert all records
       await db.insert(schema.sessions).values(parsed!.session);
@@ -473,11 +449,7 @@ describe("Sync Database Operations", () => {
       const { db } = createTestDb();
 
       const fileInfo = createFileInfo("session-with-caching.jsonl");
-      const parsed = await Effect.runPromise(
-        parseSessionFile(fileInfo).pipe(
-          Effect.provide(ClaudeCodeParserService.Default)
-        )
-      );
+      const parsed = await runParser(fileInfo);
 
       await db.insert(schema.sessions).values(parsed!.session);
 
@@ -496,11 +468,7 @@ describe("Sync Database Operations", () => {
       const { db } = createTestDb();
 
       const fileInfo = createFileInfo("minimal-session.jsonl");
-      const parsed = await Effect.runPromise(
-        parseSessionFile(fileInfo).pipe(
-          Effect.provide(ClaudeCodeParserService.Default)
-        )
-      );
+      const parsed = await runParser(fileInfo);
 
       await db.insert(schema.sessions).values(parsed!.session);
 

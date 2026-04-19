@@ -1,5 +1,5 @@
 /**
- * Integration tests for parseSessionFile.
+ * Integration tests for ClaudeCodeParserService.
  * Uses JSONL fixtures to test the full parsing pipeline.
  */
 import { describe, expect, it } from "bun:test";
@@ -7,18 +7,19 @@ import * as path from "node:path";
 
 import { Effect } from "effect";
 
-import { parseSessionFile } from "../../src/bun/parser";
-import { ClaudeCodeParserService } from "../../src/bun/parsers";
-import type { ParserInput } from "../../src/bun/parsers";
+import { ClaudeCodeParserService } from '../../src/bun/parsers';
+import type { ParserInput } from '../../src/bun/parsers';
 
 // ─── Test Helpers ───────────────────────────────────────────────────────────
 
 const FIXTURES_DIR = path.join(import.meta.dir, "../fixtures/jsonl");
 
+type FileInfo = Omit<ParserInput, "harness">;
+
 const createFileInfo = (
   filename: string,
   overrides?: Partial<ParserInput>
-): Omit<ParserInput, "harness"> => ({
+): FileInfo => ({
   filePath: path.join(FIXTURES_DIR, filename),
   isSubagent: false,
   parentSessionId: null,
@@ -27,18 +28,20 @@ const createFileInfo = (
   ...overrides,
 });
 
-type FileInfo = Omit<ParserInput, "harness">;
-
 const runParser = (fileInfo: FileInfo) =>
   Effect.runPromise(
-    parseSessionFile(fileInfo).pipe(
-      Effect.provide(ClaudeCodeParserService.Default)
-    )
+    Effect.gen(function* () {
+      const parser = yield* ClaudeCodeParserService;
+      return yield* parser.parseSession({
+        ...fileInfo,
+        harness: "claude-code",
+      });
+    }).pipe(Effect.provide(ClaudeCodeParserService.Default))
   );
 
 // ─── Tests ──────────────────────────────────────────────────────────────────
 
-describe("parseSessionFile", () => {
+describe("ClaudeCodeParserService", () => {
   describe("empty file handling", () => {
     it("returns null for empty file", async () => {
       const fileInfo = createFileInfo("empty.jsonl");

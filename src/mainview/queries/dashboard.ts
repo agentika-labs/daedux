@@ -26,7 +26,7 @@ export const dashboardQueryOptions = (
 ) =>
   queryOptions({
     queryKey: ["dashboard", filter, harness],
-    queryFn:  async () =>
+    queryFn: async () =>
       api.getDashboardData({
         filter,
         harness: harness === "all" ? undefined : harness,
@@ -50,7 +50,7 @@ export const otelAnalyticsQueryOptions = (
 ) =>
   queryOptions({
     queryKey: ["otelAnalytics", filter, harness],
-    queryFn:  async () =>
+    queryFn: async () =>
       api.getOtelAnalytics({
         filter,
         harness: harness === "all" ? undefined : harness,
@@ -76,7 +76,8 @@ export const useSyncMutation = (
 ) => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn:  async (params: { fullResync?: boolean }) => api.triggerSync(params),
+    mutationFn: async (params: { fullResync?: boolean }) =>
+      api.triggerSync(params),
     onSuccess: () => {
       // Only invalidate the active filter's query to avoid parallel fetches
       if (activeFilter) {

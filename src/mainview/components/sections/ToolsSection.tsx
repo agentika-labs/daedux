@@ -182,7 +182,9 @@ export function ToolsSection({ data, loading }: ToolsSectionProps) {
                     key={category.category}
                     category={category}
                     expanded={bashExpansion.isExpanded(index)}
-                    onToggle={() =>{  bashExpansion.toggle(index); }}
+                    onToggle={() => {
+                      bashExpansion.toggle(index);
+                    }}
                   />
                 ))}
               </div>
@@ -426,7 +428,7 @@ function SmartErrorCard({ message, count, suggestion }: SmartErrorCardProps) {
           </Badge>
           <button
             type="button"
-            onClick={ async () => copy(message)}
+            onClick={async () => copy(message)}
             className="text-muted-foreground hover:text-foreground p-1 transition-colors"
             title="Copy full error message"
           >
@@ -450,7 +452,9 @@ function SmartErrorCard({ message, count, suggestion }: SmartErrorCardProps) {
         {parsed.isExpandable && (
           <button
             type="button"
-            onClick={() =>{  setIsExpanded(!isExpanded); }}
+            onClick={() => {
+              setIsExpanded(!isExpanded);
+            }}
             className="text-primary mt-1 flex items-center gap-1 text-xs hover:underline"
           >
             <HugeiconsIcon

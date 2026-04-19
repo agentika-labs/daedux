@@ -265,7 +265,9 @@ export function Header() {
                 <button
                   type="button"
                   key={value}
-                  onClick={() =>{  handleFilterChange(value); }}
+                  onClick={() => {
+                    handleFilterChange(value);
+                  }}
                   className={cn(
                     "cursor-pointer rounded-md px-3 py-1 text-sm font-medium transition-colors",
                     filter === value

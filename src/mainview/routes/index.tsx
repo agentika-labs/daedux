@@ -59,7 +59,7 @@ function OverviewRoute() {
           <p className="text-muted-foreground">{error.message}</p>
           <button
             type="button"
-            onClick={ async () => refetch()}
+            onClick={async () => refetch()}
             className="bg-primary text-primary-foreground mt-4 rounded-lg px-4 py-2"
           >
             Retry

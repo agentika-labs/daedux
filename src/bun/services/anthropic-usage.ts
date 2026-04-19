@@ -926,7 +926,7 @@ export class AnthropicUsageService extends Effect.Service<AnthropicUsageService>
         method: "unknown",
         determinedAt: null,
       };
-      const methodRef = yield* Ref.make<MethodState>(initialMethod);
+      const methodRef = yield* Ref.make(initialMethod);
 
       // State: last retry-after value from a 429 response (for dynamic polling)
       const retryAfterRef = yield* Ref.make<number | null>(null);
@@ -1062,7 +1062,7 @@ const readKeychainCredentials = () =>
       }
     );
 
-    const exitCode = yield* Effect.promise( async () => proc.exited);
+    const exitCode = yield* Effect.promise(async () => proc.exited);
 
     if (exitCode !== 0) {
       return yield* new AnthropicUsageError({
@@ -1071,7 +1071,7 @@ const readKeychainCredentials = () =>
       });
     }
 
-    const credentialsJson = yield* Effect.promise( async () =>
+    const credentialsJson = yield* Effect.promise(async () =>
       new Response(proc.stdout).text()
     );
 
@@ -1114,7 +1114,7 @@ const fetchUsageFromAPI = (accessToken: string) =>
           message: "Failed to connect to Anthropic API",
           reason: "api_error",
         }),
-      try:  async (signal) =>
+      try: async (signal) =>
         fetch("https://api.anthropic.com/api/oauth/usage", {
           headers: {
             Authorization: `Bearer ${accessToken}`,
@@ -1137,7 +1137,8 @@ const fetchUsageFromAPI = (accessToken: string) =>
       // Try to parse error response for better error messages
       const errorResult = yield* Effect.tryPromise({
         catch: () => null,
-        try:  async () => response.json() as Promise<{ error?: { message?: string } }>,
+        try: async () =>
+          response.json() as Promise<{ error?: { message?: string } }>,
       }).pipe(Effect.catchAll(() => Effect.succeed(null)));
 
       // Detect 429 explicitly (not just message content)
@@ -1182,7 +1183,7 @@ const fetchUsageFromAPI = (accessToken: string) =>
           message: "Failed to parse API response JSON",
           reason: "parse_error",
         }),
-      try:  async () => response.json(),
+      try: async () => response.json(),
     });
 
     // Validate against schema
@@ -1264,10 +1265,10 @@ const refreshOAuthToken = () =>
       stdout: "pipe", // Avoid nested session check
     });
 
-    const exitCode = yield* Effect.promise( async () => proc.exited);
+    const exitCode = yield* Effect.promise(async () => proc.exited);
 
     if (exitCode !== 0) {
-      const stderr = yield* Effect.promise( async () =>
+      const stderr = yield* Effect.promise(async () =>
         new Response(proc.stderr).text()
       );
       return yield* new AnthropicUsageError({

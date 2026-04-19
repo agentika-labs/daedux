@@ -95,7 +95,7 @@ const daeduxCommand = Command.make(
 
       // JSON mode: output data and exit
       if (json) {
-        yield* Effect.promise( async () => outputJson(filter));
+        yield* Effect.promise(async () => outputJson(filter));
         return;
       }
 
@@ -115,7 +115,7 @@ const daeduxCommand = Command.make(
         }, 500);
       }
 
-      yield* Effect.promise( async () =>
+      yield* Effect.promise(async () =>
         startServer({
           port,
           resync,

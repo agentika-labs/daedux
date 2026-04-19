@@ -23,12 +23,12 @@ import { queryClient } from "../lib/query-client";
 
 // Lazy load devtools - avoids ~50KB combined in production bundle
 // Static imports include the code even when conditionally rendered
-const ReactQueryDevtools = lazy( async () =>
+const ReactQueryDevtools = lazy(async () =>
   import("@tanstack/react-query-devtools").then((m) => ({
     default: m.ReactQueryDevtools,
   }))
 );
-const TanStackRouterDevtools = lazy( async () =>
+const TanStackRouterDevtools = lazy(async () =>
   import("@tanstack/router-devtools").then((m) => ({
     default: m.TanStackRouterDevtools,
   }))

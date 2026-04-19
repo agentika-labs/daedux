@@ -20,7 +20,7 @@ const prefetchSlowQueries = () => {
   queryClient.prefetchQuery(otelStatusQueryOptions);
 };
 
-const SettingsScreenLazy = lazy( async () =>
+const SettingsScreenLazy = lazy(async () =>
   import("@/components/settings/SettingsScreen").then((m) => ({
     default: m.SettingsScreen,
   }))

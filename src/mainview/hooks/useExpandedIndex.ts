@@ -5,20 +5,16 @@ import { useCallback, useState } from "react";
  * can be expanded at a time.
  */
 export function useExpandedIndex(initialIndex: number | null = null) {
-  const [expandedIndex, setExpandedIndex] = useState(
-    initialIndex
-  );
+  const [expandedIndex, setExpandedIndex] = useState(initialIndex);
 
   const isExpanded = useCallback(
     (index: number) => expandedIndex === index,
     [expandedIndex]
   );
 
-  const toggle = useCallback(
-    (index: number) =>{ 
-      setExpandedIndex((current) => (current === index ? null : index)); },
-    []
-  );
+  const toggle = useCallback((index: number) => {
+    setExpandedIndex((current) => (current === index ? null : index));
+  }, []);
 
   return { expandedIndex, isExpanded, toggle };
 }

@@ -41,7 +41,7 @@ export function RouteErrorComponent({
           )}
           <button
             type="button"
-            onClick={ async () => router.navigate({ to: "/" })}
+            onClick={async () => router.navigate({ to: "/" })}
             className="bg-muted text-muted-foreground rounded px-4 py-2 text-sm"
           >
             Go to Dashboard

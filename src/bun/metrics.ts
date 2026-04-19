@@ -12,10 +12,6 @@ export interface TokenBreakdown extends TokenInputBreakdown {
 export const totalInputWithCache = (tokens: TokenInputBreakdown): number =>
   tokens.uncachedInput + tokens.cacheRead + tokens.cacheWrite;
 
-/** Total billable token volume represented in dashboard totals. */
-export const totalBillableTokens = (tokens: TokenBreakdown): number =>
-  totalInputWithCache(tokens) + tokens.output;
-
 /** Cache hit ratio: cache reads as a share of the full input context for requests. */
 export const cacheHitRatio = (tokens: TokenInputBreakdown): number => {
   const denom = totalInputWithCache(tokens);

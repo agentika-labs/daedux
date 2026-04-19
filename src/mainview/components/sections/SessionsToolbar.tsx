@@ -29,7 +29,9 @@ export const SessionsToolbar = React.memo(function SessionsToolbar({
         <Input
           placeholder="Search sessions..."
           value={searchInput}
-          onChange={(e) =>{  onSearchChange(e.target.value); }}
+          onChange={(e) => {
+            onSearchChange(e.target.value);
+          }}
           className="w-[200px] pl-8"
         />
       </div>

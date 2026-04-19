@@ -112,7 +112,9 @@ export const saveSettings = (settings: AppSettings): void => {
  * Effect-wrapped save for use in Effect services.
  */
 export const saveSettingsEffect = (settings: AppSettings) =>
-  Effect.sync(() =>{  saveSettings(settings); });
+  Effect.sync(() => {
+    saveSettings(settings);
+  });
 
 /**
  * Atomic update: read current, apply patch, save.

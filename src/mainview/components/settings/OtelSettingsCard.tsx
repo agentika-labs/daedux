@@ -45,15 +45,30 @@ export const OtelSettingsCard = ({
 
   // Local state for inputs to allow empty intermediate values while editing
   const [localRetention, setLocalRetention] = useState(String(retentionDays));
-  const [localHourlyCost, setLocalHourlyCost] = useState(String(roiHourlyDevCost));
-  const [localMinutesLoc, setLocalMinutesLoc] = useState(String(roiMinutesPerLoc));
-  const [localMinutesCommit, setLocalMinutesCommit] = useState(String(roiMinutesPerCommit));
+  const [localHourlyCost, setLocalHourlyCost] = useState(
+    String(roiHourlyDevCost)
+  );
+  const [localMinutesLoc, setLocalMinutesLoc] = useState(
+    String(roiMinutesPerLoc)
+  );
+  const [localMinutesCommit, setLocalMinutesCommit] = useState(
+    String(roiMinutesPerCommit)
+  );
 
   // Sync local state when props change externally
-  useEffect(() => setLocalRetention(String(retentionDays)), [retentionDays]);
-  useEffect(() => setLocalHourlyCost(String(roiHourlyDevCost)), [roiHourlyDevCost]);
-  useEffect(() => setLocalMinutesLoc(String(roiMinutesPerLoc)), [roiMinutesPerLoc]);
-  useEffect(() => setLocalMinutesCommit(String(roiMinutesPerCommit)), [roiMinutesPerCommit]);
+  useEffect(() =>{  setLocalRetention(String(retentionDays)); }, [retentionDays]);
+  useEffect(
+    () =>{  setLocalHourlyCost(String(roiHourlyDevCost)); },
+    [roiHourlyDevCost]
+  );
+  useEffect(
+    () =>{  setLocalMinutesLoc(String(roiMinutesPerLoc)); },
+    [roiMinutesPerLoc]
+  );
+  useEffect(
+    () =>{  setLocalMinutesCommit(String(roiMinutesPerCommit)); },
+    [roiMinutesPerCommit]
+  );
 
   const handleToggleEnabled = useCallback(
     (checked: boolean) => {
@@ -125,7 +140,9 @@ export const OtelSettingsCard = ({
           <Button
             variant={enabled ? "default" : "outline"}
             size="sm"
-            onClick={() =>{  handleToggleEnabled(!enabled); }}
+            onClick={() => {
+              handleToggleEnabled(!enabled);
+            }}
             disabled={isLoading}
           >
             {enabled ? "Enabled" : "Disabled"}
@@ -205,7 +222,7 @@ export const OtelSettingsCard = ({
               min={1}
               max={365}
               value={localRetention}
-              onChange={(e) => setLocalRetention(e.target.value)}
+              onChange={(e) =>{  setLocalRetention(e.target.value); }}
               onBlur={handleRetentionBlur}
               className="w-20"
               disabled={isLoading}
@@ -235,7 +252,7 @@ export const OtelSettingsCard = ({
                   min={0}
                   step={5}
                   value={localHourlyCost}
-                  onChange={(e) => setLocalHourlyCost(e.target.value)}
+                  onChange={(e) =>{  setLocalHourlyCost(e.target.value); }}
                   onBlur={handleHourlyCostBlur}
                   className="w-20"
                   disabled={isLoading}
@@ -260,7 +277,7 @@ export const OtelSettingsCard = ({
                   min={0.1}
                   step={0.5}
                   value={localMinutesLoc}
-                  onChange={(e) => setLocalMinutesLoc(e.target.value)}
+                  onChange={(e) =>{  setLocalMinutesLoc(e.target.value); }}
                   onBlur={handleMinutesLocBlur}
                   className="w-20"
                   disabled={isLoading}
@@ -285,7 +302,7 @@ export const OtelSettingsCard = ({
                   min={1}
                   step={5}
                   value={localMinutesCommit}
-                  onChange={(e) => setLocalMinutesCommit(e.target.value)}
+                  onChange={(e) =>{  setLocalMinutesCommit(e.target.value); }}
                   onBlur={handleMinutesCommitBlur}
                   className="w-20"
                   disabled={isLoading}
