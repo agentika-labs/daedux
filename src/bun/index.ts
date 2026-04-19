@@ -121,7 +121,7 @@ const getRuntime = () => {
  * Using a single runtime ensures semaphores work correctly across all calls.
  * Includes a 30-second timeout to prevent indefinite hangs from blocking the UI.
  */
-const runEffect = async <A, E>(
+const runEffect = <A, E>(
   effect: Effect.Effect<A, E, AppContext>,
   timeoutMs = 30_000
 ): Promise<A> =>
