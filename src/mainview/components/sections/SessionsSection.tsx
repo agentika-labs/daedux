@@ -17,11 +17,7 @@ import {
   getPaginationRowModel,
   flexRender,
 } from "@tanstack/react-table";
-import type {
-  SortingState,
-  PaginationState,
-  FilterFn,
-} from "@tanstack/react-table";
+import type { SortingState, FilterFn } from "@tanstack/react-table";
 import { useState, useMemo, useDeferredValue, useCallback } from "react";
 
 import { Section } from "@/components/layout/Section";

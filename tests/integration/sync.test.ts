@@ -9,8 +9,8 @@ import { eq } from "drizzle-orm";
 import { Effect } from "effect";
 
 import * as schema from "../../src/bun/db/schema";
-import { ClaudeCodeParserService } from '../../src/bun/parsers';
-import type { ParserInput } from '../../src/bun/parsers';
+import { ClaudeCodeParserService } from "../../src/bun/parsers";
+import type { ParserInput } from "../../src/bun/parsers";
 import { createTestDb } from "../helpers/test-db";
 
 // ─── Test Helpers ───────────────────────────────────────────────────────────

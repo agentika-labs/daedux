@@ -1,5 +1,5 @@
 import { BulbIcon } from "@hugeicons/core-free-icons";
-import type { Insight, InsightActionTarget } from "@shared/rpc-types";
+import type { Insight } from "@shared/rpc-types";
 import { useMemo } from "react";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -40,7 +40,9 @@ export function InsightsPanel({
           action: buildAction(insight, onNavigateToSection),
           insight,
           priority:
-            insight.priority && insight.priority > 5 ? "high" : "medium",
+            insight.priority && insight.priority > 5
+              ? ("high" as const)
+              : ("medium" as const),
           type: mapInsightType(insight.type),
         })),
     [insights, maxInsights, onNavigateToSection]
