@@ -54,10 +54,10 @@ Daedux uses a **dual-mode architecture** with unified backend logic but differen
 
 ### Dual Mode Communication
 
-| Mode | Frontend | Backend | Communication |
-|------|----------|---------|---------------|
+| Mode    | Frontend  | Backend          | Communication              |
+| ------- | --------- | ---------------- | -------------------------- |
 | Desktop | WKWebView | Bun main process | WebSocket RPC (Electrobun) |
-| CLI/Web | Browser | Bun HTTP server | HTTP fetch |
+| CLI/Web | Browser   | Bun HTTP server  | HTTP fetch                 |
 
 The `useApi()` hook detects the environment and returns either an RPC or HTTP client with an identical interface. This abstraction enables single-source code for both modes.
 
@@ -82,13 +82,13 @@ src/
 
 ## Key Files
 
-| File | Purpose |
-|------|---------|
-| `src/shared/rpc-types.ts` | Frontend-backend contract (source of truth) |
-| `src/bun/db/schema.ts` | Drizzle database schema |
-| `src/bun/errors.ts` | Domain error definitions |
-| `src/bun/main.ts` | Effect Layer composition |
-| `src/mainview/hooks/useApi.ts` | Environment-aware API client |
+| File                           | Purpose                                     |
+| ------------------------------ | ------------------------------------------- |
+| `src/shared/rpc-types.ts`      | Frontend-backend contract (source of truth) |
+| `src/bun/db/schema.ts`         | Drizzle database schema                     |
+| `src/bun/errors.ts`            | Domain error definitions                    |
+| `src/bun/main.ts`              | Effect Layer composition                    |
+| `src/mainview/hooks/useApi.ts` | Environment-aware API client                |
 
 ## Code Patterns
 
@@ -98,17 +98,21 @@ The backend uses Effect's service pattern for dependency injection:
 
 ```typescript
 // Define a service
-export class AnalyticsService extends Effect.Service<AnalyticsService>()("AnalyticsService", {
-  effect: Effect.gen(function* () {
-    const db = yield* DatabaseService
-    return {
-      getDashboard: (filter?: DateFilter) => Effect.gen(function* () {
-        // Implementation using db
-      })
-    }
-  }),
-  dependencies: [DatabaseServiceLive]
-}) {}
+export class AnalyticsService extends Effect.Service<AnalyticsService>()(
+  "AnalyticsService",
+  {
+    effect: Effect.gen(function* () {
+      const db = yield* DatabaseService;
+      return {
+        getDashboard: (filter?: DateFilter) =>
+          Effect.gen(function* () {
+            // Implementation using db
+          }),
+      };
+    }),
+    dependencies: [DatabaseServiceLive],
+  }
+) {}
 ```
 
 ### Typed Errors
@@ -124,7 +128,7 @@ export class SessionNotFoundError extends Schema.TaggedError<SessionNotFoundErro
 
 // Use it
 if (!session) {
-  return Effect.fail(new SessionNotFoundError({ sessionId }))
+  return Effect.fail(new SessionNotFoundError({ sessionId }));
 }
 ```
 
@@ -134,10 +138,10 @@ Import directly from source modules:
 
 ```typescript
 // ✗ Don't create index.ts with re-exports
-export * from "./UserRepository"
+export * from "./UserRepository";
 
 // ✓ Import directly
-import { UserRepository } from "@/services/UserRepository"
+import { UserRepository } from "@/services/UserRepository";
 ```
 
 ## Frontend-Backend Contract
@@ -151,17 +155,17 @@ All API types are defined in `src/shared/rpc-types.ts`. This is the single sourc
 ```typescript
 // rpc-types.ts
 export interface DashboardData {
-  sessions: SessionSummary[]
-  totals: TokenTotals
-  trends: TrendData[]
+  sessions: SessionSummary[];
+  totals: TokenTotals;
+  trends: TrendData[];
   // ...
 }
 
 // Backend implements
-getDashboard: (filter?: DateFilter) => Effect.Effect<DashboardData, Error>
+getDashboard: (filter?: DateFilter) => Effect.Effect<DashboardData, Error>;
 
 // Frontend consumes
-const { data } = useQuery({ queryFn: () => api.getDashboard(filter) })
+const { data } = useQuery({ queryFn: () => api.getDashboard(filter) });
 ```
 
 ## Native macOS Layer
@@ -190,14 +194,14 @@ A stale dylib silently uses old native code.
 
 Located in `src/bun/db/schema.ts`:
 
-| Table | Purpose |
-|-------|---------|
-| `sessions` | One row per JSONL file, pre-aggregated token/cost totals |
-| `queries` | One row per API call, per-call token usage |
-| `toolUses` | Tool invocations with success/failure + duration |
-| `fileOperations` | File read/write tracking |
-| `hookEvents` | Hook execution events |
-| `bashCommands` | Bash command history |
+| Table            | Purpose                                                  |
+| ---------------- | -------------------------------------------------------- |
+| `sessions`       | One row per JSONL file, pre-aggregated token/cost totals |
+| `queries`        | One row per API call, per-call token usage               |
+| `toolUses`       | Tool invocations with success/failure + duration         |
+| `fileOperations` | File read/write tracking                                 |
+| `hookEvents`     | Hook execution events                                    |
+| `bashCommands`   | Bash command history                                     |
 
 **Pre-aggregation**: Session totals are computed during sync, not at query time. This enables instant dashboard loads.
 
