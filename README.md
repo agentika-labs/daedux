@@ -118,51 +118,9 @@ Database location by platform:
 | Windows  | `%APPDATA%/Daedux/daedux.db`                     |
 | Linux    | `~/.local/share/daedux/daedux.db`                |
 
-## Development
-
-### Commands
-
-```bash
-bun install               # Install dependencies
-bun run dev               # Full dev (CLI + frontend)
-bun run dev:app           # Desktop app with HMR
-bun run dev:cli           # CLI server only
-bun run dev:frontend      # Vite frontend only
-bun run typecheck         # TypeScript check
-bun run check             # Lint (ultracite)
-bun run fix               # Auto-fix lint issues
-bun test                  # Run tests
-```
-
-### Architecture
-
-```
-src/
-├── bun/           # Backend (Bun runtime, Effect TS)
-│   ├── analytics/ # Data aggregation services
-│   ├── db/        # Drizzle schema + migrations
-│   └── services/  # Background services
-├── mainview/      # Frontend (React 19, TanStack)
-│   ├── routes/    # TanStack Router (file-based)
-│   ├── queries/   # TanStack Query definitions
-│   └── components/# UI components
-├── cli/           # CLI entry point (@effect/cli)
-└── shared/        # RPC types (frontend-backend contract)
-```
-
-### Building
-
-```bash
-bun run build             # Full build (native + frontend + app)
-bun run build:prod        # Production build
-```
-
 ## Tech Stack
 
-- **Runtime**: Bun
-- **Backend**: Effect TS, Drizzle ORM, SQLite
-- **Frontend**: React 19, TanStack (Query, Router, Table), Tailwind CSS
-- **Desktop**: Electrobun
+Bun runtime, Effect TS + Drizzle ORM backend, React 19 + TanStack frontend, Electrobun desktop shell.
 
 ## License
 
@@ -170,9 +128,6 @@ MIT
 
 ## Contributing
 
-1. Fork the repository
-2. Create a feature branch
-3. Run `bun run typecheck` and `bun run check` before committing
-4. Submit a pull request
+See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, architecture, and guidelines.
 
 Issues and feature requests: [GitHub Issues](https://github.com/agentika-labs/daedux/issues)
