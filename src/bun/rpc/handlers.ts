@@ -1,5 +1,3 @@
-import { join } from "node:path";
-
 import { Effect } from "effect";
 
 import { parseDateFilter } from "../../shared/date-filter";
@@ -41,6 +39,7 @@ import { SchedulerService, parseDaysOfWeek } from "../services/scheduler";
 import { saveSettings } from "../services/settings";
 import { toDateString } from "../utils/formatting";
 import { log } from "../utils/log";
+import { APP_VERSION } from "../version";
 
 // ─── Message Handlers ───────────────────────────────────────────────────────
 
@@ -441,18 +440,13 @@ export const handleGetAnthropicUsage = async () =>
 // ─── App Info Handler ───────────────────────────────────────────────────────
 
 export const handleGetAppInfo = async (): Promise<AppInfo> => {
-  const packageJson = await Bun.file(
-    join(import.meta.dir, "../../../package.json")
-  ).json();
-  const version = packageJson.version ?? "0.0.0";
-
-  const downloadUrl = `https://github.com/agentika-labs/daedux/releases/download/v${version}/daedux-${version}-darwin-arm64.dmg`;
+  const downloadUrl = `https://github.com/agentika-labs/daedux/releases/download/v${APP_VERSION}/daedux-${APP_VERSION}-darwin-arm64.dmg`;
 
   return {
     downloadUrl,
     updateAvailable: getUpdateAvailable(),
     updateVersion: getUpdateVersion(),
-    version,
+    version: APP_VERSION,
   };
 };
 
