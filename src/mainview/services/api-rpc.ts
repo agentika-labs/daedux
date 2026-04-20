@@ -5,27 +5,28 @@
  * Normalizes RPC errors to typed ApiClientError.
  */
 
-import { Duration, Effect, Layer } from "effect";
-
 import {
   ApiClient,
   ApiError,
   ApiTimeoutError,
   RpcConnectionError,
-  type ApiClientError,
-  type ApiClientMethods,
-  type DashboardParams,
-  type OtelAnalyticsParams,
-  type SessionDetailParams,
-  type SyncParams,
 } from "@shared/api-client";
+import type {
+  ApiClientError,
+  ApiClientMethods,
+  DashboardParams,
+  OtelAnalyticsParams,
+  SessionDetailParams,
+  SyncParams,
+} from "@shared/api-client";
+import { Duration, Effect, Layer } from "effect";
 
 const RPC_TIMEOUT = Duration.seconds(30);
 
 /** Lazy-loaded electroview singleton */
 let electroviewPromise: Promise<typeof import("../hooks/useRPC")> | null = null;
 
-const getElectroview = () => {
+const getElectroview = async () => {
   electroviewPromise ??= import("../hooks/useRPC");
   return electroviewPromise;
 };
@@ -67,30 +68,39 @@ const rpcCall = <A>(
 /** RPC-based API client implementation */
 const rpcClientMethods: ApiClientMethods = {
   getDashboardData: (params: DashboardParams) =>
-    rpcCall("getDashboardData", (rpc) => rpc.request.getDashboardData(params)),
+    rpcCall("getDashboardData", async (rpc) =>
+      rpc.request.getDashboardData(params)
+    ),
 
   triggerSync: (params: SyncParams) =>
-    rpcCall("triggerSync", (rpc) => rpc.request.triggerSync(params)),
+    rpcCall("triggerSync", async (rpc) => rpc.request.triggerSync(params)),
 
   getSyncStatus: () =>
-    rpcCall("getSyncStatus", (rpc) => rpc.request.getSyncStatus({})),
+    rpcCall("getSyncStatus", async (rpc) => rpc.request.getSyncStatus({})),
 
   getSessionDetail: (params: SessionDetailParams) =>
-    rpcCall("getSessionDetail", (rpc) => rpc.request.getSessionDetail(params)),
+    rpcCall("getSessionDetail", async (rpc) =>
+      rpc.request.getSessionDetail(params)
+    ),
 
   getSettings: () =>
-    rpcCall("getSettings", (rpc) => rpc.request.getSettings({})),
+    rpcCall("getSettings", async (rpc) => rpc.request.getSettings({})),
 
-  getAppInfo: () => rpcCall("getAppInfo", (rpc) => rpc.request.getAppInfo({})),
+  getAppInfo: () =>
+    rpcCall("getAppInfo", async (rpc) => rpc.request.getAppInfo({})),
 
   getAnthropicUsage: () =>
-    rpcCall("getAnthropicUsage", (rpc) => rpc.request.getAnthropicUsage({})),
+    rpcCall("getAnthropicUsage", async (rpc) =>
+      rpc.request.getAnthropicUsage({})
+    ),
 
   getOtelStatus: () =>
-    rpcCall("getOtelStatus", (rpc) => rpc.request.getOtelStatus({})),
+    rpcCall("getOtelStatus", async (rpc) => rpc.request.getOtelStatus({})),
 
   getOtelAnalytics: (params: OtelAnalyticsParams) =>
-    rpcCall("getOtelAnalytics", (rpc) => rpc.request.getOtelAnalytics(params)),
+    rpcCall("getOtelAnalytics", async (rpc) =>
+      rpc.request.getOtelAnalytics(params)
+    ),
 };
 
 /** RPC-based API client layer for Electrobun */

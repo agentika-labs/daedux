@@ -2,9 +2,9 @@ import { Layer, Logger, LogLevel } from "effect";
 
 import { AllAnalyticsServicesLive } from "./analytics/index";
 import { DatabaseService } from "./db";
-import { ParserRegistry } from "./parsers";
-import { AnthropicUsageService } from "./services/anthropic-usage";
+import { ParserRegistry } from "./parsers/registry";
 import { AnalyticsOrchestratorLive } from "./services/analytics-orchestrator";
+import { AnthropicUsageService } from "./services/anthropic-usage/service";
 import { SchedulerService } from "./services/scheduler";
 import { SyncService } from "./sync";
 

@@ -16,13 +16,15 @@ const defaultFlags: DialogFlags = {
 describe("detectDialog", () => {
   describe("MCP prompt detection", () => {
     it("detects MCP server prompt with 'Continue without' option", () => {
-      const output = "MCP server found in this directory. Continue without using this MCP server?";
+      const output =
+        "MCP server found in this directory. Continue without using this MCP server?";
       const state = detectDialog(output, defaultFlags);
       expect(state.type).toBe("mcp_prompt");
     });
 
     it("detects MCP server prompt with 'without using' variant", () => {
-      const output = "MCP server found. Choose: 1. Use server 2. Skip 3. Continue without using";
+      const output =
+        "MCP server found. Choose: 1. Use server 2. Skip 3. Continue without using";
       const state = detectDialog(output, defaultFlags);
       expect(state.type).toBe("mcp_prompt");
     });
@@ -30,14 +32,16 @@ describe("detectDialog", () => {
 
   describe("trust prompt detection", () => {
     it("detects trust prompt when fully rendered", () => {
-      const output = "Is this a project you created? I trust this folder Itrustthisfolder Entertoconfirm";
+      const output =
+        "Is this a project you created? I trust this folder Itrustthisfolder Entertoconfirm";
       const state = detectDialog(output, defaultFlags);
       expect(state.type).toBe("trust_prompt");
       expect(state.type === "trust_prompt" && state.ready).toBe(true);
     });
 
     it("detects trust prompt when not fully rendered", () => {
-      const output = "Is this a project you created? I trust this folder Itrustthisfolder";
+      const output =
+        "Is this a project you created? I trust this folder Itrustthisfolder";
       const state = detectDialog(output, defaultFlags);
       expect(state.type).toBe("trust_prompt");
       expect(state.type === "trust_prompt" && state.ready).toBe(false);
@@ -53,13 +57,15 @@ describe("detectDialog", () => {
 
   describe("permissions warning detection", () => {
     it("detects Bypasspermissions warning", () => {
-      const output = "Bypasspermissions mode is enabled. This may be dangerous.";
+      const output =
+        "Bypasspermissions mode is enabled. This may be dangerous.";
       const state = detectDialog(output, defaultFlags);
       expect(state.type).toBe("permissions_warning");
     });
 
     it("detects security docs link", () => {
-      const output = "For more information, visit code.claude.com/docs/security";
+      const output =
+        "For more information, visit code.claude.com/docs/security";
       const state = detectDialog(output, defaultFlags);
       expect(state.type).toBe("permissions_warning");
     });
@@ -165,7 +171,9 @@ describe("getDialogResponse", () => {
   });
 
   it("returns null for not-ready trust prompt", () => {
-    expect(getDialogResponse({ type: "trust_prompt", ready: false })).toBeNull();
+    expect(
+      getDialogResponse({ type: "trust_prompt", ready: false })
+    ).toBeNull();
   });
 
   it("returns DOWN ARROW for permissions warning", () => {
@@ -181,7 +189,9 @@ describe("getDialogResponse", () => {
   });
 
   it("returns /exit\\r for CLI error", () => {
-    expect(getDialogResponse({ type: "cli_error", message: "Error" })).toBe("/exit\r");
+    expect(getDialogResponse({ type: "cli_error", message: "Error" })).toBe(
+      "/exit\r"
+    );
   });
 
   it("returns null for none state", () => {

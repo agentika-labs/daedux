@@ -18,14 +18,7 @@ import type {
  */
 import { useEffect, useState } from "react";
 
-// ─── Environment Detection ───────────────────────────────────────────────────
-
-/**
- * Check if we're running in Electrobun desktop environment.
- * The __electrobun global is injected by Electrobun's webview.
- */
-const isElectrobun = (): boolean =>
-  typeof window !== "undefined" && "__electrobun" in window;
+import { isElectrobun } from "@/services/api-live";
 
 // ─── HTTP API Client ─────────────────────────────────────────────────────────
 

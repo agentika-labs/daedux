@@ -8,7 +8,11 @@ import { AnthropicUsageError } from "../../errors";
 import { stripAnsi } from "../../utils/ansi";
 import { debugLog, log } from "../../utils/log";
 import { getCliSpawnEnv } from "../../utils/path";
-import { detectDialog, getDialogResponse, hasUsageData } from "./dialog-detector";
+import {
+  detectDialog,
+  getDialogResponse,
+  hasUsageData,
+} from "./dialog-detector";
 import { parseUsageOutput } from "./tui-parser";
 import type { DialogFlags } from "./types";
 
@@ -41,11 +45,16 @@ export const tryCliUsage = () =>
       const isRateLimited =
         msg.includes("rate limited") || msg.includes("Rate limit");
       const isDisabled =
-        msg.includes("disabled in test") || msg.includes("disabled in CLI server");
+        msg.includes("disabled in test") ||
+        msg.includes("disabled in CLI server");
       return new AnthropicUsageError({
         cause: e,
         message: isRateLimited ? "CLI rate limited" : `CLI probe failed: ${e}`,
-        reason: isRateLimited ? "rate_limited" : isDisabled ? "not_supported" : "api_error",
+        reason: isRateLimited
+          ? "rate_limited"
+          : isDisabled
+            ? "not_supported"
+            : "api_error",
       });
     },
     try: async () => {
@@ -147,17 +156,24 @@ export const tryCliUsage = () =>
                 case "mcp_prompt": {
                   log.info("usage", "MCP prompt detected, bypassing...");
                   const response = getDialogResponse(state);
-                  if (response) terminal.write(response);
+                  if (response) {
+                    terminal.write(response);
+                  }
                   return;
                 }
 
                 case "trust_prompt": {
                   if (state.ready) {
-                    log.info("usage", "Trust prompt detected, pressing Enter...");
+                    log.info(
+                      "usage",
+                      "Trust prompt detected, pressing Enter..."
+                    );
                     flags.trustHandled = true;
                     output = "";
                     const response = getDialogResponse(state);
-                    if (response) terminal.write(response);
+                    if (response) {
+                      terminal.write(response);
+                    }
                   }
                   return;
                 }
@@ -170,7 +186,9 @@ export const tryCliUsage = () =>
                   flags.permissionsHandled = true;
                   output = "";
                   const response = getDialogResponse(state);
-                  if (response) terminal.write(response);
+                  if (response) {
+                    terminal.write(response);
+                  }
                   setTimeout(() => {
                     if (!resolved && proc.terminal) {
                       debugLog(
@@ -185,7 +203,10 @@ export const tryCliUsage = () =>
 
                 case "repl_ready": {
                   if (!flags.usageCommandSent) {
-                    log.info("usage", "REPL prompt detected, sending /usage...");
+                    log.info(
+                      "usage",
+                      "REPL prompt detected, sending /usage..."
+                    );
                     flags.usageCommandSent = true;
                     terminal.write("/usage\r");
                     setTimeout(() => {
@@ -241,8 +262,9 @@ export const tryCliUsage = () =>
                   return;
                 }
 
-                case "none":
-                  return;
+                case "none": {
+                  break;
+                }
               }
             },
             exit(_terminal, exitCode, signal) {
@@ -277,7 +299,8 @@ export const tryCliUsageWithRetry = () =>
   tryCliUsage().pipe(
     Effect.retry({
       schedule: cliRetrySchedule,
-      while: (err) => err.reason !== "rate_limited" && err.reason !== "not_supported",
+      while: (err) =>
+        err.reason !== "rate_limited" && err.reason !== "not_supported",
     }),
     Effect.catchTag("AnthropicUsageError", (err) => {
       if (err.reason === "rate_limited") {

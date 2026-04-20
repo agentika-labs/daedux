@@ -20,8 +20,8 @@ import {
   buildClientErrorResponse,
   buildServerErrorResponse,
 } from "../bun/otel/receiver";
-import { AnthropicUsageService } from "../bun/services/anthropic-usage";
 import { AnalyticsOrchestrator } from "../bun/services/analytics-orchestrator";
+import { AnthropicUsageService } from "../bun/services/anthropic-usage/service";
 import { SyncService } from "../bun/sync";
 import { log } from "../bun/utils/log";
 import { transformSessionToRPC } from "../bun/utils/session-transformer";

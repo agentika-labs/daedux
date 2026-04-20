@@ -5,12 +5,12 @@ import { DatabaseService, runInTransaction } from "./db";
 import * as schema from "./db/schema";
 import type { ParseError } from "./errors";
 import { DatabaseError } from "./errors";
-import { ParserRegistry } from "./parsers";
-import type { ParsedRecords, SessionFileInfo } from "./parsers";
+import { ParserRegistry } from "./parsers/registry";
+import type { ParsedRecords, SessionFileInfo } from "./parsers/types";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
-export type { SessionFileInfo as FileInfo } from "./parsers";
+export type { SessionFileInfo as FileInfo } from "./parsers/types";
 
 export interface SyncResult {
   readonly synced: number;

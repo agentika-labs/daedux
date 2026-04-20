@@ -57,7 +57,10 @@ describe("parseResetTimeFromDate", () => {
 
   describe("date + time formats", () => {
     it("parses 'Mar 3 at 4pm' format", () => {
-      const result = parseResetTimeFromDate("Mar 3 at 4pm (Europe/London)", fixedNow);
+      const result = parseResetTimeFromDate(
+        "Mar 3 at 4pm (Europe/London)",
+        fixedNow
+      );
       expect(result).not.toBeNull();
       const resetDate = new Date(result! * 1000);
       expect(resetDate.getMonth()).toBe(2); // March = 2

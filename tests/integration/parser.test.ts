@@ -7,8 +7,8 @@ import * as path from "node:path";
 
 import { Effect } from "effect";
 
-import { ClaudeCodeParserService } from "../../src/bun/parsers";
-import type { ParserInput } from "../../src/bun/parsers";
+import { ClaudeCodeParserService } from "../../src/bun/parsers/claude-code/parser";
+import type { ParserInput } from "../../src/bun/parsers/types";
 
 // ─── Test Helpers ───────────────────────────────────────────────────────────
 

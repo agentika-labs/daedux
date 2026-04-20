@@ -90,13 +90,17 @@ export type SyncParams = Schema.Schema.Type<typeof SyncParams>;
 export const SessionDetailParams = Schema.Struct({
   sessionId: Schema.String,
 });
-export type SessionDetailParams = Schema.Schema.Type<typeof SessionDetailParams>;
+export type SessionDetailParams = Schema.Schema.Type<
+  typeof SessionDetailParams
+>;
 
 export const OtelAnalyticsParams = Schema.Struct({
   filter: FilterLiteral,
   harness: Schema.optional(HarnessLiteral),
 });
-export type OtelAnalyticsParams = Schema.Schema.Type<typeof OtelAnalyticsParams>;
+export type OtelAnalyticsParams = Schema.Schema.Type<
+  typeof OtelAnalyticsParams
+>;
 
 // ─── Sync Status Response ───────────────────────────────────────────────────
 

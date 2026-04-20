@@ -65,7 +65,8 @@ export const detectDialog = (
   // CLI-level errors (rate limits, API failures)
   if (
     flags.usageCommandSent &&
-    ((cleanOutput.includes("Error:") && cleanOutput.includes("Failed to load")) ||
+    ((cleanOutput.includes("Error:") &&
+      cleanOutput.includes("Failed to load")) ||
       cleanOutput.includes("Rate limit") ||
       cleanOutput.includes("rate limit"))
   ) {
@@ -123,33 +124,40 @@ export const detectDialog = (
  */
 export const getDialogResponse = (state: DialogState): string | null => {
   switch (state.type) {
-    case "mcp_prompt":
+    case "mcp_prompt": {
       // Select option 3 "Continue without using this MCP server"
       return "3\r";
+    }
 
-    case "trust_prompt":
+    case "trust_prompt": {
       // Option 1 is pre-selected, press Enter to confirm
       return state.ready ? "\r" : null;
+    }
 
-    case "permissions_warning":
+    case "permissions_warning": {
       // DOWN ARROW to select "Yes, I accept" (option 1 "No, exit" is pre-selected)
       // Caller should send "\r" after a short delay
       return "\u001B[B";
+    }
 
-    case "repl_ready":
+    case "repl_ready": {
       // Send /usage command
       return "/usage\r";
+    }
 
-    case "usage_displayed":
+    case "usage_displayed": {
       // Exit the CLI
       return "/exit\r";
+    }
 
-    case "cli_error":
+    case "cli_error": {
       // Exit on error
       return "/exit\r";
+    }
 
-    case "none":
+    case "none": {
       return null;
+    }
   }
 };
 

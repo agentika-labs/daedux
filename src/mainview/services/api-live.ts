@@ -5,9 +5,11 @@
  * Selects HTTP or RPC adapter based on runtime environment.
  */
 
-import { ManagedRuntime, type Effect, type Layer } from "effect";
+import { ApiClient } from "@shared/api-client";
+import type { ApiClientError } from "@shared/api-client";
+import { ManagedRuntime } from "effect";
+import type { Effect, Layer } from "effect";
 
-import { ApiClient, type ApiClientError } from "@shared/api-client";
 import { HttpApiClientLive } from "./api-http";
 import { RpcApiClientLive } from "./api-rpc";
 
@@ -52,9 +54,7 @@ const getRuntime = () => {
  */
 export const runApiEffect = async <A, E extends ApiClientError>(
   effect: Effect.Effect<A, E, ApiClient>
-): Promise<A> => {
-  return getRuntime().runPromise(effect);
-};
+): Promise<A> => getRuntime().runPromise(effect);
 
 /**
  * Convert an ApiClientError to a standard Error for TanStack Query.
@@ -64,13 +64,19 @@ export const runApiEffect = async <A, E extends ApiClientError>(
  */
 export const apiErrorToError = (error: ApiClientError): Error => {
   switch (error._tag) {
-    case "ApiTimeoutError":
+    case "ApiTimeoutError": {
       return new Error(`Request timed out after ${error.durationMs}ms`);
-    case "HttpStatusError":
-      return new Error(`HTTP ${error.status}: ${error.body ?? "Request failed"}`);
-    case "RpcConnectionError":
+    }
+    case "HttpStatusError": {
+      return new Error(
+        `HTTP ${error.status}: ${error.body ?? "Request failed"}`
+      );
+    }
+    case "RpcConnectionError": {
       return new Error(`Connection error: ${error.message}`);
-    case "ApiError":
+    }
+    case "ApiError": {
       return new Error(error.message);
+    }
   }
 };

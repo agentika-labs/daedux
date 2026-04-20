@@ -5,22 +5,36 @@
  * Normalizes HTTP errors to typed ApiClientError.
  */
 
-import { Duration, Effect, Layer } from "effect";
-
 import {
   ApiClient,
   ApiError,
   ApiTimeoutError,
   HttpStatusError,
-  type ApiClientError,
-  type ApiClientMethods,
-  type DashboardParams,
-  type OtelAnalyticsParams,
-  type SessionDetailParams,
-  type SyncParams,
 } from "@shared/api-client";
+import type {
+  ApiClientError,
+  ApiClientMethods,
+  DashboardParams,
+  OtelAnalyticsParams,
+  SessionDetailParams,
+  SyncParams,
+} from "@shared/api-client";
+import { Duration, Effect, Layer } from "effect";
 
 const API_TIMEOUT = Duration.seconds(30);
+
+/** HTTP response error for non-ok responses */
+class HttpResponseError extends Error {
+  readonly _tag = "http" as const;
+  readonly status: number;
+  readonly body?: string;
+
+  constructor(status: number, body?: string) {
+    super(`HTTP ${status}`);
+    this.status = status;
+    this.body = body;
+  }
+}
 
 /** Build URL with query params */
 const buildUrl = (
@@ -49,8 +63,8 @@ const fetchWithTimeout = <A>(
     try: async (signal) => {
       const response = await fetch(url, { ...options, signal });
       if (!response.ok) {
-        const body = await response.text().catch(() => undefined);
-        throw { _tag: "http", status: response.status, body };
+        const body = await response.text().catch((): undefined => undefined);
+        throw new HttpResponseError(response.status, body);
       }
       return response.json() as Promise<A>;
     },

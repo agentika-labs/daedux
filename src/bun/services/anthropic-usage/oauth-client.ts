@@ -1,6 +1,9 @@
 import { Effect, Schema } from "effect";
 
-import type { AnthropicUsage, AnthropicUsageWindow } from "../../../shared/rpc-types";
+import type {
+  AnthropicUsage,
+  AnthropicUsageWindow,
+} from "../../../shared/rpc-types";
 import { AnthropicUsageError } from "../../errors";
 import { debugLog } from "../../utils/log";
 import { getCliSpawnEnv } from "../../utils/path";

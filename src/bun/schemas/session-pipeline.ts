@@ -68,7 +68,9 @@ export const SessionAggregatesSchema = Schema.Struct({
   errorCount: Schema.Number,
 });
 
-export type SessionAggregates = Schema.Schema.Type<typeof SessionAggregatesSchema>;
+export type SessionAggregates = Schema.Schema.Type<
+  typeof SessionAggregatesSchema
+>;
 
 // ─── RPC Schema (Frontend Contract) ─────────────────────────────────────────
 
@@ -118,7 +120,9 @@ export const SessionSummaryRpcSchema = Schema.Struct({
   fileActivityDetails: Schema.mutable(Schema.Array(FileOperationSchema)),
 });
 
-export type SessionSummaryRpc = Schema.Schema.Type<typeof SessionSummaryRpcSchema>;
+export type SessionSummaryRpc = Schema.Schema.Type<
+  typeof SessionSummaryRpcSchema
+>;
 
 // ─── Transformation Input ───────────────────────────────────────────────────
 
@@ -130,7 +134,9 @@ export const SessionTransformInputSchema = Schema.Struct({
   aggregates: SessionAggregatesSchema,
 });
 
-export type SessionTransformInput = Schema.Schema.Type<typeof SessionTransformInputSchema>;
+export type SessionTransformInput = Schema.Schema.Type<
+  typeof SessionTransformInputSchema
+>;
 
 // ─── Pure Transformation Function ───────────────────────────────────────────
 
@@ -246,8 +252,8 @@ export const transformSessionCompat = (input: {
   sessionModel: string;
   agentCount: number;
   errorCount: number;
-}): SessionSummaryRpc => {
-  return transformSession({
+}): SessionSummaryRpc =>
+  transformSession({
     session: input.session,
     aggregates: {
       toolCounts: input.sessionTools,
@@ -257,4 +263,3 @@ export const transformSessionCompat = (input: {
       errorCount: input.errorCount,
     },
   });
-};

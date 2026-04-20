@@ -14,12 +14,12 @@ import { Context, Effect, Layer } from "effect";
 
 import type { DashboardData, DateFilter } from "../../shared/rpc-types";
 import { AgentAnalyticsService } from "../analytics/agent-analytics";
-import { DatabaseError } from "../errors";
 import { FileAnalyticsService } from "../analytics/file-analytics";
 import { InsightsAnalyticsService } from "../analytics/insights-analytics";
 import { ModelAnalyticsService } from "../analytics/model-analytics";
 import { SessionAnalyticsService } from "../analytics/session-analytics";
 import { ToolAnalyticsService } from "../analytics/tool-analytics";
+import { DatabaseError } from "../errors";
 import { transformSessionCompat } from "../schemas/session-pipeline";
 
 /**
@@ -133,7 +133,8 @@ export const AnalyticsOrchestratorLive = Layer.effect(
           };
 
           // Transform data for dashboard
-          const totalTokens = totals.totalInputTokens + totals.totalOutputTokens;
+          const totalTokens =
+            totals.totalInputTokens + totals.totalOutputTokens;
 
           const dashboardTotals = {
             ...totals,

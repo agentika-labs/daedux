@@ -21,6 +21,7 @@ import {
 } from "@tanstack/react-query";
 
 import { getApiClient } from "@/hooks/useApi";
+import { isElectrobun } from "@/services/api-live";
 
 const api = getApiClient();
 
@@ -30,10 +31,6 @@ async function getRpcRequest() {
   const { rpcRequest } = await import("@/hooks/useRPC");
   return rpcRequest;
 }
-
-// Check if running in Electrobun desktop mode
-const isElectrobun = () =>
-  typeof window !== "undefined" && "__electrobun" in window;
 
 // ─── Query Options ───────────────────────────────────────────────────────────
 // These are reusable query definitions that can be used in hooks and route loaders

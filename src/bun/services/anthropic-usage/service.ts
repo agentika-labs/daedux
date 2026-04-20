@@ -4,16 +4,15 @@ import type { AnthropicUsage } from "../../../shared/rpc-types";
 import { debugLog, log } from "../../utils/log";
 import { loadSettings, updateSettingsEffect } from "../settings";
 import { tryCliUsageWithRetry } from "./cli-probe";
-import {
-  readKeychainCredentials,
-  type KeychainCredentialsType,
-} from "./keychain-reader";
+import { readKeychainCredentials } from "./keychain-reader";
+import type { KeychainCredentialsType } from "./keychain-reader";
 import {
   fetchUsageFromAPI,
   refreshOAuthToken,
   transformUsageResponse,
 } from "./oauth-client";
-import { METHOD_RECHECK_MS, type MethodState } from "./types";
+import { METHOD_RECHECK_MS } from "./types";
+import type { MethodState } from "./types";
 
 const CACHE_TTL = Duration.seconds(30);
 

@@ -1,6 +1,6 @@
 import { Effect } from "effect";
 
-import { AnthropicUsageService } from "../services/anthropic-usage";
+import { AnthropicUsageService } from "../services/anthropic-usage/service";
 import { SchedulerService } from "../services/scheduler";
 import { log } from "../utils/log";
 
