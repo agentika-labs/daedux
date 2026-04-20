@@ -4,7 +4,7 @@ export default {
   app: {
     identifier: "com.daedux.app",
     name: "Daedux",
-    version: "0.4.5",
+    version: "0.4.6",
   },
   build: {
     bun: {
