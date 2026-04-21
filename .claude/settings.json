@@ -12,5 +12,23 @@
         ]
       }
     ]
+  },
+  "permissions": {
+    "allow": [
+      "mcp__plugin_grepika_grepika__search",
+      "mcp__plugin_grepika_grepika__get",
+      "mcp__plugin_grepika_grepika__toc",
+      "mcp__plugin_grepika_grepika__outline",
+      "mcp__plugin_grepika_grepika__add_workspace",
+      "mcp__plugin_grepika_grepika__context",
+      "mcp__plugin_grepika_grepika__refs",
+      "Bash(bun test *)",
+      "Bash(bun run typecheck)",
+      "Bash(bun run check)",
+      "Bash(jj diff *)",
+      "Bash(jj status *)",
+      "Bash(jj log *)",
+      "Bash(sqlite3 * .mode *)"
+    ]
   }
 }
