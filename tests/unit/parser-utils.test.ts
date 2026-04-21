@@ -7,6 +7,7 @@ import {
   extractFileExtension,
   extractPreview,
   extractSlashCommand,
+  extractSlashCommandContent,
   extractTargetPath,
   isSystemContent,
   safeJsonParse,
@@ -511,6 +512,96 @@ describe("extractSlashCommand", () => {
 
   test("handles slash with special chars after name", () => {
     expect(extractSlashCommand("/cmd!invalid")).toBe("cmd");
+  });
+});
+
+describe("extractSlashCommandContent", () => {
+  describe("config-only commands", () => {
+    test("returns null for /model command", () => {
+      expect(extractSlashCommandContent("/model claude-opus-4-5")).toBeNull();
+      expect(extractSlashCommandContent("/model")).toBeNull();
+    });
+
+    test("returns null for /help command", () => {
+      expect(extractSlashCommandContent("/help")).toBeNull();
+      expect(extractSlashCommandContent("/help some topic")).toBeNull();
+    });
+
+    test("returns null for /clear command", () => {
+      expect(extractSlashCommandContent("/clear")).toBeNull();
+    });
+
+    test("returns null for /plan command", () => {
+      expect(extractSlashCommandContent("/plan")).toBeNull();
+    });
+
+    test("returns null for /fast command", () => {
+      expect(extractSlashCommandContent("/fast")).toBeNull();
+    });
+
+    test("returns null for /compact command", () => {
+      expect(extractSlashCommandContent("/compact")).toBeNull();
+    });
+
+    test("returns null for /status command", () => {
+      expect(extractSlashCommandContent("/status")).toBeNull();
+    });
+
+    test("is case insensitive for config commands", () => {
+      expect(extractSlashCommandContent("/MODEL claude-opus-4-5")).toBeNull();
+      expect(extractSlashCommandContent("/Help")).toBeNull();
+    });
+  });
+
+  describe("skills with meaningful arguments", () => {
+    test("extracts arguments from skill commands", () => {
+      expect(
+        extractSlashCommandContent(
+          "/socratic-reasoning What should the title show?"
+        )
+      ).toBe("What should the title show?");
+    });
+
+    test("extracts arguments from namespaced skills", () => {
+      expect(
+        extractSlashCommandContent(
+          "/plugin:skill-name Help me understand this code pattern"
+        )
+      ).toBe("Help me understand this code pattern");
+    });
+
+    test("handles multiline arguments", () => {
+      const text =
+        "/analyze Fix the authentication bug\n\nDetails: users can't log in";
+      expect(extractSlashCommandContent(text)).toBe(
+        "Fix the authentication bug\n\nDetails: users can't log in"
+      );
+    });
+  });
+
+  describe("short arguments", () => {
+    test("returns null when arguments are too short", () => {
+      expect(extractSlashCommandContent("/foo bar")).toBeNull(); // 3 chars
+      expect(extractSlashCommandContent("/foo abcdefgh")).toBeNull(); // 8 chars
+    });
+
+    test("returns arguments at exactly 10 characters", () => {
+      expect(extractSlashCommandContent("/foo 1234567890")).toBe("1234567890");
+    });
+  });
+
+  describe("non-slash text", () => {
+    test("returns null for regular text", () => {
+      expect(extractSlashCommandContent("regular text")).toBeNull();
+    });
+
+    test("returns null for text with slash in middle", () => {
+      expect(extractSlashCommandContent("path/to/file")).toBeNull();
+    });
+
+    test("returns null for empty string", () => {
+      expect(extractSlashCommandContent("")).toBeNull();
+    });
   });
 });
 

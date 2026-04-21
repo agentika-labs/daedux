@@ -1,3 +1,5 @@
+import { useState } from "react";
+
 import { RefreshIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 
@@ -15,9 +17,14 @@ import { useSyncMutation } from "@/queries/dashboard";
 
 export const DataCard = () => {
   const syncMutation = useSyncMutation();
+  const [syncType, setSyncType] = useState<"incremental" | "full" | null>(null);
 
   const handleSync = (fullResync: boolean) => {
-    syncMutation.mutate({ fullResync });
+    setSyncType(fullResync ? "full" : "incremental");
+    syncMutation.mutate(
+      { fullResync },
+      { onSettled: () => setSyncType(null) },
+    );
   };
 
   return (
@@ -37,7 +44,10 @@ export const DataCard = () => {
           >
             <HugeiconsIcon
               icon={RefreshIcon}
-              className={cn("size-4", syncMutation.isPending && "animate-spin")}
+              className={cn(
+                "size-4",
+                syncMutation.isPending && syncType === "incremental" && "animate-spin",
+              )}
               data-icon="inline-start"
             />
             Sync Now
@@ -53,7 +63,10 @@ export const DataCard = () => {
           >
             <HugeiconsIcon
               icon={RefreshIcon}
-              className={cn("size-4", syncMutation.isPending && "animate-spin")}
+              className={cn(
+                "size-4",
+                syncMutation.isPending && syncType === "full" && "animate-spin",
+              )}
               data-icon="inline-start"
             />
             Full Resync

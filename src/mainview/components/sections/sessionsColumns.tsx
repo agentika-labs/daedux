@@ -17,6 +17,7 @@ import {
   formatDuration,
   formatRelativeTime,
   formatTokens,
+  stripXmlTags,
   cn,
 } from "@/lib/utils";
 
@@ -62,9 +63,12 @@ export interface SessionsTableMeta {
 
 export const sessionsColumns: ColumnDef<SessionRow>[] = [
   {
-    accessorFn: (row) => row.smartName.primary,
+    accessorFn: (row) => row.displayName ?? row.smartName.primary,
     cell: ({ row }) => {
       const session = row.original;
+      const title = session.displayName
+        ? stripXmlTags(session.displayName)
+        : session.smartName.primary;
       return (
         <div className="flex items-center gap-2">
           {session.isSubagent && (
@@ -73,21 +77,19 @@ export const sessionsColumns: ColumnDef<SessionRow>[] = [
             </Badge>
           )}
           <div>
-            <div className="max-w-[200px] truncate font-medium">
+            <div className="max-w-[280px] truncate font-medium">{title}</div>
+            <div className="text-muted-foreground text-xs">
               {session.smartName.primary}
+              {session.smartName.secondary &&
+                ` in ${session.smartName.secondary}`}
             </div>
-            {session.smartName.secondary && (
-              <div className="text-muted-foreground text-xs">
-                in {session.smartName.secondary}
-              </div>
-            )}
           </div>
         </div>
       );
     },
     enableSorting: false,
-    header: "Project",
-    id: "project",
+    header: "Session",
+    id: "session",
   },
   {
     accessorKey: "startTime",

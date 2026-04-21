@@ -12,8 +12,11 @@ import {
   extractFileExtension,
   categorizeBashCommand,
   extractSlashCommand,
+  extractSlashCommandContent,
+  isConfigOnlyCommand,
   toolToOperation,
   isSystemContent,
+  stripXmlTags,
 } from "../../utils/parsing";
 import { getPricing } from "../../utils/pricing";
 import type { HarnessParser, ParserInput, ParsedRecords } from "../types";
@@ -233,7 +236,20 @@ const parseClaudeCodeSession = (
           if (preview && !isSystemContent(preview)) {
             lastUserPreview = preview;
             turnCount++;
-            displayName ??= preview.slice(0, 200);
+
+            // Set displayName from first meaningful user message
+            if (displayName === null) {
+              if (preview.startsWith("/")) {
+                // For slash commands, extract meaningful args (e.g., skill prompts)
+                const commandContent = extractSlashCommandContent(preview);
+                if (commandContent) {
+                  displayName = stripXmlTags(commandContent) || null;
+                }
+                // Config-only commands are skipped for displayName
+              } else {
+                displayName = stripXmlTags(preview) || null;
+              }
+            }
           }
         }
 
@@ -434,7 +450,8 @@ const parseClaudeCodeSession = (
 
       if (type === "summary" && obj.summary) {
         const summary = String(obj.summary);
-        if (summary.length > 0 && summary.length < 200) {
+        // Skip config-only commands (e.g., /model) - they don't describe session intent
+        if (summary.length > 0 && !isConfigOnlyCommand(summary)) {
           displayName = summary;
         }
       }

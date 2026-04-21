@@ -24,6 +24,7 @@ import {
   formatDuration,
   shortenPath,
   middleTruncatePath,
+  stripXmlTags,
   cn,
 } from "@/lib/utils";
 
@@ -45,7 +46,8 @@ export function SessionDetailSheet({
           <>
             <SheetHeader className="flex-shrink-0">
               <SheetTitle>
-                {session.displayName ?? session.smartName.primary}
+                {(session.displayName && stripXmlTags(session.displayName)) ??
+                  session.smartName.primary}
               </SheetTitle>
               <SheetDescription>
                 {shortenPath(session.smartName.full)}

@@ -26,6 +26,13 @@ export const extractPreview = (
   return null;
 };
 
+/** Strip XML-style tags from text, leaving only content */
+export const stripXmlTags = (text: string): string =>
+  text
+    .replaceAll(/<[^>]*>/g, " ")
+    .replaceAll(/\s+/g, " ")
+    .trim();
+
 /** Count total characters in thinking blocks */
 export const countThinkingChars = (
   content: readonly Record<string, unknown>[]
@@ -187,6 +194,57 @@ export const extractSlashCommand = (text: string): string => {
   return match ? match[1]! : "";
 };
 
+/** Config-only commands that never have meaningful arguments for display */
+const CONFIG_ONLY_COMMANDS = new Set([
+  "model",
+  "help",
+  "clear",
+  "compact",
+  "config",
+  "plan",
+  "think",
+  "max-turns",
+  "memory",
+  "permissions",
+  "terminal-setup",
+  "doctor",
+  "review",
+  "logout",
+  "login",
+  "status",
+  "cost",
+  "fast",
+]);
+
+/**
+ * Check if text is a config-only slash command (e.g., /model, /compact).
+ * These commands don't represent meaningful session intent.
+ */
+export const isConfigOnlyCommand = (text: string): boolean => {
+  if (!text.startsWith("/")) return false;
+  const match = text.match(/^\/([a-zA-Z0-9_:-]+)/);
+  if (!match) return false;
+  return CONFIG_ONLY_COMMANDS.has(match[1]!.toLowerCase());
+};
+
+/**
+ * Extract meaningful text from a slash command message.
+ * Returns argument text for skills with substantial content, null otherwise.
+ * Used to filter out config commands when determining session displayName.
+ */
+export const extractSlashCommandContent = (text: string): string | null => {
+  if (!text.startsWith("/")) {return null;}
+
+  const match = text.match(/^\/([a-zA-Z0-9_:-]+)\s*([\s\S]*)/);
+  if (!match) {return null;}
+
+  const [, command, args] = match;
+  if (CONFIG_ONLY_COMMANDS.has(command!.toLowerCase())) {return null;}
+
+  const trimmed = args!.trim();
+  return trimmed.length >= 10 ? trimmed : null;
+};
+
 /** Map tool name to file operation type */
 export const toolToOperation = (toolName: string): string | null => {
   switch (toolName) {
@@ -240,6 +298,19 @@ export const isSystemContent = (text: string): boolean => {
     return true;
   }
   if (trimmed.startsWith("<auto-memory-update>")) {
+    return true;
+  }
+  // Local command execution logs (slash commands like /model, skill invocations)
+  if (trimmed.startsWith("<command-name>")) {
+    return true;
+  }
+  if (trimmed.startsWith("<command-message>")) {
+    return true;
+  }
+  if (trimmed.startsWith("<local-command-stdout>")) {
+    return true;
+  }
+  if (trimmed.startsWith("<local-command-caveat>")) {
     return true;
   }
   // Context compaction continuation prefix (fallback if isCompactSummary not checked)
