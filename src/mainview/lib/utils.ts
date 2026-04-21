@@ -6,14 +6,6 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-/** Strip XML-style tags from text, leaving only content */
-export function stripXmlTags(text: string): string {
-  return text
-    .replaceAll(/<[^>]*>/g, " ")
-    .replaceAll(/\s+/g, " ")
-    .trim();
-}
-
 // ─── Number Formatting ───────────────────────────────────────────────────────
 
 // Hoisted formatter - Intl.NumberFormat constructor is expensive (~0.1ms per call)

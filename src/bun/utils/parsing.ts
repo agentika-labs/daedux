@@ -221,9 +221,13 @@ const CONFIG_ONLY_COMMANDS = new Set([
  * These commands don't represent meaningful session intent.
  */
 export const isConfigOnlyCommand = (text: string): boolean => {
-  if (!text.startsWith("/")) return false;
+  if (!text.startsWith("/")) {
+    return false;
+  }
   const match = text.match(/^\/([a-zA-Z0-9_:-]+)/);
-  if (!match) return false;
+  if (!match) {
+    return false;
+  }
   return CONFIG_ONLY_COMMANDS.has(match[1]!.toLowerCase());
 };
 
@@ -233,13 +237,19 @@ export const isConfigOnlyCommand = (text: string): boolean => {
  * Used to filter out config commands when determining session displayName.
  */
 export const extractSlashCommandContent = (text: string): string | null => {
-  if (!text.startsWith("/")) {return null;}
+  if (!text.startsWith("/")) {
+    return null;
+  }
 
   const match = text.match(/^\/([a-zA-Z0-9_:-]+)\s*([\s\S]*)/);
-  if (!match) {return null;}
+  if (!match) {
+    return null;
+  }
 
   const [, command, args] = match;
-  if (CONFIG_ONLY_COMMANDS.has(command!.toLowerCase())) {return null;}
+  if (CONFIG_ONLY_COMMANDS.has(command!.toLowerCase())) {
+    return null;
+  }
 
   const trimmed = args!.trim();
   return trimmed.length >= 10 ? trimmed : null;
@@ -269,6 +279,19 @@ export const toolToOperation = (toolName: string): string | null => {
   }
 };
 
+/** System tag prefixes injected by Claude Code */
+const SYSTEM_TAG_PREFIXES = [
+  "<task-notification>",
+  "<system-reminder>",
+  "<hook-output>",
+  "<new-diagnostics>",
+  "<auto-memory-update>",
+  "<command-name>",
+  "<command-message>",
+  "<local-command-stdout>",
+  "<local-command-caveat>",
+];
+
 /**
  * Detect system-injected content that shouldn't be treated as user prompts.
  * Claude Code uses the "user" role for tool results, system tags, and subagent
@@ -283,37 +306,9 @@ export const toolToOperation = (toolName: string): string | null => {
  */
 export const isSystemContent = (text: string): boolean => {
   const trimmed = text.trimStart();
-  // XML-like system tags injected by Claude Code
-  // (task-notification is NOT marked by isMeta flag, so we must detect it here)
-  if (trimmed.startsWith("<task-notification>")) {
+  if (SYSTEM_TAG_PREFIXES.some((prefix) => trimmed.startsWith(prefix))) {
     return true;
   }
-  if (trimmed.startsWith("<system-reminder>")) {
-    return true;
-  }
-  if (trimmed.startsWith("<hook-output>")) {
-    return true;
-  }
-  if (trimmed.startsWith("<new-diagnostics>")) {
-    return true;
-  }
-  if (trimmed.startsWith("<auto-memory-update>")) {
-    return true;
-  }
-  // Local command execution logs (slash commands like /model, skill invocations)
-  if (trimmed.startsWith("<command-name>")) {
-    return true;
-  }
-  if (trimmed.startsWith("<command-message>")) {
-    return true;
-  }
-  if (trimmed.startsWith("<local-command-stdout>")) {
-    return true;
-  }
-  if (trimmed.startsWith("<local-command-caveat>")) {
-    return true;
-  }
-  // Context compaction continuation prefix (fallback if isCompactSummary not checked)
   if (trimmed.startsWith("This session is being continued from")) {
     return true;
   }

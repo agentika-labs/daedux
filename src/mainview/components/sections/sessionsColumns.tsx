@@ -17,7 +17,6 @@ import {
   formatDuration,
   formatRelativeTime,
   formatTokens,
-  stripXmlTags,
   cn,
 } from "@/lib/utils";
 
@@ -66,9 +65,6 @@ export const sessionsColumns: ColumnDef<SessionRow>[] = [
     accessorFn: (row) => row.displayName ?? row.smartName.primary,
     cell: ({ row }) => {
       const session = row.original;
-      const title = session.displayName
-        ? stripXmlTags(session.displayName)
-        : session.smartName.primary;
       return (
         <div className="flex items-center gap-2">
           {session.isSubagent && (
@@ -77,7 +73,9 @@ export const sessionsColumns: ColumnDef<SessionRow>[] = [
             </Badge>
           )}
           <div>
-            <div className="max-w-[280px] truncate font-medium">{title}</div>
+            <div className="max-w-[280px] truncate font-medium">
+              {session.displayName ?? session.smartName.primary}
+            </div>
             <div className="text-muted-foreground text-xs">
               {session.smartName.primary}
               {session.smartName.secondary &&

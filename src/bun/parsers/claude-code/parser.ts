@@ -237,15 +237,12 @@ const parseClaudeCodeSession = (
             lastUserPreview = preview;
             turnCount++;
 
-            // Set displayName from first meaningful user message
             if (displayName === null) {
               if (preview.startsWith("/")) {
-                // For slash commands, extract meaningful args (e.g., skill prompts)
                 const commandContent = extractSlashCommandContent(preview);
                 if (commandContent) {
                   displayName = stripXmlTags(commandContent) || null;
                 }
-                // Config-only commands are skipped for displayName
               } else {
                 displayName = stripXmlTags(preview) || null;
               }
@@ -450,7 +447,6 @@ const parseClaudeCodeSession = (
 
       if (type === "summary" && obj.summary) {
         const summary = String(obj.summary);
-        // Skip config-only commands (e.g., /model) - they don't describe session intent
         if (summary.length > 0 && !isConfigOnlyCommand(summary)) {
           displayName = summary;
         }
