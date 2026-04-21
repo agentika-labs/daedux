@@ -6,8 +6,7 @@ import * as schema from "../db/schema";
 import { DatabaseError } from "../errors";
 import type { DateFilter } from "./shared";
 import {
-  buildDateConditions,
-  buildHarnessConditions,
+  buildFilterConditions,
   sessionsTable,
   sessionJoinOn,
   withDateFilter,
@@ -117,9 +116,7 @@ export class AgentAnalyticsService extends Effect.Service<AgentAnalyticsService>
             catch: (error) =>
               new DatabaseError({ cause: error, operation: "getSkillROI" }),
             try: async () => {
-              const dateConditions = buildDateConditions(dateFilter);
-              const harnessConditions = buildHarnessConditions(dateFilter);
-              const allConditions = [...dateConditions, ...harnessConditions];
+              const allConditions = buildFilterConditions(dateFilter);
 
               // Get skill invocation counts
               const result = await db
@@ -393,9 +390,7 @@ export class AgentAnalyticsService extends Effect.Service<AgentAnalyticsService>
             catch: (error) =>
               new DatabaseError({ cause: error, operation: "getAgentStats" }),
             try: async () => {
-              const dateConditions = buildDateConditions(dateFilter);
-              const harnessConditions = buildHarnessConditions(dateFilter);
-              const allConditions = [...dateConditions, ...harnessConditions];
+              const allConditions = buildFilterConditions(dateFilter);
 
               const result = await withDateFilter(
                 allConditions,
@@ -443,9 +438,7 @@ export class AgentAnalyticsService extends Effect.Service<AgentAnalyticsService>
             catch: (error) =>
               new DatabaseError({ cause: error, operation: "getAgentROI" }),
             try: async () => {
-              const dateConditions = buildDateConditions(dateFilter);
-              const harnessConditions = buildHarnessConditions(dateFilter);
-              const allConditions = [...dateConditions, ...harnessConditions];
+              const allConditions = buildFilterConditions(dateFilter);
 
               // Count spawns directly from agent_spawns rows (no tool join).
               const spawnRows =
@@ -685,9 +678,7 @@ export class AgentAnalyticsService extends Effect.Service<AgentAnalyticsService>
                 operation: "getSessionAgentCounts",
               }),
             try: async () => {
-              const dateConditions = buildDateConditions(dateFilter);
-              const harnessConditions = buildHarnessConditions(dateFilter);
-              const allConditions = [...dateConditions, ...harnessConditions];
+              const allConditions = buildFilterConditions(dateFilter);
 
               const result = await withDateFilter(
                 allConditions,
@@ -724,9 +715,7 @@ export class AgentAnalyticsService extends Effect.Service<AgentAnalyticsService>
             catch: (error) =>
               new DatabaseError({ cause: error, operation: "getHookStats" }),
             try: async () => {
-              const dateConditions = buildDateConditions(dateFilter);
-              const harnessConditions = buildHarnessConditions(dateFilter);
-              const allConditions = [...dateConditions, ...harnessConditions];
+              const allConditions = buildFilterConditions(dateFilter);
 
               const baseQuery = db
                 .select({
@@ -779,9 +768,7 @@ export class AgentAnalyticsService extends Effect.Service<AgentAnalyticsService>
             catch: (error) =>
               new DatabaseError({ cause: error, operation: "getCommandStats" }),
             try: async () => {
-              const dateConditions = buildDateConditions(dateFilter);
-              const harnessConditions = buildHarnessConditions(dateFilter);
-              const allConditions = [...dateConditions, ...harnessConditions];
+              const allConditions = buildFilterConditions(dateFilter);
 
               const result = await withDateFilter(
                 allConditions,
@@ -826,9 +813,7 @@ export class AgentAnalyticsService extends Effect.Service<AgentAnalyticsService>
                 operation: "getSkillImpactComparison",
               }),
             try: async () => {
-              const dateConditions = buildDateConditions(dateFilter);
-              const harnessConditions = buildHarnessConditions(dateFilter);
-              const allConditions = [...dateConditions, ...harnessConditions];
+              const allConditions = buildFilterConditions(dateFilter);
 
               // Get all session IDs that used skills
               const skillSessionsResult =

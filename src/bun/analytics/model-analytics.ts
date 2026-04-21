@@ -9,7 +9,7 @@ import { DatabaseService } from "../db";
 import * as schema from "../db/schema";
 import { DatabaseError } from "../errors";
 import type { DateFilter } from "./shared";
-import { buildDateConditions, buildHarnessConditions } from "./shared";
+import { buildFilterConditions } from "./shared";
 
 export interface ModelUsage {
   readonly model: string;
@@ -50,9 +50,7 @@ export class ModelAnalyticsService extends Effect.Service<ModelAnalyticsService>
                 operation: "getModelBreakdown",
               }),
             try: async () => {
-              const dateConditions = buildDateConditions(dateFilter);
-              const harnessConditions = buildHarnessConditions(dateFilter);
-              const allConditions = [...dateConditions, ...harnessConditions];
+              const allConditions = buildFilterConditions(dateFilter);
 
               let result;
               if (allConditions.length === 0) {

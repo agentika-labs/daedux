@@ -1,5 +1,4 @@
 import { sql, eq, and, count, avg } from "drizzle-orm";
-import type { SQL } from "drizzle-orm";
 import { Effect } from "effect";
 
 import { DatabaseService } from "../db";
@@ -8,7 +7,7 @@ import { DatabaseError } from "../errors";
 import type { DateFilter } from "./shared";
 import {
   buildDateConditions,
-  buildHarnessConditions,
+  buildFilterConditions,
   sessionsTable,
   sessionJoinOn,
   withDateFilter,
@@ -74,10 +73,7 @@ export class ContextAnalyticsService extends Effect.Service<ContextAnalyticsServ
                 operation: "getCacheEfficiencyCurve",
               }),
             try: async () => {
-              const conditions: SQL[] = [
-                ...buildDateConditions(dateFilter),
-                ...buildHarnessConditions(dateFilter),
-              ];
+              const conditions = buildFilterConditions(dateFilter);
               if (projectPath) {
                 conditions.push(eq(schema.sessions.projectPath, projectPath));
               }
@@ -142,10 +138,7 @@ export class ContextAnalyticsService extends Effect.Service<ContextAnalyticsServ
                 operation: "getCompactionAnalysis",
               }),
             try: async () => {
-              const conditions: SQL[] = [
-                ...buildDateConditions(dateFilter),
-                ...buildHarnessConditions(dateFilter),
-              ];
+              const conditions = buildFilterConditions(dateFilter);
               if (projectPath) {
                 conditions.push(eq(schema.sessions.projectPath, projectPath));
               }
@@ -187,10 +180,7 @@ export class ContextAnalyticsService extends Effect.Service<ContextAnalyticsServ
                 operation: "getContextHeatmap",
               }),
             try: async () => {
-              const conditions: SQL[] = [
-                ...buildDateConditions(dateFilter),
-                ...buildHarnessConditions(dateFilter),
-              ];
+              const conditions = buildFilterConditions(dateFilter);
               if (projectPath) {
                 conditions.push(eq(schema.sessions.projectPath, projectPath));
               }
@@ -284,10 +274,7 @@ export class ContextAnalyticsService extends Effect.Service<ContextAnalyticsServ
                 operation: "getContextPeakDistribution",
               }),
             try: async () => {
-              const conditions: SQL[] = [
-                ...buildDateConditions(dateFilter),
-                ...buildHarnessConditions(dateFilter),
-              ];
+              const conditions = buildFilterConditions(dateFilter);
               if (projectPath) {
                 conditions.push(eq(schema.sessions.projectPath, projectPath));
               }

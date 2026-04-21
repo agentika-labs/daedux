@@ -18,8 +18,7 @@ import {
 import type { ConfidenceLevel } from "../utils/statistics";
 import type { DateFilter } from "./shared";
 import {
-  buildDateConditions,
-  buildHarnessConditions,
+  buildFilterConditions,
   sessionsTable,
   sessionJoinOn,
   withDateFilter,
@@ -239,9 +238,7 @@ export class ToolAnalyticsService extends Effect.Service<ToolAnalyticsService>()
             catch: (error) =>
               new DatabaseError({ cause: error, operation: "getApiErrors" }),
             try: async () => {
-              const dateConditions = buildDateConditions(dateFilter);
-              const harnessConditions = buildHarnessConditions(dateFilter);
-              const allConditions = [...dateConditions, ...harnessConditions];
+              const allConditions = buildFilterConditions(dateFilter);
 
               const result = await withDateFilter(
                 allConditions,
@@ -291,9 +288,7 @@ export class ToolAnalyticsService extends Effect.Service<ToolAnalyticsService>()
                 operation: "getBashCategoryHealth",
               }),
             try: async () => {
-              const dateConditions = buildDateConditions(dateFilter);
-              const harnessConditions = buildHarnessConditions(dateFilter);
-              const allConditions = [...dateConditions, ...harnessConditions];
+              const allConditions = buildFilterConditions(dateFilter);
               return getBashCategoryHealthInternal(db, allConditions);
             },
           }).pipe(Effect.withSpan("ToolAnalytics.getBashCategoryHealth")),
@@ -306,9 +301,7 @@ export class ToolAnalyticsService extends Effect.Service<ToolAnalyticsService>()
                 operation: "getBashCommandStats",
               }),
             try: async () => {
-              const dateConditions = buildDateConditions(dateFilter);
-              const harnessConditions = buildHarnessConditions(dateFilter);
-              const allConditions = [...dateConditions, ...harnessConditions];
+              const allConditions = buildFilterConditions(dateFilter);
 
               // Use SUBSTR to cap GROUP_CONCAT at 10KB to prevent memory issues
               // We only need ~5 unique commands, and each command is typically <200 chars
@@ -368,9 +361,7 @@ export class ToolAnalyticsService extends Effect.Service<ToolAnalyticsService>()
                 operation: "getSessionToolCounts",
               }),
             try: async () => {
-              const dateConditions = buildDateConditions(dateFilter);
-              const harnessConditions = buildHarnessConditions(dateFilter);
-              const allConditions = [...dateConditions, ...harnessConditions];
+              const allConditions = buildFilterConditions(dateFilter);
 
               const result = await withDateFilter(
                 allConditions,
@@ -424,9 +415,7 @@ export class ToolAnalyticsService extends Effect.Service<ToolAnalyticsService>()
                 operation: "getSessionToolErrorCounts",
               }),
             try: async () => {
-              const dateConditions = buildDateConditions(dateFilter);
-              const harnessConditions = buildHarnessConditions(dateFilter);
-              const allConditions = [...dateConditions, ...harnessConditions];
+              const allConditions = buildFilterConditions(dateFilter);
 
               const result = await withDateFilter(
                 allConditions,
@@ -469,9 +458,7 @@ export class ToolAnalyticsService extends Effect.Service<ToolAnalyticsService>()
             catch: (error) =>
               new DatabaseError({ cause: error, operation: "getToolHealth" }),
             try: async () => {
-              const dateConditions = buildDateConditions(dateFilter);
-              const harnessConditions = buildHarnessConditions(dateFilter);
-              const allConditions = [...dateConditions, ...harnessConditions];
+              const allConditions = buildFilterConditions(dateFilter);
 
               const result = await withDateFilter(
                 allConditions,
@@ -533,9 +520,7 @@ export class ToolAnalyticsService extends Effect.Service<ToolAnalyticsService>()
                 operation: "getToolHealthReportCard",
               }),
             try: async () => {
-              const dateConditions = buildDateConditions(dateFilter);
-              const harnessConditions = buildHarnessConditions(dateFilter);
-              const allConditions = [...dateConditions, ...harnessConditions];
+              const allConditions = buildFilterConditions(dateFilter);
 
               // Get tool health stats
               const toolHealthData = await withDateFilter(
@@ -761,9 +746,7 @@ export class ToolAnalyticsService extends Effect.Service<ToolAnalyticsService>()
             catch: (error) =>
               new DatabaseError({ cause: error, operation: "getToolUsage" }),
             try: async () => {
-              const dateConditions = buildDateConditions(dateFilter);
-              const harnessConditions = buildHarnessConditions(dateFilter);
-              const allConditions = [...dateConditions, ...harnessConditions];
+              const allConditions = buildFilterConditions(dateFilter);
 
               const result = await withDateFilter(
                 allConditions,

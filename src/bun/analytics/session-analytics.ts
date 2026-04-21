@@ -8,8 +8,7 @@ import { DatabaseError } from "../errors";
 import { cacheHitRatio, totalInputWithCache } from "../metrics";
 import type { HarnessId } from "../parsers/types";
 import {
-  buildDateConditions,
-  buildHarnessConditions,
+  buildFilterConditions,
   combineConditions,
   withDateFilter,
 } from "./shared";
@@ -213,10 +212,7 @@ export class SessionAnalyticsService extends Effect.Service<SessionAnalyticsServ
                 })
                 .from(schema.sessions);
 
-              const conditions: SQL[] = [
-                ...buildDateConditions(dateFilter),
-                ...buildHarnessConditions(dateFilter),
-              ];
+              const conditions = buildFilterConditions(dateFilter);
               if (days !== undefined) {
                 const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
                 conditions.push(gte(schema.sessions.startTime, cutoff));
@@ -258,9 +254,7 @@ export class SessionAnalyticsService extends Effect.Service<SessionAnalyticsServ
                 operation: "getDashboardStats",
               }),
             try: async () => {
-              const dateConditions = buildDateConditions(dateFilter);
-              const harnessConditions = buildHarnessConditions(dateFilter);
-              const allConditions = [...dateConditions, ...harnessConditions];
+              const allConditions = buildFilterConditions(dateFilter);
               const filterWhere = combineConditions(allConditions);
 
               // ─── Session Counts ─────────────────────────────────────────────
@@ -494,9 +488,7 @@ export class SessionAnalyticsService extends Effect.Service<SessionAnalyticsServ
                 operation: "getExtendedTotals",
               }),
             try: async () => {
-              const dateConditions = buildDateConditions(dateFilter);
-              const harnessConditions = buildHarnessConditions(dateFilter);
-              const allConditions = [...dateConditions, ...harnessConditions];
+              const allConditions = buildFilterConditions(dateFilter);
 
               // Get base totals
               let baseQuery = db
@@ -739,9 +731,7 @@ export class SessionAnalyticsService extends Effect.Service<SessionAnalyticsServ
                 operation: "getProjectSummaries",
               }),
             try: async () => {
-              const dateConditions = buildDateConditions(dateFilter);
-              const harnessConditions = buildHarnessConditions(dateFilter);
-              const allConditions = [...dateConditions, ...harnessConditions];
+              const allConditions = buildFilterConditions(dateFilter);
 
               let query = db
                 .select({
@@ -828,9 +818,7 @@ export class SessionAnalyticsService extends Effect.Service<SessionAnalyticsServ
                 operation: "getSessionAgentCounts",
               }),
             try: async () => {
-              const dateConditions = buildDateConditions(dateFilter);
-              const harnessConditions = buildHarnessConditions(dateFilter);
-              const allConditions = [...dateConditions, ...harnessConditions];
+              const allConditions = buildFilterConditions(dateFilter);
 
               let result;
               if (allConditions.length === 0) {
@@ -872,9 +860,7 @@ export class SessionAnalyticsService extends Effect.Service<SessionAnalyticsServ
                 operation: "getSessionPrimaryModels",
               }),
             try: async () => {
-              const dateConditions = buildDateConditions(dateFilter);
-              const harnessConditions = buildHarnessConditions(dateFilter);
-              const allConditions = [...dateConditions, ...harnessConditions];
+              const allConditions = buildFilterConditions(dateFilter);
               const modelNotNull = sql`${schema.queries.model} IS NOT NULL`;
 
               let result;
@@ -963,10 +949,7 @@ export class SessionAnalyticsService extends Effect.Service<SessionAnalyticsServ
                 query = query.limit(limit) as typeof query;
               }
 
-              const conditions: SQL[] = [
-                ...buildDateConditions(dateFilter),
-                ...buildHarnessConditions(dateFilter),
-              ];
+              const conditions = buildFilterConditions(dateFilter);
               if (projectPath) {
                 conditions.push(eq(schema.sessions.projectPath, projectPath));
               }
@@ -987,9 +970,7 @@ export class SessionAnalyticsService extends Effect.Service<SessionAnalyticsServ
             catch: (error) =>
               new DatabaseError({ cause: error, operation: "getTopPrompts" }),
             try: async () => {
-              const dateConditions = buildDateConditions(dateFilter);
-              const harnessConditions = buildHarnessConditions(dateFilter);
-              const allConditions = [...dateConditions, ...harnessConditions];
+              const allConditions = buildFilterConditions(dateFilter);
               // Filter out system-generated content that slipped through parse-time filters
               // (needed for historical data parsed before metadata checks were added)
               const baseConditions: SQL[] = [
@@ -1090,9 +1071,7 @@ export class SessionAnalyticsService extends Effect.Service<SessionAnalyticsServ
             catch: (error) =>
               new DatabaseError({ cause: error, operation: "getTotals" }),
             try: async () => {
-              const dateConditions = buildDateConditions(dateFilter);
-              const harnessConditions = buildHarnessConditions(dateFilter);
-              const allConditions = [...dateConditions, ...harnessConditions];
+              const allConditions = buildFilterConditions(dateFilter);
 
               let query = db
                 .select({

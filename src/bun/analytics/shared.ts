@@ -72,6 +72,11 @@ export const buildDateConditions = (
   return conditions;
 };
 
+export const buildFilterConditions = (dateFilter: DateFilter = {}): SQL[] => [
+  ...buildDateConditions(dateFilter),
+  ...buildHarnessConditions(dateFilter),
+];
+
 /** One day in milliseconds */
 export const DAY_MS = 86_400_000;
 

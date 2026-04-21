@@ -6,8 +6,7 @@ import * as schema from "../db/schema";
 import { DatabaseError } from "../errors";
 import type { DateFilter } from "./shared";
 import {
-  buildDateConditions,
-  buildHarnessConditions,
+  buildFilterConditions,
   sessionsTable,
   sessionJoinOn,
   withDateFilter,
@@ -51,9 +50,7 @@ export class FileAnalyticsService extends Effect.Service<FileAnalyticsService>()
             catch: (error) =>
               new DatabaseError({ cause: error, operation: "getFileActivity" }),
             try: async () => {
-              const dateConditions = buildDateConditions(dateFilter);
-              const harnessConditions = buildHarnessConditions(dateFilter);
-              const allConditions = [...dateConditions, ...harnessConditions];
+              const allConditions = buildFilterConditions(dateFilter);
 
               const result = await withDateFilter(
                 allConditions,
@@ -129,9 +126,7 @@ export class FileAnalyticsService extends Effect.Service<FileAnalyticsService>()
                 operation: "getFileExtensions",
               }),
             try: async () => {
-              const dateConditions = buildDateConditions(dateFilter);
-              const harnessConditions = buildHarnessConditions(dateFilter);
-              const allConditions = [...dateConditions, ...harnessConditions];
+              const allConditions = buildFilterConditions(dateFilter);
               const extensionNotEmpty = sql`${schema.fileOperations.fileExtension} IS NOT NULL AND ${schema.fileOperations.fileExtension} != ''`;
 
               // Limit to top 100 extensions to avoid unbounded result sets
@@ -182,9 +177,7 @@ export class FileAnalyticsService extends Effect.Service<FileAnalyticsService>()
                 operation: "getSessionFileOperations",
               }),
             try: async () => {
-              const dateConditions = buildDateConditions(dateFilter);
-              const harnessConditions = buildHarnessConditions(dateFilter);
-              const allConditions = [...dateConditions, ...harnessConditions];
+              const allConditions = buildFilterConditions(dateFilter);
               const operationCondition = sql`${schema.fileOperations.operation} IN ('read', 'write', 'edit')`;
 
               // Defensive limit to avoid memory issues with large datasets
