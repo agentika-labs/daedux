@@ -4,6 +4,12 @@ import type { Effect } from "effect";
 import type { HarnessId } from "../../shared/rpc-types";
 import type * as schema from "../db/schema";
 import type { FileSystemError, ParseError } from "../errors";
+import type {
+  FilePath,
+  ProjectPath,
+  SessionId,
+  UnixTimestampMs,
+} from "../../shared/branded";
 export type { HarnessId };
 
 // ─── Session File Discovery ──────────────────────────────────────────────────
@@ -13,13 +19,13 @@ export type { HarnessId };
  * Includes all metadata needed for incremental sync and parsing.
  */
 export interface SessionFileInfo {
-  readonly filePath: string;
-  readonly mtimeMs: number;
-  readonly sessionId: string;
-  readonly project: string;
+  readonly filePath: FilePath;
+  readonly mtimeMs: UnixTimestampMs;
+  readonly sessionId: SessionId;
+  readonly project: ProjectPath;
   readonly harness: HarnessId;
   readonly isSubagent: boolean;
-  readonly parentSessionId: string | null;
+  readonly parentSessionId: SessionId | null;
 }
 
 // ─── Parser Input/Output ─────────────────────────────────────────────────────

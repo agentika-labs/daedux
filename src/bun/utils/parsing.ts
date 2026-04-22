@@ -1,5 +1,7 @@
 import * as path from "node:path";
 
+import { FilePath } from "../../shared/branded";
+
 /**
  * Pure utility functions for parsing Claude JSONL data.
  * Extracted for testability.
@@ -50,19 +52,19 @@ export const countThinkingChars = (
 export const extractTargetPath = (
   toolName: string,
   input: unknown
-): string | null => {
+): FilePath | null => {
   if (typeof input !== "object" || input === null) {
     return null;
   }
   const obj = input as Record<string, unknown>;
   if (toolName === "Read" || toolName === "Edit" || toolName === "Write") {
-    return typeof obj.file_path === "string" ? obj.file_path : null;
+    return typeof obj.file_path === "string" ? FilePath(obj.file_path) : null;
   }
   if (toolName === "Glob") {
-    return typeof obj.pattern === "string" ? obj.pattern : null;
+    return typeof obj.pattern === "string" ? FilePath(obj.pattern) : null;
   }
   if (toolName === "Grep") {
-    return typeof obj.path === "string" ? obj.path : null;
+    return typeof obj.path === "string" ? FilePath(obj.path) : null;
   }
   return null;
 };
@@ -92,7 +94,7 @@ export const safeJsonParse = (line: string): Record<string, unknown> | null => {
 };
 
 /** Extract file extension from a file path */
-export const extractFileExtension = (filePath: string): string => {
+export const extractFileExtension = (filePath: FilePath | string): string => {
   const ext = path.extname(filePath).slice(1).toLowerCase();
   return ext || "";
 };

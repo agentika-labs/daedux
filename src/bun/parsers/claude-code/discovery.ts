@@ -4,6 +4,12 @@ import * as path from "node:path";
 
 import { Effect } from "effect";
 
+import {
+  FilePath,
+  ProjectPath,
+  SessionId,
+  UnixTimestampMs,
+} from "../../../shared/branded";
 import { FileSystemError } from "../../errors";
 import type { SessionFileInfo } from "../types";
 
@@ -67,13 +73,13 @@ export const discoverClaudeCodeSessions = (
           try {
             const stat = fs.statSync(filePath);
             results.push({
-              filePath,
+              filePath: FilePath(filePath),
               harness: "claude-code",
               isSubagent: false,
-              mtimeMs: stat.mtimeMs,
+              mtimeMs: UnixTimestampMs(stat.mtimeMs),
               parentSessionId: null,
-              project: projectDir,
-              sessionId,
+              project: ProjectPath(projectDir),
+              sessionId: SessionId(sessionId),
             });
           } catch {
             continue;
@@ -94,13 +100,13 @@ export const discoverClaudeCodeSessions = (
               try {
                 const stat = fs.statSync(subFilePath);
                 results.push({
-                  filePath: subFilePath,
+                  filePath: FilePath(subFilePath),
                   harness: "claude-code",
                   isSubagent: true,
-                  mtimeMs: stat.mtimeMs,
-                  parentSessionId: sessionId,
-                  project: projectDir,
-                  sessionId: subSessionId,
+                  mtimeMs: UnixTimestampMs(stat.mtimeMs),
+                  parentSessionId: SessionId(sessionId),
+                  project: ProjectPath(projectDir),
+                  sessionId: SessionId(subSessionId),
                 });
               } catch {
                 continue;
@@ -151,13 +157,13 @@ export const discoverClaudeCodeSessions = (
               try {
                 const stat = fs.statSync(subFilePath);
                 results.push({
-                  filePath: subFilePath,
+                  filePath: FilePath(subFilePath),
                   harness: "claude-code",
                   isSubagent: true,
-                  mtimeMs: stat.mtimeMs,
-                  parentSessionId: parentSessionId,
-                  project: projectDir,
-                  sessionId: subSessionId,
+                  mtimeMs: UnixTimestampMs(stat.mtimeMs),
+                  parentSessionId: SessionId(parentSessionId),
+                  project: ProjectPath(projectDir),
+                  sessionId: SessionId(subSessionId),
                 });
               } catch {
                 continue;

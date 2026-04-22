@@ -12,6 +12,7 @@ import {
 } from "drizzle-orm";
 import { Effect } from "effect";
 
+import { CostUsd, SessionId, UnixTimestampMs } from "../../shared/branded";
 import type {
   DateFilter,
   OtelStatus,
@@ -327,7 +328,7 @@ export const getApiLatency = (
         row.requestCount > 0
           ? Number(row.retryCount ?? 0) / row.requestCount
           : 0,
-      avgCostUsd: Number(row.avgCostUsd ?? 0),
+      avgCostUsd: CostUsd(Number(row.avgCostUsd ?? 0)),
     }));
   });
 
@@ -506,14 +507,14 @@ export const getCostBreakdown = (
     const activeTimeHours = activeTimeSeconds / 3600;
 
     return {
-      totalCost,
-      avgCostPerSession: sessionCount > 0 ? totalCost / sessionCount : 0,
-      costPerLoc: totalLoc > 0 ? totalCost / totalLoc : 0,
-      costPerHour: activeTimeHours > 0 ? totalCost / activeTimeHours : 0,
+      totalCost: CostUsd(totalCost),
+      avgCostPerSession: CostUsd(sessionCount > 0 ? totalCost / sessionCount : 0),
+      costPerLoc: CostUsd(totalLoc > 0 ? totalCost / totalLoc : 0),
+      costPerHour: CostUsd(activeTimeHours > 0 ? totalCost / activeTimeHours : 0),
       cacheEfficiencyRatio: cacheRead / cacheCreation,
       byModel: byModelResult.map((row) => ({
         model: row.model ?? "unknown",
-        cost: Number(row.totalCost ?? 0),
+        cost: CostUsd(Number(row.totalCost ?? 0)),
         tokens: Number(row.totalTokens ?? 0),
         requests: row.requestCount,
       })),
@@ -664,10 +665,10 @@ export const getProblemPatterns = (
 
     return {
       longUnproductiveSessions: longUnproductive.map((row) => ({
-        sessionId: row.sessionId,
+        sessionId: SessionId(row.sessionId),
         durationMs: Number(row.durationMs ?? 0),
         commits: row.commits ?? 0,
-        cost: row.cost ?? 0,
+        cost: CostUsd(row.cost ?? 0),
       })),
       highRejectionTools,
       apiErrorPatterns: apiErrors.map((row) => ({
@@ -706,11 +707,11 @@ export const getRecentEvents = (
 
     return result.map((row) => ({
       id: row.id,
-      timestampMs: Math.floor(row.timestampNs / 1_000_000),
+      timestampMs: UnixTimestampMs(Math.floor(row.timestampNs / 1_000_000)),
       eventName: row.eventName,
       model: row.model,
       toolName: row.toolName,
-      costUsd: row.costUsd,
+      costUsd: row.costUsd != null ? CostUsd(row.costUsd) : null,
       durationMs: row.durationMs,
       success: row.toolSuccess,
     }));

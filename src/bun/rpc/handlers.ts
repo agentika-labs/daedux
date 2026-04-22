@@ -1,5 +1,11 @@
 import { Effect } from "effect";
 
+import {
+  CostUsd,
+  ProjectPath,
+  SessionId,
+  UnixTimestampMs,
+} from "../../shared/branded";
 import { parseDateFilter } from "../../shared/date-filter";
 import type {
   DateFilter,
@@ -232,17 +238,17 @@ export const handleGetSessionDetail = async ({
         model: "claude-sonnet-4-5-20251022",
         modelShort: "Sonnet",
         output: session.totalOutputTokens ?? 0,
-        project: session.projectPath,
+        project: ProjectPath(session.projectPath),
         queries: [],
         queryCount: session.queryCount ?? 0,
-        savedByCaching: session.savedByCaching ?? 0,
-        sessionId: session.sessionId,
-        startTime: session.startTime,
+        savedByCaching: CostUsd(session.savedByCaching ?? 0),
+        sessionId: SessionId(session.sessionId),
+        startTime: UnixTimestampMs(session.startTime),
         subagentCount: 0,
         toolCounts: {},
         toolErrorCount: 0,
         toolUseCount: session.toolUseCount ?? 0,
-        totalCost: session.totalCost ?? 0,
+        totalCost: CostUsd(session.totalCost ?? 0),
         totalTokens:
           (session.totalInputTokens ?? 0) + (session.totalOutputTokens ?? 0),
         turnCount: session.turnCount ?? 0,

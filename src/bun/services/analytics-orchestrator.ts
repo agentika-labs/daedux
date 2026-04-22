@@ -12,6 +12,16 @@
 
 import { Context, Effect, Layer } from "effect";
 
+import {
+  brandAgentROIEntry,
+  brandDailyStat,
+  brandModelBreakdown,
+  brandProjectSummary,
+  brandSessionSummary,
+  brandTopPrompt,
+  brandWeeklyStats,
+  CostUsd,
+} from "../../shared/branded";
 import type { DashboardData, DateFilter } from "../../shared/rpc-types";
 import { AgentAnalyticsService } from "../analytics/agent-analytics";
 import { FileAnalyticsService } from "../analytics/file-analytics";
@@ -140,8 +150,8 @@ export const AnalyticsOrchestratorLive = Layer.effect(
             ...totals,
             agentLeverageRatio: extendedTotals.agentLeverageRatio,
             avgContextUtilization: extendedTotals.cacheEfficiencyRatio,
-            avgCostPerQuery: extendedTotals.avgCostPerQuery,
-            avgCostPerSession: extendedTotals.avgCostPerSession,
+            avgCostPerQuery: CostUsd(extendedTotals.avgCostPerQuery),
+            avgCostPerSession: CostUsd(extendedTotals.avgCostPerSession),
             avgSessionDurationMs: extendedTotals.avgSessionDurationMs,
             avgTurnsPerSession:
               sessionList.length > 0
@@ -151,12 +161,13 @@ export const AnalyticsOrchestratorLive = Layer.effect(
             cacheCreation: totals.totalCacheWrite,
             cacheEfficiencyRatio: extendedTotals.cacheEfficiencyRatio,
             cacheRead: totals.totalCacheRead,
-            cacheSavingsUsd: extendedTotals.savedByCaching,
+            cacheSavingsUsd: CostUsd(extendedTotals.savedByCaching),
             contextEfficiencyScore: extendedTotals.cacheEfficiencyRatio * 100,
-            costPerEdit:
+            costPerEdit: CostUsd(
               extendedTotals.totalFileOperations > 0
                 ? totals.totalCost / extendedTotals.totalFileOperations
-                : 0,
+                : 0
+            ),
             dateRange: extendedTotals.dateRange,
             output: totals.totalOutputTokens,
             promptEfficiencyRatio: (() => {
@@ -166,8 +177,9 @@ export const AnalyticsOrchestratorLive = Layer.effect(
                 ? totals.totalOutputTokens / newTokensSent
                 : 0;
             })(),
-            savedByCaching: extendedTotals.savedByCaching,
+            savedByCaching: CostUsd(extendedTotals.savedByCaching),
             totalAgentSpawns: extendedTotals.totalAgentSpawns,
+            totalCost: CostUsd(totals.totalCost),
             totalFileOperations: extendedTotals.totalFileOperations,
             totalSkillInvocations: extendedTotals.totalSkillInvocations,
             totalTokens,
@@ -178,56 +190,83 @@ export const AnalyticsOrchestratorLive = Layer.effect(
             uncachedInput: totals.totalInputTokens,
           };
 
-          // Transform sessions using schema-based pipeline
+          // Transform sessions using schema-based pipeline and brand
           const dashboardSessions = sessionList.map((s) =>
-            transformSessionCompat({
-              session: s,
-              sessionTools: sessionToolCounts.get(s.sessionId) ?? {},
-              sessionFileOps: sessionFileOperations.get(s.sessionId) ?? [],
-              sessionModel:
-                sessionPrimaryModels.get(s.sessionId) ??
-                "claude-sonnet-4-5-20251022",
-              agentCount: sessionAgentCounts.get(s.sessionId) ?? 0,
-              errorCount: sessionToolErrorCounts.get(s.sessionId) ?? 0,
-            })
+            brandSessionSummary(
+              transformSessionCompat({
+                session: s,
+                sessionTools: sessionToolCounts.get(s.sessionId) ?? {},
+                sessionFileOps: sessionFileOperations.get(s.sessionId) ?? [],
+                sessionModel:
+                  sessionPrimaryModels.get(s.sessionId) ??
+                  "claude-sonnet-4-5-20251022",
+                agentCount: sessionAgentCounts.get(s.sessionId) ?? 0,
+                errorCount: sessionToolErrorCounts.get(s.sessionId) ?? 0,
+              })
+            )
           );
 
-          // Transform insights
+          // Transform insights with branded dollarImpact
           const transformedInsights = insights.map((i) => ({
             action: i.action ?? "",
             actionLabel: i.actionLabel,
             actionTarget: i.actionTarget,
             comparison: i.comparison,
             description: i.message,
-            dollarImpact: i.dollarImpact,
+            dollarImpact:
+              i.dollarImpact != null ? CostUsd(i.dollarImpact) : undefined,
             priority: i.priority,
             title: i.title,
             type: i.type === "tip" ? "info" : i.type,
           }));
 
-          // Transform topPrompts to include queryCount
+          // Transform topPrompts with branded fields
           const transformedTopPrompts = topPrompts.map((p) => ({
-            ...p,
+            ...brandTopPrompt(p),
             queryCount: 1,
           }));
 
+          // Brand agent ROI entries
+          const brandedAgentROI = {
+            agents: agentROI.agents.map(brandAgentROIEntry),
+            summary: {
+              ...agentROI.summary,
+              avgCostPerSpawn: CostUsd(agentROI.summary.avgCostPerSpawn),
+              totalAgentCost: CostUsd(agentROI.summary.totalAgentCost),
+            },
+          };
+
+          // Brand weekly comparison
+          const brandedWeeklyComparison = {
+            ...weeklyComparison,
+            changes: brandWeeklyStats(weeklyComparison.changes),
+            lastWeek: brandWeeklyStats(weeklyComparison.lastWeek),
+            thisWeek: brandWeeklyStats(weeklyComparison.thisWeek),
+          };
+
+          // Brand skill ROI
+          const brandedSkillROI = skillROI.map((s) => ({
+            ...s,
+            totalCost: CostUsd(s.totalCost),
+          }));
+
           return {
-            agentROI,
-            dailyUsage: dailyStats,
+            agentROI: brandedAgentROI,
+            dailyUsage: dailyStats.map(brandDailyStat),
             efficiencyScore,
             hookStats,
             insights: transformedInsights,
-            modelBreakdown,
-            projects,
+            modelBreakdown: modelBreakdown.map(brandModelBreakdown),
+            projects: projects.map(brandProjectSummary),
             sessions: dashboardSessions,
             skillImpact,
-            skillROI,
+            skillROI: brandedSkillROI,
             toolHealth,
             toolHealthReportCard,
             toolUsage,
             topPrompts: transformedTopPrompts,
             totals: dashboardTotals,
-            weeklyComparison,
+            weeklyComparison: brandedWeeklyComparison,
           } satisfies DashboardData;
         }).pipe(Effect.withSpan("AnalyticsOrchestrator.getDashboard")),
     } satisfies AnalyticsOrchestratorMethods;

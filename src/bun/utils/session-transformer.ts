@@ -3,6 +3,12 @@
  * Used by both desktop (Electrobun) and CLI (HTTP) modes.
  */
 
+import {
+  CostUsd,
+  ProjectPath,
+  SessionId,
+  UnixTimestampMs,
+} from "../../shared/branded";
 import { modelDisplayNameWithVersion } from "../../shared/model-utils";
 import type { HarnessId, SessionSummary } from "../../shared/rpc-types";
 import { toDateString } from "./formatting";
@@ -85,17 +91,17 @@ export function transformSessionToRPC({
     model: sessionModel,
     modelShort: modelDisplayNameWithVersion(sessionModel),
     output: s.totalOutputTokens ?? 0,
-    project: s.projectPath,
+    project: ProjectPath(s.projectPath),
     queries: [],
     queryCount: s.queryCount ?? 0,
-    savedByCaching: s.savedByCaching ?? 0,
-    sessionId: s.sessionId,
-    startTime: s.startTime,
+    savedByCaching: CostUsd(s.savedByCaching ?? 0),
+    sessionId: SessionId(s.sessionId),
+    startTime: UnixTimestampMs(s.startTime),
     subagentCount: agentCount,
     toolCounts: sessionTools,
     toolErrorCount: errorCount,
     toolUseCount: s.toolUseCount ?? 0,
-    totalCost: s.totalCost ?? 0,
+    totalCost: CostUsd(s.totalCost ?? 0),
     totalTokens: (s.totalInputTokens ?? 0) + (s.totalOutputTokens ?? 0),
     turnCount: s.turnCount ?? 0,
     uncachedInput: s.totalInputTokens ?? 0,

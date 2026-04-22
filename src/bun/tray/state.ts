@@ -1,5 +1,6 @@
 import { Effect } from "effect";
 
+import { CostUsd } from "../../shared/branded";
 import { parseDateFilter } from "../../shared/date-filter";
 import type { TrayStats } from "../../shared/rpc-types";
 import { SessionAnalyticsService } from "../analytics/session-analytics";
@@ -53,7 +54,7 @@ export const getTrayStats = async (): Promise<TrayStats> => {
     return {
       activeSessions: 0,
       anthropicUsage,
-      todayCost: totals.totalCost,
+      todayCost: CostUsd(totals.totalCost),
       todayEvents: totals.totalQueries + totals.totalToolUses,
       todaySessions: totals.totalSessions,
       todayTokens:
@@ -65,7 +66,7 @@ export const getTrayStats = async (): Promise<TrayStats> => {
   } catch {
     return {
       activeSessions: 0,
-      todayCost: 0,
+      todayCost: CostUsd(0),
       todayEvents: 0,
       todaySessions: 0,
       todayTokens: 0,
@@ -94,7 +95,7 @@ export const getTrayStatsQuick = async (): Promise<TrayStats> => {
     return {
       activeSessions: 0,
       anthropicUsage: cachedAnthropicUsage ?? undefined,
-      todayCost: totals.totalCost,
+      todayCost: CostUsd(totals.totalCost),
       todayEvents: totals.totalQueries + totals.totalToolUses,
       todaySessions: totals.totalSessions,
       todayTokens:
@@ -109,7 +110,7 @@ export const getTrayStatsQuick = async (): Promise<TrayStats> => {
     return {
       activeSessions: 0,
       anthropicUsage: cachedAnthropicUsage ?? undefined,
-      todayCost: 0,
+      todayCost: CostUsd(0),
       todayEvents: 0,
       todaySessions: 0,
       todayTokens: 0,

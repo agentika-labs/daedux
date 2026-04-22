@@ -3,42 +3,43 @@ import type { SQL } from "drizzle-orm";
 
 import * as schema from "../db/schema";
 import type { HarnessId } from "../parsers/types";
+import { type UnixTimestampMs, nowMs, addMs } from "../../shared/branded";
 
 /**
  * Date filter for server-side filtering of analytics queries.
  * Used by the dashboard to filter data by time range and optionally by harness.
  */
 export interface DateFilter {
-  startTime?: number; // Unix ms - sessions starting on or after this time
-  endTime?: number; // Unix ms - sessions starting on or before this time
-  harness?: HarnessId | HarnessId[]; // Filter by harness (e.g., "claude-code", "opencode")
+  startTime?: UnixTimestampMs;
+  endTime?: UnixTimestampMs;
+  harness?: HarnessId | HarnessId[];
 }
 
 export interface ComparisonWindows {
-  readonly currentStart: number;
-  readonly currentEnd: number;
-  readonly previousStart: number;
-  readonly previousEnd: number;
+  readonly currentStart: UnixTimestampMs;
+  readonly currentEnd: UnixTimestampMs;
+  readonly previousStart: UnixTimestampMs;
+  readonly previousEnd: UnixTimestampMs;
 }
 
 export const buildComparisonWindows = (
   dateFilter: DateFilter = {}
 ): ComparisonWindows => {
-  const now = Date.now();
+  const now = nowMs();
   const hasFilter =
     dateFilter.startTime !== undefined || dateFilter.endTime !== undefined;
 
   if (!hasFilter) {
     return {
       currentEnd: now,
-      currentStart: now - 7 * 86_400_000,
-      previousEnd: now - 7 * 86_400_000,
-      previousStart: now - 14 * 86_400_000,
+      currentStart: addMs(now, -7 * DAY_MS),
+      previousEnd: addMs(now, -7 * DAY_MS),
+      previousStart: addMs(now, -14 * DAY_MS),
     };
   }
 
   const currentStart =
-    dateFilter.startTime ?? (dateFilter.endTime ?? now) - 7 * 86_400_000;
+    dateFilter.startTime ?? addMs(dateFilter.endTime ?? now, -7 * DAY_MS);
   const currentEnd = dateFilter.endTime ?? now;
   const span = Math.max(1, currentEnd - currentStart);
 
@@ -46,7 +47,7 @@ export const buildComparisonWindows = (
     currentEnd,
     currentStart,
     previousEnd: currentStart,
-    previousStart: currentStart - span,
+    previousStart: addMs(currentStart, -span),
   };
 };
 

@@ -4,12 +4,18 @@
  */
 
 import type { RPCSchema } from "electrobun/bun";
+import type {
+  CostUsd,
+  ProjectPath,
+  SessionId,
+  UnixTimestampMs,
+} from "./branded";
 
 // ─── Date Filter ────────────────────────────────────────────────────────────
 
 export interface DateFilter {
-  startTime?: number;
-  endTime?: number;
+  startTime?: UnixTimestampMs;
+  endTime?: UnixTimestampMs;
   harness?: HarnessId | HarnessId[];
 }
 
@@ -20,7 +26,7 @@ export interface DashboardTotals {
   totalSubagents: number;
   totalQueries: number;
   totalToolUses: number;
-  totalCost: number;
+  totalCost: CostUsd;
   totalInputTokens: number;
   totalOutputTokens: number;
   totalCacheRead: number;
@@ -30,14 +36,14 @@ export interface DashboardTotals {
   uncachedInput: number;
   cacheRead: number;
   cacheCreation: number;
-  savedByCaching: number;
+  savedByCaching: CostUsd;
   cacheEfficiencyRatio: number;
-  cacheSavingsUsd: number;
-  avgCostPerSession: number;
-  avgCostPerQuery: number;
+  cacheSavingsUsd: CostUsd;
+  avgCostPerSession: CostUsd;
+  avgCostPerQuery: CostUsd;
   avgSessionDurationMs: number;
   dateRange: { from: string; to: string };
-  costPerEdit: number;
+  costPerEdit: CostUsd;
   totalFileOperations: number;
   contextEfficiencyScore: number;
   avgContextUtilization: number;
@@ -53,7 +59,7 @@ export interface DailyStat {
   date: string;
   sessionCount: number;
   queryCount: number;
-  totalCost: number;
+  totalCost: CostUsd;
   totalTokens: number;
   uncachedInput: number;
   cacheRead: number;
@@ -73,13 +79,13 @@ export const HARNESS_LABELS: Record<HarnessId, string> = {
 };
 
 export interface SessionSummary {
-  sessionId: string;
-  project: string;
+  sessionId: SessionId;
+  project: ProjectPath;
   date: string;
   displayName: string | null;
-  startTime: number;
+  startTime: UnixTimestampMs;
   durationMs: number;
-  totalCost: number;
+  totalCost: CostUsd;
   queryCount: number;
   toolUseCount: number;
   turnCount: number;
@@ -89,7 +95,7 @@ export interface SessionSummary {
   modelShort: string;
   firstPrompt: string;
   totalTokens: number;
-  savedByCaching: number;
+  savedByCaching: CostUsd;
   uncachedInput: number;
   cacheRead: number;
   cacheCreation: number;
@@ -111,11 +117,11 @@ export interface SessionSummary {
 }
 
 export interface ProjectSummary {
-  projectPath: string;
+  projectPath: ProjectPath;
   sessionCount: number;
-  totalCost: number;
+  totalCost: CostUsd;
   totalQueries: number;
-  lastActivity: number;
+  lastActivity: UnixTimestampMs;
   cwd?: string;
 }
 
@@ -125,7 +131,7 @@ export interface ModelBreakdown {
   modelFamily: string;
   rawModelIds: string[];
   totalTokens: number;
-  totalCost: number;
+  totalCost: CostUsd;
   queries: number;
   sessions: number;
 }
@@ -145,8 +151,8 @@ export interface EfficiencyScore {
 
 export interface WeeklyStats {
   sessions: number;
-  cost: number;
-  costPerSession: number;
+  cost: CostUsd;
+  costPerSession: CostUsd;
   cacheHitRate: number;
   toolErrorRate: number;
   avgQueriesPerSession: number;
@@ -176,7 +182,7 @@ export interface Insight {
   action: string;
   actionLabel?: string;
   actionTarget?: InsightActionTarget;
-  dollarImpact?: number;
+  dollarImpact?: CostUsd;
   priority?: number;
   comparison?: {
     thisWeek: number;
@@ -189,8 +195,8 @@ export interface Insight {
 export interface AgentROIEntry {
   agentType: string;
   spawns: number;
-  totalCost: number;
-  avgCostPerSpawn: number;
+  totalCost: CostUsd;
+  avgCostPerSpawn: CostUsd;
   toolsTriggered: number;
   avgToolsPerSpawn: number;
   successRate: number;
@@ -200,8 +206,8 @@ export interface AgentROIEntry {
 
 export interface AgentROISummary {
   totalSpawns: number;
-  totalAgentCost: number;
-  avgCostPerSpawn: number;
+  totalAgentCost: CostUsd;
+  avgCostPerSpawn: CostUsd;
   mostUsedAgent: string;
   highestROIAgent: string;
   underusedAgents: string[];
@@ -220,7 +226,7 @@ export interface SkillROIEntry {
   invocationCount: number;
   avgCostTokens: number;
   avgToolsTriggered: number;
-  totalCost: number;
+  totalCost: CostUsd;
   completionRate: number;
   roiScore: number;
 }
@@ -320,9 +326,9 @@ export interface DashboardData {
     date: string;
     model: string;
     totalTokens: number;
-    cost: number;
-    sessionId: string;
-    queryCount: number; // Number of API calls aggregated for this prompt
+    cost: CostUsd;
+    sessionId: SessionId;
+    queryCount: number;
   }[];
   toolHealth: ToolHealthEntry[];
   agentROI: AgentROI;
@@ -366,7 +372,7 @@ export interface AnthropicUsage {
 
 export interface TrayStats {
   todayTokens: number;
-  todayCost: number;
+  todayCost: CostUsd;
   todaySessions: number;
   todayEvents: number;
   activeSessions: number;
@@ -434,7 +440,7 @@ export interface OtelApiLatency {
   avgLatencyMs: number;
   requestCount: number;
   retryRate: number;
-  avgCostUsd: number;
+  avgCostUsd: CostUsd;
 }
 
 export interface OtelDashboardData {
@@ -464,12 +470,12 @@ export interface OtelProductivityMetrics {
 // ─── OTEL Cost Breakdown ─────────────────────────────────────────────────────
 
 export interface OtelCostBreakdown {
-  totalCost: number;
-  avgCostPerSession: number;
-  costPerLoc: number;
-  costPerHour: number;
-  cacheEfficiencyRatio: number; // cacheRead / cacheCreation
-  byModel: { model: string; cost: number; tokens: number; requests: number }[];
+  totalCost: CostUsd;
+  avgCostPerSession: CostUsd;
+  costPerLoc: CostUsd;
+  costPerHour: CostUsd;
+  cacheEfficiencyRatio: number;
+  byModel: { model: string; cost: CostUsd; tokens: number; requests: number }[];
 }
 
 // ─── OTEL Tool Success Rates ─────────────────────────────────────────────────
@@ -496,10 +502,10 @@ export interface OtelSessionBuckets {
 
 export interface OtelProblemPatterns {
   longUnproductiveSessions: {
-    sessionId: string;
+    sessionId: SessionId;
     durationMs: number;
     commits: number;
-    cost: number;
+    cost: CostUsd;
   }[];
   highRejectionTools: { toolName: string; rejectRate: number; total: number }[];
   apiErrorPatterns: { errorType: string; count: number; model: string }[];
@@ -509,11 +515,11 @@ export interface OtelProblemPatterns {
 
 export interface OtelRecentEvent {
   id: number;
-  timestampMs: number;
+  timestampMs: UnixTimestampMs;
   eventName: string;
   model: string | null;
   toolName: string | null;
-  costUsd: number | null;
+  costUsd: CostUsd | null;
   durationMs: number | null;
   success: boolean | null;
 }
