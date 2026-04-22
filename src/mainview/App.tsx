@@ -29,17 +29,13 @@ const router = createRouter({
   routeTree,
   history: memoryHistory,
   context: { queryClient },
-  // Preload routes on hover - this is the key to fast navigation
   defaultPreload: "intent",
-  // Preload after 50ms of hover intent
   defaultPreloadDelay: 50,
-  // Unified error component for all routes - can be overridden per-route if needed
   defaultErrorComponent: ({ error, reset }) => (
     <RouteErrorComponent error={error} reset={reset} />
   ),
 });
 
-// Register router for type safety
 declare module "@tanstack/react-router" {
   interface Register {
     router: typeof router;
@@ -55,7 +51,7 @@ const applyTheme = (theme: ThemeMode) => {
 
   if (theme === "system") {
     const prefersDark = window.matchMedia(
-      "(prefers-color-scheme: dark)"
+      "(prefers-color-scheme: dark)",
     ).matches;
     root.classList.toggle("dark", prefersDark);
   } else {
@@ -114,7 +110,7 @@ const App = () => {
         const { isFullscreen } = payload as { isFullscreen?: boolean };
         document.documentElement.classList.toggle(
           "fullscreen",
-          isFullscreen === true
+          isFullscreen === true,
         );
       };
 
@@ -131,7 +127,7 @@ const App = () => {
         electroview.removeMessageListener("themeChanged", themeListener);
         electroview.removeMessageListener(
           "fullscreenChanged",
-          fullscreenListener
+          fullscreenListener,
         );
         electroview.removeMessageListener("usageUpdated", usageListener);
       };
