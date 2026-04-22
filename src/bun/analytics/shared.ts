@@ -1,9 +1,10 @@
 import { gte, lte, eq, and, inArray } from "drizzle-orm";
 import type { SQL } from "drizzle-orm";
 
+import type { UnixTimestampMs } from "../../shared/branded";
+import { addMs, nowMs } from "../../shared/branded";
 import * as schema from "../db/schema";
 import type { HarnessId } from "../parsers/types";
-import { type UnixTimestampMs, nowMs, addMs } from "../../shared/branded";
 
 /**
  * Date filter for server-side filtering of analytics queries.

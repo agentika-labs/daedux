@@ -6,13 +6,10 @@
 import { Effect } from "effect";
 
 import {
-  brandAgentROIEntry,
-  brandDailyStat,
-  brandModelBreakdown,
-  brandProjectSummary,
-  brandTopPrompt,
-  brandWeeklyStats,
   CostUsd,
+  ProjectPath,
+  SessionId,
+  UnixTimestampMs,
 } from "../../shared/branded";
 import type { DashboardData, DateFilter } from "../../shared/rpc-types";
 import { AgentAnalyticsService } from "../analytics/agent-analytics";
@@ -153,7 +150,8 @@ export const loadDashboardData = (dateFilter: DateFilter = {}) =>
       actionTarget: i.actionTarget,
       comparison: i.comparison,
       description: i.message,
-      dollarImpact: i.dollarImpact != null ? CostUsd(i.dollarImpact) : undefined,
+      dollarImpact:
+        i.dollarImpact != null ? CostUsd(i.dollarImpact) : undefined,
       priority: i.priority,
       title: i.title,
       type: i.type === "tip" ? "info" : i.type,
@@ -161,13 +159,19 @@ export const loadDashboardData = (dateFilter: DateFilter = {}) =>
 
     // Transform topPrompts with branded fields
     const transformedTopPrompts = topPrompts.map((p) => ({
-      ...brandTopPrompt(p),
+      ...p,
+      cost: CostUsd(p.cost),
+      sessionId: SessionId(p.sessionId),
       queryCount: 1,
     }));
 
     // Brand agent ROI entries
     const brandedAgentROI = {
-      agents: agentROI.agents.map(brandAgentROIEntry),
+      agents: agentROI.agents.map((e) => ({
+        ...e,
+        totalCost: CostUsd(e.totalCost),
+        avgCostPerSpawn: CostUsd(e.avgCostPerSpawn),
+      })),
       summary: {
         ...agentROI.summary,
         avgCostPerSpawn: CostUsd(agentROI.summary.avgCostPerSpawn),
@@ -176,11 +180,16 @@ export const loadDashboardData = (dateFilter: DateFilter = {}) =>
     };
 
     // Brand weekly comparison
+    const brandWeekly = (s: typeof weeklyComparison.thisWeek) => ({
+      ...s,
+      cost: CostUsd(s.cost),
+      costPerSession: CostUsd(s.costPerSession),
+    });
     const brandedWeeklyComparison = {
       ...weeklyComparison,
-      changes: brandWeeklyStats(weeklyComparison.changes),
-      lastWeek: brandWeeklyStats(weeklyComparison.lastWeek),
-      thisWeek: brandWeeklyStats(weeklyComparison.thisWeek),
+      changes: brandWeekly(weeklyComparison.changes),
+      lastWeek: brandWeekly(weeklyComparison.lastWeek),
+      thisWeek: brandWeekly(weeklyComparison.thisWeek),
     };
 
     // Brand skill ROI
@@ -191,12 +200,23 @@ export const loadDashboardData = (dateFilter: DateFilter = {}) =>
 
     return {
       agentROI: brandedAgentROI,
-      dailyUsage: dailyStats.map(brandDailyStat),
+      dailyUsage: dailyStats.map((s) => ({
+        ...s,
+        totalCost: CostUsd(s.totalCost),
+      })),
       efficiencyScore,
       hookStats,
       insights: transformedInsights,
-      modelBreakdown: modelBreakdown.map(brandModelBreakdown),
-      projects: projects.map(brandProjectSummary),
+      modelBreakdown: modelBreakdown.map((m) => ({
+        ...m,
+        totalCost: CostUsd(m.totalCost),
+      })),
+      projects: projects.map((p) => ({
+        ...p,
+        projectPath: ProjectPath(p.projectPath),
+        totalCost: CostUsd(p.totalCost),
+        lastActivity: UnixTimestampMs(p.lastActivity),
+      })),
       sessions: dashboardSessions,
       skillImpact,
       skillROI: brandedSkillROI,

@@ -13,14 +13,10 @@
 import { Context, Effect, Layer } from "effect";
 
 import {
-  brandAgentROIEntry,
-  brandDailyStat,
-  brandModelBreakdown,
-  brandProjectSummary,
-  brandSessionSummary,
-  brandTopPrompt,
-  brandWeeklyStats,
   CostUsd,
+  ProjectPath,
+  SessionId,
+  UnixTimestampMs,
 } from "../../shared/branded";
 import type { DashboardData, DateFilter } from "../../shared/rpc-types";
 import { AgentAnalyticsService } from "../analytics/agent-analytics";
@@ -190,21 +186,27 @@ export const AnalyticsOrchestratorLive = Layer.effect(
             uncachedInput: totals.totalInputTokens,
           };
 
-          // Transform sessions using schema-based pipeline and brand
-          const dashboardSessions = sessionList.map((s) =>
-            brandSessionSummary(
-              transformSessionCompat({
-                session: s,
-                sessionTools: sessionToolCounts.get(s.sessionId) ?? {},
-                sessionFileOps: sessionFileOperations.get(s.sessionId) ?? [],
-                sessionModel:
-                  sessionPrimaryModels.get(s.sessionId) ??
-                  "claude-sonnet-4-5-20251022",
-                agentCount: sessionAgentCounts.get(s.sessionId) ?? 0,
-                errorCount: sessionToolErrorCounts.get(s.sessionId) ?? 0,
-              })
-            )
-          );
+          // Transform sessions using schema-based pipeline
+          const dashboardSessions = sessionList.map((s) => {
+            const rpc = transformSessionCompat({
+              session: s,
+              sessionTools: sessionToolCounts.get(s.sessionId) ?? {},
+              sessionFileOps: sessionFileOperations.get(s.sessionId) ?? [],
+              sessionModel:
+                sessionPrimaryModels.get(s.sessionId) ??
+                "claude-sonnet-4-5-20251022",
+              agentCount: sessionAgentCounts.get(s.sessionId) ?? 0,
+              errorCount: sessionToolErrorCounts.get(s.sessionId) ?? 0,
+            });
+            return {
+              ...rpc,
+              sessionId: SessionId(rpc.sessionId),
+              project: ProjectPath(rpc.project),
+              startTime: UnixTimestampMs(rpc.startTime),
+              totalCost: CostUsd(rpc.totalCost),
+              savedByCaching: CostUsd(rpc.savedByCaching),
+            };
+          });
 
           // Transform insights with branded dollarImpact
           const transformedInsights = insights.map((i) => ({
@@ -222,13 +224,19 @@ export const AnalyticsOrchestratorLive = Layer.effect(
 
           // Transform topPrompts with branded fields
           const transformedTopPrompts = topPrompts.map((p) => ({
-            ...brandTopPrompt(p),
+            ...p,
+            cost: CostUsd(p.cost),
+            sessionId: SessionId(p.sessionId),
             queryCount: 1,
           }));
 
           // Brand agent ROI entries
           const brandedAgentROI = {
-            agents: agentROI.agents.map(brandAgentROIEntry),
+            agents: agentROI.agents.map((e) => ({
+              ...e,
+              totalCost: CostUsd(e.totalCost),
+              avgCostPerSpawn: CostUsd(e.avgCostPerSpawn),
+            })),
             summary: {
               ...agentROI.summary,
               avgCostPerSpawn: CostUsd(agentROI.summary.avgCostPerSpawn),
@@ -237,11 +245,16 @@ export const AnalyticsOrchestratorLive = Layer.effect(
           };
 
           // Brand weekly comparison
+          const brandWeekly = (s: typeof weeklyComparison.thisWeek) => ({
+            ...s,
+            cost: CostUsd(s.cost),
+            costPerSession: CostUsd(s.costPerSession),
+          });
           const brandedWeeklyComparison = {
             ...weeklyComparison,
-            changes: brandWeeklyStats(weeklyComparison.changes),
-            lastWeek: brandWeeklyStats(weeklyComparison.lastWeek),
-            thisWeek: brandWeeklyStats(weeklyComparison.thisWeek),
+            changes: brandWeekly(weeklyComparison.changes),
+            lastWeek: brandWeekly(weeklyComparison.lastWeek),
+            thisWeek: brandWeekly(weeklyComparison.thisWeek),
           };
 
           // Brand skill ROI
@@ -252,12 +265,23 @@ export const AnalyticsOrchestratorLive = Layer.effect(
 
           return {
             agentROI: brandedAgentROI,
-            dailyUsage: dailyStats.map(brandDailyStat),
+            dailyUsage: dailyStats.map((s) => ({
+              ...s,
+              totalCost: CostUsd(s.totalCost),
+            })),
             efficiencyScore,
             hookStats,
             insights: transformedInsights,
-            modelBreakdown: modelBreakdown.map(brandModelBreakdown),
-            projects: projects.map(brandProjectSummary),
+            modelBreakdown: modelBreakdown.map((m) => ({
+              ...m,
+              totalCost: CostUsd(m.totalCost),
+            })),
+            projects: projects.map((p) => ({
+              ...p,
+              projectPath: ProjectPath(p.projectPath),
+              totalCost: CostUsd(p.totalCost),
+              lastActivity: UnixTimestampMs(p.lastActivity),
+            })),
             sessions: dashboardSessions,
             skillImpact,
             skillROI: brandedSkillROI,

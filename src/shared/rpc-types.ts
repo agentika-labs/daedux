@@ -4,6 +4,7 @@
  */
 
 import type { RPCSchema } from "electrobun/bun";
+
 import type {
   CostUsd,
   ProjectPath,

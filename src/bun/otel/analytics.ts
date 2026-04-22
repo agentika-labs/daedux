@@ -508,9 +508,13 @@ export const getCostBreakdown = (
 
     return {
       totalCost: CostUsd(totalCost),
-      avgCostPerSession: CostUsd(sessionCount > 0 ? totalCost / sessionCount : 0),
+      avgCostPerSession: CostUsd(
+        sessionCount > 0 ? totalCost / sessionCount : 0
+      ),
       costPerLoc: CostUsd(totalLoc > 0 ? totalCost / totalLoc : 0),
-      costPerHour: CostUsd(activeTimeHours > 0 ? totalCost / activeTimeHours : 0),
+      costPerHour: CostUsd(
+        activeTimeHours > 0 ? totalCost / activeTimeHours : 0
+      ),
       cacheEfficiencyRatio: cacheRead / cacheCreation,
       byModel: byModelResult.map((row) => ({
         model: row.model ?? "unknown",

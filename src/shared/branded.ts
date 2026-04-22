@@ -32,3 +32,9 @@ export const UnixTimestampMs = Brand.nominal<UnixTimestampMs>();
 export type CostUsd = number & Brand.Brand<"CostUsd">;
 export const CostUsd = Brand.nominal<CostUsd>();
 
+// ─── Time Utilities ────────────────────────────────────────────────────────
+
+export const nowMs = (): UnixTimestampMs => UnixTimestampMs(Date.now());
+
+export const addMs = (base: UnixTimestampMs, delta: number): UnixTimestampMs =>
+  UnixTimestampMs(base + delta);
