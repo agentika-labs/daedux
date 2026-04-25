@@ -51,7 +51,7 @@ const applyTheme = (theme: ThemeMode) => {
 
   if (theme === "system") {
     const prefersDark = window.matchMedia(
-      "(prefers-color-scheme: dark)",
+      "(prefers-color-scheme: dark)"
     ).matches;
     root.classList.toggle("dark", prefersDark);
   } else {
@@ -110,7 +110,7 @@ const App = () => {
         const { isFullscreen } = payload as { isFullscreen?: boolean };
         document.documentElement.classList.toggle(
           "fullscreen",
-          isFullscreen === true,
+          isFullscreen === true
         );
       };
 
@@ -127,7 +127,7 @@ const App = () => {
         electroview.removeMessageListener("themeChanged", themeListener);
         electroview.removeMessageListener(
           "fullscreenChanged",
-          fullscreenListener,
+          fullscreenListener
         );
         electroview.removeMessageListener("usageUpdated", usageListener);
       };
