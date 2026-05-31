@@ -6,13 +6,10 @@ import type { TrayStats } from "../../shared/rpc-types";
 import { SessionAnalyticsService } from "../analytics/session-analytics";
 import { runEffect } from "../app/runtime";
 import {
-  getCachedAnthropicUsage,
   getIsScanning,
   getUpdateAvailable,
   getUpdateVersion,
-  setCachedAnthropicUsage,
 } from "../app/state";
-import { AnthropicUsageService } from "../services/anthropic-usage/service";
 
 // ─── Tray Menu State ────────────────────────────────────────────────────────
 
@@ -35,25 +32,16 @@ export const getTrayStats = async (): Promise<TrayStats> => {
     const result = await runEffect(
       Effect.gen(function* result() {
         const sessions = yield* SessionAnalyticsService;
-        const anthropicService = yield* AnthropicUsageService;
+        const totals = yield* sessions.getTotals(dateFilter);
 
-        const [totals, anthropicUsage] = yield* Effect.all([
-          sessions.getTotals(dateFilter),
-          anthropicService.getUsage(),
-        ]);
-
-        return { anthropicUsage, totals };
+        return { totals };
       })
     );
 
-    const { totals, anthropicUsage } = result;
-
-    // Cache usage for quick updates during sync
-    setCachedAnthropicUsage(anthropicUsage);
+    const { totals } = result;
 
     return {
       activeSessions: 0,
-      anthropicUsage,
       todayCost: CostUsd(totals.totalCost),
       todayEvents: totals.totalQueries + totals.totalToolUses,
       todaySessions: totals.totalSessions,
@@ -90,11 +78,8 @@ export const getTrayStatsQuick = async (): Promise<TrayStats> => {
       })
     );
 
-    const cachedAnthropicUsage = getCachedAnthropicUsage();
-
     return {
       activeSessions: 0,
-      anthropicUsage: cachedAnthropicUsage ?? undefined,
       todayCost: CostUsd(totals.totalCost),
       todayEvents: totals.totalQueries + totals.totalToolUses,
       todaySessions: totals.totalSessions,
@@ -105,11 +90,8 @@ export const getTrayStatsQuick = async (): Promise<TrayStats> => {
         totals.totalCacheWrite,
     };
   } catch {
-    const cachedAnthropicUsage = getCachedAnthropicUsage();
-
     return {
       activeSessions: 0,
-      anthropicUsage: cachedAnthropicUsage ?? undefined,
       todayCost: CostUsd(0),
       todayEvents: 0,
       todaySessions: 0,

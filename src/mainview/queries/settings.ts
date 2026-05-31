@@ -45,15 +45,6 @@ export const appInfoQueryOptions = queryOptions({
   queryFn: async () => api.getAppInfo(),
 });
 
-export const anthropicUsageQueryOptions = queryOptions({
-  queryKey: ["anthropicUsage"],
-  queryFn: async () => api.getAnthropicUsage(),
-  // Usage data can fail if not authenticated or rate limited
-  retry: false,
-  // Backend pushes updates via usageUpdated — don't refetch aggressively
-  staleTime: 60_000,
-});
-
 /**
  * Auth status is cached aggressively since it spawns a subprocess (~50-200ms).
  * Fresh for 1 minute to avoid refetching on every navigation.
@@ -98,9 +89,6 @@ export const otelStatusQueryOptions = queryOptions({
 export const useSettingsQuery = () => useQuery(settingsQueryOptions);
 
 export const useAppInfoQuery = () => useQuery(appInfoQueryOptions);
-
-export const useAnthropicUsageQuery = () =>
-  useQuery(anthropicUsageQueryOptions);
 
 export const useAuthStatusQuery = () => useQuery(authStatusQueryOptions);
 

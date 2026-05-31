@@ -5,7 +5,6 @@ import { queryClient } from "@/lib/query-client";
 import {
   settingsQueryOptions,
   appInfoQueryOptions,
-  anthropicUsageQueryOptions,
   schedulesQueryOptions,
   authStatusQueryOptions,
   otelStatusQueryOptions,
@@ -14,7 +13,6 @@ import {
 // Slow queries are prefetched without blocking - components show skeletons
 // until data arrives. Usage data is often already warm from the backend push.
 const prefetchSlowQueries = () => {
-  queryClient.prefetchQuery(anthropicUsageQueryOptions);
   queryClient.prefetchQuery(schedulesQueryOptions);
   queryClient.prefetchQuery(authStatusQueryOptions);
   queryClient.prefetchQuery(otelStatusQueryOptions);

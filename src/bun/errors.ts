@@ -40,24 +40,6 @@ export class SessionNotFoundError extends Schema.TaggedError<SessionNotFoundErro
   }
 ) {}
 
-/** Anthropic usage fetch failed */
-export class AnthropicUsageError extends Schema.TaggedError<AnthropicUsageError>()(
-  "AnthropicUsageError",
-  {
-    reason: Schema.Literal(
-      "no_credentials",
-      "api_error",
-      "token_expired",
-      "parse_error",
-      "not_supported",
-      "rate_limited"
-    ),
-    message: Schema.String,
-    cause: Schema.optional(Schema.Defect),
-    retryAfterSeconds: Schema.optional(Schema.Number),
-  }
-) {}
-
 /** OTEL storage operation failed */
 export class OtelStorageError extends Schema.TaggedError<OtelStorageError>()(
   "OtelStorageError",

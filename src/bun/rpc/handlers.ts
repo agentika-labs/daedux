@@ -46,7 +46,6 @@ import {
   updateAgentConfigFile,
 } from "../services/agent-harnesses";
 import { AnalyticsOrchestrator } from "../services/analytics-orchestrator";
-import { AnthropicUsageService } from "../services/anthropic-usage/service";
 import { SchedulerService, parseDaysOfWeek } from "../services/scheduler";
 import { saveSettings } from "../services/settings";
 import { toDateString } from "../utils/formatting";
@@ -440,16 +439,6 @@ export const handleGetAuthStatus = async () =>
   );
 
 // ─── Anthropic Usage Handler ────────────────────────────────────────────────
-
-export const handleGetAnthropicUsage = async () =>
-  runEffect(
-    Effect.gen(function* getAnthropicUsage() {
-      const anthropicService = yield* AnthropicUsageService;
-      return yield* anthropicService.getUsage();
-    })
-  );
-
-// ─── App Info Handler ───────────────────────────────────────────────────────
 
 export const handleGetAppInfo = async (): Promise<AppInfo> => {
   const downloadUrl = `https://github.com/agentika-labs/daedux/releases/download/v${APP_VERSION}/daedux-${APP_VERSION}-darwin-arm64.dmg`;

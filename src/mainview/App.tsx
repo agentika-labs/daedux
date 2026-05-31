@@ -114,22 +114,14 @@ const App = () => {
         );
       };
 
-      const usageListener = (payload: unknown) => {
-        if (payload && typeof payload === "object") {
-          queryClient.setQueryData(["anthropicUsage"], payload);
-        }
-      };
-
       electroview.addMessageListener("themeChanged", themeListener);
       electroview.addMessageListener("fullscreenChanged", fullscreenListener);
-      electroview.addMessageListener("usageUpdated", usageListener);
       cleanup = () => {
         electroview.removeMessageListener("themeChanged", themeListener);
         electroview.removeMessageListener(
           "fullscreenChanged",
           fullscreenListener
         );
-        electroview.removeMessageListener("usageUpdated", usageListener);
       };
     });
 

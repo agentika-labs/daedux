@@ -5,11 +5,9 @@ import {
   getScanIntervalId,
   getSchedulerIntervalId,
   getTray,
-  getUsageRefreshHandle,
   setScanIntervalId,
   setSchedulerIntervalId,
   setTray,
-  setUsageRefreshHandle,
 } from "./state";
 
 // ─── Cleanup Handler ────────────────────────────────────────────────────────
@@ -21,9 +19,6 @@ export const cleanup = (): void => {
   clearIntervalIfActive(getScanIntervalId, setScanIntervalId);
   clearIntervalIfActive(getSchedulerIntervalId, setSchedulerIntervalId);
 
-  const usageRefreshHandle = getUsageRefreshHandle();
-  usageRefreshHandle?.cancel();
-  setUsageRefreshHandle(null);
 
   const tray = getTray();
   if (tray) {

@@ -89,10 +89,6 @@ const rpcClientMethods: ApiClientMethods = {
   getAppInfo: () =>
     rpcCall("getAppInfo", async (rpc) => rpc.request.getAppInfo({})),
 
-  getAnthropicUsage: () =>
-    rpcCall("getAnthropicUsage", async (rpc) =>
-      rpc.request.getAnthropicUsage({})
-    ),
 
   getOtelStatus: () =>
     rpcCall("getOtelStatus", async (rpc) => rpc.request.getOtelStatus({})),

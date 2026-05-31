@@ -8,7 +8,7 @@ import { ArrowLeft01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import type { AppSettings, OtelSettings } from "@shared/rpc-types";
 import { Link } from "@tanstack/react-router";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef } from "react";
 
 import {
   Card,
@@ -23,7 +23,6 @@ import { rpcRequest } from "@/hooks/useRPC";
 import {
   useSettingsQuery,
   useAppInfoQuery,
-  useAnthropicUsageQuery,
   useUpdateSettingsMutation,
   useOtelStatusQuery,
 } from "@/queries/settings";
@@ -33,7 +32,6 @@ import { DataCard } from "./DataCard";
 import { OtelSettingsCard } from "./OtelSettingsCard";
 import { ScheduleSettings } from "./ScheduleSettings";
 import { ThemeToggle } from "./ThemeToggle";
-import { UsageLimitsCard } from "./UsageLimitsCard";
 
 // Detect macOS for traffic light padding
 const isMacOS =
@@ -47,14 +45,6 @@ export const SettingsScreen = () => {
 
   const { data: settings, isLoading: isLoadingSettings } = useSettingsQuery();
   const { data: appInfo, isLoading: isLoadingAppInfo } = useAppInfoQuery();
-  const {
-    data: usage,
-    refetch: refetchUsage,
-    isPending: isPendingUsage,
-  } = useAnthropicUsageQuery();
-
-  // Track manual refresh separately from background fetches
-  const [isManuallyRefreshing, setIsManuallyRefreshing] = useState(false);
   const { data: otelStatus, isPending: isPendingOtelStatus } =
     useOtelStatusQuery();
 
@@ -70,17 +60,6 @@ export const SettingsScreen = () => {
       clearTimeout(timer);
     };
   }, []);
-
-  const handleRefreshUsage = useCallback(async () => {
-    setIsManuallyRefreshing(true);
-    try {
-      await refetchUsage();
-    } catch (error) {
-      console.error("Failed to refresh usage:", error);
-    } finally {
-      setIsManuallyRefreshing(false);
-    }
-  }, [refetchUsage]);
 
   const handleThemeChange = useCallback(
     async (theme: AppSettings["theme"]) => {
@@ -164,14 +143,6 @@ export const SettingsScreen = () => {
             </CardContent>
           </Card>
 
-          {isDesktop && (
-            <UsageLimitsCard
-              usage={usage ?? null}
-              isLoading={isPendingUsage}
-              onRefresh={handleRefreshUsage}
-              isRefreshing={isManuallyRefreshing}
-            />
-          )}
 
           <ScheduleSettings />
 

@@ -35,7 +35,6 @@ import {
   handleRunScheduleNow,
   handleGetScheduleHistory,
   handleGetAuthStatus,
-  handleGetAnthropicUsage,
   handleGetAppInfo,
   handleGetOtelStatus,
   handleGetOtelAnalytics,
@@ -143,7 +142,6 @@ const rpc = BrowserView.defineRPC<UsageMonitorRPC>({
         }),
       getScheduleHistory: handleGetScheduleHistory,
       getAuthStatus: handleGetAuthStatus,
-      getAnthropicUsage: handleGetAnthropicUsage,
       getAppInfo: handleGetAppInfo,
       getOtelStatus: handleGetOtelStatus,
       getOtelAnalytics: handleGetOtelAnalytics,
@@ -178,20 +176,9 @@ const trayCallbacks = {
   onQuitApp: quitApp,
 };
 
-// ─── Tray Menu Update with Usage Push ───────────────────────────────────────
-
-const updateTrayMenuWithUsagePush = async () => {
-  const stats = await getTrayStats();
-
-  // Push usage data to frontend cache so settings page renders instantly
-  if (stats.anthropicUsage) {
-    dispatchToWebview(() => {
-      rpc.send.usageUpdated(stats.anthropicUsage!);
-    });
-  }
-};
-
 // ─── Initialize ─────────────────────────────────────────────────────────────
+
+
 
 const mainWindow = createMainWindow(windowDeps);
 setMainWindow(mainWindow);
@@ -200,7 +187,7 @@ createTray(trayCallbacks);
 
 void bootstrap({
   syncCallbacks,
-  onTrayRefresh: () => void updateTrayMenuWithUsagePush(),
+  onTrayRefresh: () => void updateTrayMenu(),
   handleMetrics,
   handleLogs,
   buildSuccessResponse,

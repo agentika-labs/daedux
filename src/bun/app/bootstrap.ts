@@ -6,7 +6,6 @@ import { DatabaseError, OtelStorageError } from "../errors";
 import {
   configureBackgroundScan,
   configureScheduler,
-  configureUsageRefresh,
 } from "../lifecycle/intervals";
 import type { OtlpResponse } from "../otel/receiver";
 import { cleanupOtelData } from "../otel/retention";
@@ -17,10 +16,8 @@ import {
   getSettings,
   getScanIntervalId,
   getSchedulerIntervalId,
-  getUsageRefreshHandle,
   setScanIntervalId,
   setSchedulerIntervalId,
-  setUsageRefreshHandle,
 } from "./state";
 import type { SyncCallbacks } from "./sync-operations";
 import { runSyncWithNotifications } from "./sync-operations";
@@ -42,20 +39,6 @@ export const resetScheduler = (enabled: boolean): void => {
   clearIntervalIfActive(getSchedulerIntervalId, setSchedulerIntervalId);
   const newIntervalId = configureScheduler(enabled, runEffect);
   setSchedulerIntervalId(newIntervalId);
-};
-
-export const resetUsageRefresh = (
-  intervalMinutes: number,
-  onRefresh: () => void
-): void => {
-  const usageRefreshHandle = getUsageRefreshHandle();
-  usageRefreshHandle?.cancel();
-  const newHandle = configureUsageRefresh(
-    intervalMinutes,
-    runEffect,
-    onRefresh
-  );
-  setUsageRefreshHandle(newHandle);
 };
 
 // ─── OTEL HTTP Server ───────────────────────────────────────────────────────
@@ -199,9 +182,6 @@ export const bootstrap = async (deps: BootstrapDeps): Promise<void> => {
 
   // Configure background scan
   resetBackgroundScan(settings.scanIntervalMinutes, deps.syncCallbacks);
-
-  // Configure periodic usage refresh (dynamically adjusts based on retry-after)
-  resetUsageRefresh(20, deps.onTrayRefresh);
 
   // Configure scheduler if enabled
   if (settings.schedulerEnabled) {

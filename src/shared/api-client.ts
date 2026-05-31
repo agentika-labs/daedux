@@ -10,7 +10,6 @@
 import { Context, Effect, Schema } from "effect";
 
 import type {
-  AnthropicUsage,
   AppInfo,
   AppSettings,
   DashboardData,
@@ -137,7 +136,6 @@ export interface ApiClientMethods {
 
   getAppInfo: () => Effect.Effect<AppInfo, ApiClientError>;
 
-  getAnthropicUsage: () => Effect.Effect<AnthropicUsage, ApiClientError>;
 
   getOtelStatus: () => Effect.Effect<OtelStatus, ApiClientError>;
 

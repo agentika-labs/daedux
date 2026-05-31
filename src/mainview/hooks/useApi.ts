@@ -4,7 +4,6 @@ import type {
   SessionSummary,
   AppSettings,
   AppInfo,
-  AnthropicUsage,
   HarnessId,
   OtelStatus,
   OtelDashboardData,
@@ -44,8 +43,6 @@ interface ApiClient {
   getSettings: () => Promise<AppSettings>;
 
   getAppInfo: () => Promise<AppInfo>;
-
-  getAnthropicUsage: () => Promise<AnthropicUsage>;
 
   getOtelStatus: () => Promise<OtelStatus>;
 
@@ -151,17 +148,6 @@ const createHttpClient = (): ApiClient => ({
 
     return response.json();
   },
-
-  getAnthropicUsage: async () => {
-    const response = await fetch("/api/anthropic-usage");
-
-    if (!response.ok) {
-      throw new Error(`Usage error: ${response.status}`);
-    }
-
-    return response.json();
-  },
-
   getOtelStatus: async () => {
     const response = await fetch("/api/otel/status");
 
@@ -227,12 +213,7 @@ const createRpcClient = (): ApiClient => {
     getAppInfo: async () => {
       const { electroview } = await getElectroview();
       return electroview.request.getAppInfo({});
-    },
-    getAnthropicUsage: async () => {
-      const { electroview } = await getElectroview();
-      return electroview.request.getAnthropicUsage({});
-    },
-    getOtelStatus: async () => {
+    },    getOtelStatus: async () => {
       const { electroview } = await getElectroview();
       return electroview.request.getOtelStatus({});
     },

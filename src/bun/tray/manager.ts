@@ -66,32 +66,7 @@ export const updateTrayMenu = async (): Promise<void> => {
 };
 
 /**
- * Full tray menu update with callback for pushing usage to frontend.
- */
-export const updateTrayMenuWithCallback = async (
-  onUsageUpdated?: (usage: unknown) => void
-): Promise<void> => {
-  const tray = getTray();
-  if (!tray) {
-    return;
-  }
-
-  try {
-    const stats = await getTrayStats();
-    tray.setMenu(buildTrayMenu(stats, getTrayMenuState()));
-
-    // Push usage data to frontend cache so settings page renders instantly
-    if (stats.anthropicUsage && onUsageUpdated) {
-      onUsageUpdated(stats.anthropicUsage);
-    }
-  } catch (error) {
-    log.warn("tray", "Failed to update stats", error);
-  }
-};
-
-/**
- * Quick tray menu update - reuses cached Anthropic usage.
- * Use during sync to update "Scanning..." label without triggering CLI probes.
+ * Quick tray menu update used during sync to update the "Scanning..." label.
  */
 export const updateTrayMenuQuick = async (): Promise<void> => {
   const tray = getTray();

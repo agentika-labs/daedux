@@ -21,7 +21,6 @@ import {
   buildServerErrorResponse,
 } from "../bun/otel/receiver";
 import { AnalyticsOrchestrator } from "../bun/services/analytics-orchestrator";
-import { AnthropicUsageService } from "../bun/services/anthropic-usage/service";
 import { SyncService } from "../bun/sync";
 import { log } from "../bun/utils/log";
 import { transformSessionToRPC } from "../bun/utils/session-transformer";
@@ -136,7 +135,6 @@ export async function startServer(options: ServerOptions): Promise<void> {
     log.error("cli", "Initial sync failed:", error);
   }
 
-  // Mark that we're running in server mode - disables CLI probe in anthropic-usage
   // The CLI probe uses PTY spawning which fails in Bun.serve request handler context
   process.env.DAEDUX_CLI_SERVER = "1";
 
@@ -328,25 +326,6 @@ export async function startServer(options: ServerOptions): Promise<void> {
           log.error("api", "App info error:", error);
           return Response.json(
             { error: "Failed to get app info" },
-            { status: 500 }
-          );
-        }
-      }
-
-      if (pathname === "/api/anthropic-usage") {
-        try {
-          const usage = await runEffect(
-            Effect.gen(function* () {
-              const anthropicService = yield* AnthropicUsageService;
-              return yield* anthropicService.getUsage();
-            })
-          );
-          log.info("api", `Anthropic usage source: ${usage.source}`);
-          return Response.json(usage);
-        } catch (error) {
-          log.error("api", "Anthropic usage error:", error);
-          return Response.json(
-            { error: "Failed to get usage" },
             { status: 500 }
           );
         }

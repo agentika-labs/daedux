@@ -1,6 +1,6 @@
 import type { BrowserWindow, Tray } from "electrobun/bun";
 
-import type { AnthropicUsage, AppSettings } from "../../shared/rpc-types";
+import type { AppSettings } from "../../shared/rpc-types";
 import type { NativeLib } from "../native/macos-effects";
 import { loadSettings } from "../services/settings";
 
@@ -15,7 +15,6 @@ let isQuitting = false;
 let lastScanAt: string | null = null;
 let scanIntervalId: ReturnType<typeof setInterval> | null = null;
 let schedulerIntervalId: ReturnType<typeof setInterval> | null = null;
-let usageRefreshHandle: { cancel: () => void } | null = null;
 let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
 let isMainViewReady = false;
@@ -23,9 +22,6 @@ const pendingWebviewMessages: (() => void)[] = [];
 
 // Native library reference for drag exclusion zones
 let nativeLib: NativeLib | null = null;
-
-// Cached Anthropic usage for tray updates (avoid refetch during sync)
-let cachedAnthropicUsage: AnthropicUsage | null = null;
 
 // Update state
 let updateAvailable = false;
@@ -41,13 +37,11 @@ export const getIsQuitting = () => isQuitting;
 export const getLastScanAt = () => lastScanAt;
 export const getScanIntervalId = () => scanIntervalId;
 export const getSchedulerIntervalId = () => schedulerIntervalId;
-export const getUsageRefreshHandle = () => usageRefreshHandle;
 export const getMainWindow = (): BrowserWindow | null => mainWindow;
 export const getTray = (): Tray | null => tray;
 export const getIsMainViewReady = () => isMainViewReady;
 export const getPendingWebviewMessages = () => pendingWebviewMessages;
 export const getNativeLib = () => nativeLib;
-export const getCachedAnthropicUsage = () => cachedAnthropicUsage;
 export const getUpdateAvailable = () => updateAvailable;
 export const getUpdateVersion = () => updateVersion;
 export const getSettings = () => settings;
@@ -73,9 +67,6 @@ export const setSchedulerIntervalId = (
 ) => {
   schedulerIntervalId = value;
 };
-export const setUsageRefreshHandle = (value: { cancel: () => void } | null) => {
-  usageRefreshHandle = value;
-};
 export const setMainWindow = (value: BrowserWindow | null) => {
   mainWindow = value;
 };
@@ -87,9 +78,6 @@ export const setIsMainViewReady = (value: boolean) => {
 };
 export const setNativeLib = (value: NativeLib | null) => {
   nativeLib = value;
-};
-export const setCachedAnthropicUsage = (value: AnthropicUsage | null) => {
-  cachedAnthropicUsage = value;
 };
 export const setUpdateAvailable = (value: boolean) => {
   updateAvailable = value;

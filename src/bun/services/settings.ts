@@ -44,12 +44,6 @@ const PersistedSettingsSchema = Schema.Struct({
       roiMinutesPerCommit: Schema.Number,
     })
   ),
-  usageMethod: Schema.optional(
-    Schema.Struct({
-      method: Schema.Literal("oauth", "cli", "unknown"),
-      determinedAt: Schema.NullOr(Schema.Number),
-    })
-  ),
 });
 
 const DEFAULT_SETTINGS: AppSettings = {
@@ -118,7 +112,6 @@ export const saveSettingsEffect = (settings: AppSettings) =>
 
 /**
  * Atomic update: read current, apply patch, save.
- * For use from anthropic-usage.ts to persist method preference.
  */
 export const updateSettingsEffect = (patch: Partial<AppSettings>) =>
   Effect.sync(() => {

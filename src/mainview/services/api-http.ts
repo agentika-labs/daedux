@@ -131,8 +131,6 @@ const httpClientMethods: ApiClientMethods = {
 
   getAppInfo: () => fetchWithTimeout("getAppInfo", "/api/app-info"),
 
-  getAnthropicUsage: () =>
-    fetchWithTimeout("getAnthropicUsage", "/api/anthropic-usage"),
 
   getOtelStatus: () => fetchWithTimeout("getOtelStatus", "/api/otel/status"),
 
