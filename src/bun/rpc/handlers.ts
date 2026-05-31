@@ -19,6 +19,7 @@ import type {
   ScheduleExecution,
   ExecutionResult,
   AppSettings,
+  AgentHarnessConfigId,
 } from "../../shared/rpc-types";
 import { AgentAnalyticsService } from "../analytics/agent-analytics";
 import { ContextAnalyticsService } from "../analytics/context-analytics";
@@ -39,6 +40,11 @@ import {
 } from "../app/state";
 import { updateDragExclusionZones } from "../native/macos-effects";
 import { getOtelStatus, getOtelDashboardData } from "../otel/analytics";
+import {
+  copyAgentSkill,
+  getAgentHarnessesSnapshot,
+  updateAgentConfigFile,
+} from "../services/agent-harnesses";
 import { AnalyticsOrchestrator } from "../services/analytics-orchestrator";
 import { AnthropicUsageService } from "../services/anthropic-usage/service";
 import { SchedulerService, parseDaysOfWeek } from "../services/scheduler";
@@ -489,3 +495,27 @@ export const handleUpdateDragExclusionZones = async ({
   const success = updateDragExclusionZones(zones, mainWindow.ptr, nativeLib);
   return { success };
 };
+
+// ─── Agent Harness Config Handlers ─────────────────────────────────────────
+
+export const handleGetAgentHarnesses = async () => getAgentHarnessesSnapshot();
+
+export const handleUpdateAgentConfigFile = async ({
+  harnessId,
+  path,
+  content,
+}: {
+  harnessId: AgentHarnessConfigId;
+  path: string;
+  content: string;
+}) => updateAgentConfigFile({ content, harnessId, path });
+
+export const handleCopyAgentSkill = async ({
+  sourcePath,
+  targetHarnessId,
+  overwrite,
+}: {
+  sourcePath: string;
+  targetHarnessId: AgentHarnessConfigId;
+  overwrite?: boolean;
+}) => copyAgentSkill({ overwrite, sourcePath, targetHarnessId });

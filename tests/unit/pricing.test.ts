@@ -72,6 +72,62 @@ describe("getPricing", () => {
       expect(pricing.inputPerMTok).toBe(0.25);
       expect(pricing.outputPerMTok).toBe(1.25);
     });
+
+    test("returns current OpenAI GPT pricing from OpenAI pricing docs", () => {
+      expect(getPricing("gpt-5.5")).toMatchObject({
+        cacheReadMultiplier: 0.1,
+        inputPerMTok: 5,
+        outputPerMTok: 30,
+      });
+      expect(getPricing("gpt-5.4-mini")).toMatchObject({
+        cacheReadMultiplier: 0.1,
+        inputPerMTok: 0.75,
+        outputPerMTok: 4.5,
+      });
+      expect(getPricing("gpt-5-mini")).toMatchObject({
+        cacheReadMultiplier: 0.1,
+        inputPerMTok: 0.25,
+        outputPerMTok: 2,
+      });
+    });
+
+    test("returns current Codex pricing from OpenAI pricing docs", () => {
+      expect(getPricing("gpt-5.3-codex")).toMatchObject({
+        cacheReadMultiplier: 0.1,
+        inputPerMTok: 1.75,
+        outputPerMTok: 14,
+      });
+      expect(getPricing("gpt-5.2-codex")).toMatchObject({
+        cacheReadMultiplier: 0.1,
+        inputPerMTok: 1.75,
+        outputPerMTok: 14,
+      });
+      expect(getPricing("gpt-5.1-codex-max")).toMatchObject({
+        cacheReadMultiplier: 0.1,
+        inputPerMTok: 1.25,
+        outputPerMTok: 10,
+      });
+      expect(getPricing("gpt-5.1-codex")).toMatchObject({
+        cacheReadMultiplier: 0.1,
+        inputPerMTok: 1.25,
+        outputPerMTok: 10,
+      });
+      expect(getPricing("gpt-5-codex")).toMatchObject({
+        cacheReadMultiplier: 0.1,
+        inputPerMTok: 1.25,
+        outputPerMTok: 10,
+      });
+      expect(getPricing("gpt-5.1-codex-mini")).toMatchObject({
+        cacheReadMultiplier: 0.1,
+        inputPerMTok: 0.25,
+        outputPerMTok: 2,
+      });
+      expect(getPricing("codex-mini-latest")).toMatchObject({
+        cacheReadMultiplier: 0.25,
+        inputPerMTok: 1.5,
+        outputPerMTok: 6,
+      });
+    });
   });
 
   describe("case sensitivity", () => {

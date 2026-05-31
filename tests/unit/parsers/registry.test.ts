@@ -2,6 +2,9 @@
  * Unit tests for ParserRegistry and harness detection.
  */
 import { describe, expect, it } from "bun:test";
+import { mkdtemp, mkdir, copyFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 import { Effect } from "effect";
 
@@ -91,11 +94,12 @@ describe("ParserRegistry", () => {
       expect(parser?.name).toBe("Claude Code");
     });
 
-    it("returns undefined for unregistered harness", () => {
+    it("has Codex parser registered by default", () => {
       const registry = createRegistry();
 
       const parser = registry.getParser("codex");
-      expect(parser).toBeUndefined();
+      expect(parser).toBeDefined();
+      expect(parser?.name).toBe("Codex");
     });
 
     it("can register additional parsers", () => {
@@ -193,26 +197,58 @@ describe("CodexParser", () => {
     });
   });
 
-  describe("stub implementation", () => {
-    it("discoverSessions returns empty array", async () => {
+  describe("session discovery and parsing", () => {
+    it("discovers Codex session files from an explicit base path", async () => {
+      const root = await mkdtemp(join(tmpdir(), "daedux-codex-"));
+      const sessionDir = join(root, "sessions", "2026", "05", "01");
+      await mkdir(sessionDir, { recursive: true });
+      await copyFile(
+        "tests/fixtures/codex/minimal-session.jsonl",
+        join(
+          sessionDir,
+          "rollout-2026-05-01T10-00-00-019f0000-0000-7000-8000-000000000001.jsonl"
+        )
+      );
+
       const parser = createCodexParser();
-      const result = await Effect.runPromise(parser.discoverSessions());
-      expect(result).toEqual([]);
+      const result = await Effect.runPromise(parser.discoverSessions(root));
+
+      expect(result).toHaveLength(1);
+      expect(result[0]?.harness).toBe("codex");
+      expect(result[0]?.sessionId).toBe("019f0000-0000-7000-8000-000000000001");
+      expect(result[0]?.project).toBe("/Users/test/project");
     });
 
-    it("parseSession returns null", async () => {
+    it("parses token usage, shell commands, and patch file operations", async () => {
       const parser = createCodexParser();
       const result = await Effect.runPromise(
         parser.parseSession({
-          filePath: "/test/path.jsonl",
+          filePath: "tests/fixtures/codex/minimal-session.jsonl",
           harness: "codex",
           isSubagent: false,
           parentSessionId: null,
-          project: "test",
-          sessionId: "test-session",
+          project: "/Users/test/project",
+          sessionId: "019f0000-0000-7000-8000-000000000001",
         })
       );
-      expect(result).toBeNull();
+
+      expect(result).not.toBeNull();
+      expect(result?.session.harness).toBe("codex");
+      expect(result?.session.displayName).toBe("Implement Codex parser");
+      expect(result?.session.totalInputTokens).toBe(800);
+      expect(result?.session.totalCacheRead).toBe(200);
+      expect(result?.session.totalOutputTokens).toBe(50);
+      expect(result?.session.totalCost).toBeGreaterThan(0);
+      expect(result?.queries).toHaveLength(1);
+      expect(result?.queries[0]?.cost).toBeGreaterThan(0);
+      expect(result?.toolUses).toHaveLength(2);
+      expect(result?.bashCommands[0]?.command).toBe("bun test");
+      expect(result?.fileOperations).toContainEqual(
+        expect.objectContaining({
+          filePath: "/Users/test/project/src/index.ts",
+          operation: "edit",
+        })
+      );
     });
   });
 });

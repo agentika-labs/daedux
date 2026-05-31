@@ -596,6 +596,62 @@ export interface SyncResult {
   errors: number;
 }
 
+// ─── Agent Harness Config ───────────────────────────────────────────────────
+
+export type AgentHarnessConfigId = "claude-code" | "codex" | "opencode" | "pi";
+
+export interface AgentConfigFile {
+  id: string;
+  label: string;
+  path: string;
+  relativePath: string;
+  exists: boolean;
+  sizeBytes: number | null;
+  updatedAt: number | null;
+  content: string;
+  readOnly: boolean;
+  error?: string;
+}
+
+export interface AgentSkillEntry {
+  name: string;
+  displayName: string;
+  description: string | null;
+  path: string;
+  sourceRoot: string;
+  updatedAt: number | null;
+}
+
+export interface AgentHarnessConfig {
+  id: AgentHarnessConfigId;
+  label: string;
+  rootPath: string;
+  exists: boolean;
+  configFiles: AgentConfigFile[];
+  skillPath: string;
+  skillPathExists: boolean;
+  skills: AgentSkillEntry[];
+}
+
+export interface AgentHarnessesSnapshot {
+  homePath: string;
+  harnesses: AgentHarnessConfig[];
+}
+
+export interface AgentConfigUpdateResult {
+  success: boolean;
+  path: string;
+  updatedAt: number;
+}
+
+export interface AgentSkillCopyResult {
+  status: "copied" | "conflict";
+  skillName: string;
+  sourcePath: string;
+  targetPath: string;
+  message: string;
+}
+
 // ─── Electrobun RPC Schema ──────────────────────────────────────────────────
 
 /**
@@ -700,6 +756,27 @@ export interface UsageMonitorRPC {
           zones: { x: number; y: number; width: number; height: number }[];
         };
         response: { success: boolean };
+      };
+      // ─── Local Agent Harness Config ─────────────────────────────────
+      getAgentHarnesses: {
+        params: Record<string, never>;
+        response: AgentHarnessesSnapshot;
+      };
+      updateAgentConfigFile: {
+        params: {
+          harnessId: AgentHarnessConfigId;
+          path: string;
+          content: string;
+        };
+        response: AgentConfigUpdateResult;
+      };
+      copyAgentSkill: {
+        params: {
+          sourcePath: string;
+          targetHarnessId: AgentHarnessConfigId;
+          overwrite?: boolean;
+        };
+        response: AgentSkillCopyResult;
       };
     };
     messages: {

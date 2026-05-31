@@ -96,8 +96,7 @@ const HARNESS_OPTIONS: {
   {
     value: "codex",
     Logo: CodexLogo,
-    tooltip: "Codex (Coming soon)",
-    comingSoon: true,
+    tooltip: "Codex",
   },
 ];
 
@@ -113,6 +112,7 @@ const PRIMARY_TABS = [
   { path: "/", label: "Overview" },
   { path: "/analytics", label: "Analytics" },
   { path: "/sessions", label: "Sessions" },
+  { path: "/harnesses", label: "Harnesses" },
 ] as const;
 
 // ─── Component ───────────────────────────────────────────────────────────────
@@ -154,6 +154,9 @@ export function Header() {
     }
     if (pathname.startsWith("/sessions")) {
       return "/sessions";
+    }
+    if (pathname.startsWith("/harnesses")) {
+      return "/harnesses";
     }
     if (pathname === "/settings") {
       return null;

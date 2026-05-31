@@ -40,6 +40,9 @@ import {
   handleGetOtelStatus,
   handleGetOtelAnalytics,
   handleUpdateDragExclusionZones,
+  handleGetAgentHarnesses,
+  handleUpdateAgentConfigFile,
+  handleCopyAgentSkill,
 } from "./rpc/handlers";
 import {
   createTray,
@@ -145,6 +148,9 @@ const rpc = BrowserView.defineRPC<UsageMonitorRPC>({
       getOtelStatus: handleGetOtelStatus,
       getOtelAnalytics: handleGetOtelAnalytics,
       updateDragExclusionZones: handleUpdateDragExclusionZones,
+      getAgentHarnesses: handleGetAgentHarnesses,
+      updateAgentConfigFile: handleUpdateAgentConfigFile,
+      copyAgentSkill: handleCopyAgentSkill,
     },
   },
 });

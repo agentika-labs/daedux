@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as SessionsRouteImport } from './routes/sessions'
+import { Route as HarnessesRouteImport } from './routes/harnesses'
 import { Route as AnalyticsRouteImport } from './routes/analytics'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AnalyticsIndexRouteImport } from './routes/analytics/index'
@@ -29,6 +30,11 @@ const SettingsRoute = SettingsRouteImport.update({
 const SessionsRoute = SessionsRouteImport.update({
   id: '/sessions',
   path: '/sessions',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HarnessesRoute = HarnessesRouteImport.update({
+  id: '/harnesses',
+  path: '/harnesses',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AnalyticsRoute = AnalyticsRouteImport.update({
@@ -80,6 +86,7 @@ const AnalyticsAutomationRoute = AnalyticsAutomationRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/analytics': typeof AnalyticsRouteWithChildren
+  '/harnesses': typeof HarnessesRoute
   '/sessions': typeof SessionsRoute
   '/settings': typeof SettingsRoute
   '/analytics/automation': typeof AnalyticsAutomationRoute
@@ -92,6 +99,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/harnesses': typeof HarnessesRoute
   '/sessions': typeof SessionsRoute
   '/settings': typeof SettingsRoute
   '/analytics/automation': typeof AnalyticsAutomationRoute
@@ -106,6 +114,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/analytics': typeof AnalyticsRouteWithChildren
+  '/harnesses': typeof HarnessesRoute
   '/sessions': typeof SessionsRoute
   '/settings': typeof SettingsRoute
   '/analytics/automation': typeof AnalyticsAutomationRoute
@@ -121,6 +130,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/analytics'
+    | '/harnesses'
     | '/sessions'
     | '/settings'
     | '/analytics/automation'
@@ -133,6 +143,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/harnesses'
     | '/sessions'
     | '/settings'
     | '/analytics/automation'
@@ -146,6 +157,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/analytics'
+    | '/harnesses'
     | '/sessions'
     | '/settings'
     | '/analytics/automation'
@@ -160,6 +172,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AnalyticsRoute: typeof AnalyticsRouteWithChildren
+  HarnessesRoute: typeof HarnessesRoute
   SessionsRoute: typeof SessionsRoute
   SettingsRoute: typeof SettingsRoute
 }
@@ -178,6 +191,13 @@ declare module '@tanstack/react-router' {
       path: '/sessions'
       fullPath: '/sessions'
       preLoaderRoute: typeof SessionsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/harnesses': {
+      id: '/harnesses'
+      path: '/harnesses'
+      fullPath: '/harnesses'
+      preLoaderRoute: typeof HarnessesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/analytics': {
@@ -273,6 +293,7 @@ const AnalyticsRouteWithChildren = AnalyticsRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AnalyticsRoute: AnalyticsRouteWithChildren,
+  HarnessesRoute: HarnessesRoute,
   SessionsRoute: SessionsRoute,
   SettingsRoute: SettingsRoute,
 }

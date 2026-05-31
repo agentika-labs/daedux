@@ -8,16 +8,293 @@ export interface ModelPricing {
 }
 
 /**
- * Pricing table for Claude models.
+ * Pricing table for Claude and OpenAI/Codex models.
  * Keys are substrings matched against the full model ID.
  * Order matters: first match wins (most specific first).
  *
- * Pricing source: https://www.anthropic.com/pricing
+ * Pricing sources:
+ * - https://www.anthropic.com/pricing
+ * - https://developers.openai.com/api/docs/pricing
  */
 const PRICING_TABLE: readonly (readonly [
   substring: string,
   pricing: ModelPricing,
 ])[] = [
+  // OpenAI text model pricing (standard tier: input / cached input / output)
+  [
+    "gpt-5.5-pro",
+    {
+      cacheReadMultiplier: 1,
+      cacheWriteMultiplier: 1,
+      contextWindowSize: 272_000,
+      inputPerMTok: 30,
+      outputPerMTok: 180,
+    },
+  ],
+  [
+    "gpt-5.5",
+    {
+      cacheReadMultiplier: 0.1,
+      cacheWriteMultiplier: 1,
+      contextWindowSize: 272_000,
+      inputPerMTok: 5,
+      outputPerMTok: 30,
+    },
+  ],
+  [
+    "gpt-5.4-pro",
+    {
+      cacheReadMultiplier: 1,
+      cacheWriteMultiplier: 1,
+      contextWindowSize: 272_000,
+      inputPerMTok: 30,
+      outputPerMTok: 180,
+    },
+  ],
+  [
+    "gpt-5.4-mini",
+    {
+      cacheReadMultiplier: 0.1,
+      cacheWriteMultiplier: 1,
+      contextWindowSize: 400_000,
+      inputPerMTok: 0.75,
+      outputPerMTok: 4.5,
+    },
+  ],
+  [
+    "gpt-5.4-nano",
+    {
+      cacheReadMultiplier: 0.1,
+      cacheWriteMultiplier: 1,
+      contextWindowSize: 400_000,
+      inputPerMTok: 0.2,
+      outputPerMTok: 1.25,
+    },
+  ],
+  [
+    "gpt-5.4",
+    {
+      cacheReadMultiplier: 0.1,
+      cacheWriteMultiplier: 1,
+      contextWindowSize: 272_000,
+      inputPerMTok: 2.5,
+      outputPerMTok: 15,
+    },
+  ],
+  [
+    "gpt-5.2-pro",
+    {
+      cacheReadMultiplier: 1,
+      cacheWriteMultiplier: 1,
+      contextWindowSize: 400_000,
+      inputPerMTok: 21,
+      outputPerMTok: 168,
+    },
+  ],
+  [
+    "gpt-5.2",
+    {
+      cacheReadMultiplier: 0.1,
+      cacheWriteMultiplier: 1,
+      contextWindowSize: 400_000,
+      inputPerMTok: 1.75,
+      outputPerMTok: 14,
+    },
+  ],
+  [
+    "gpt-5.1",
+    {
+      cacheReadMultiplier: 0.1,
+      cacheWriteMultiplier: 1,
+      contextWindowSize: 400_000,
+      inputPerMTok: 1.25,
+      outputPerMTok: 10,
+    },
+  ],
+  [
+    "gpt-5-pro",
+    {
+      cacheReadMultiplier: 1,
+      cacheWriteMultiplier: 1,
+      contextWindowSize: 400_000,
+      inputPerMTok: 15,
+      outputPerMTok: 120,
+    },
+  ],
+  [
+    "gpt-5-mini",
+    {
+      cacheReadMultiplier: 0.1,
+      cacheWriteMultiplier: 1,
+      contextWindowSize: 400_000,
+      inputPerMTok: 0.25,
+      outputPerMTok: 2,
+    },
+  ],
+  [
+    "gpt-5-nano",
+    {
+      cacheReadMultiplier: 0.1,
+      cacheWriteMultiplier: 1,
+      contextWindowSize: 400_000,
+      inputPerMTok: 0.05,
+      outputPerMTok: 0.4,
+    },
+  ],
+  [
+    "gpt-5",
+    {
+      cacheReadMultiplier: 0.1,
+      cacheWriteMultiplier: 1,
+      contextWindowSize: 400_000,
+      inputPerMTok: 1.25,
+      outputPerMTok: 10,
+    },
+  ],
+  // OpenAI Codex / ChatGPT API pricing (input / cached input / output)
+  // gpt-5.3 and gpt-5.2 tiers: $1.75 / $0.175 / $14 per MTok
+  [
+    "gpt-5.3-codex",
+    {
+      cacheReadMultiplier: 0.1,
+      cacheWriteMultiplier: 1,
+      contextWindowSize: 400_000,
+      inputPerMTok: 1.75,
+      outputPerMTok: 14,
+    },
+  ],
+  [
+    "gpt-5.2-codex",
+    {
+      cacheReadMultiplier: 0.1,
+      cacheWriteMultiplier: 1,
+      contextWindowSize: 400_000,
+      inputPerMTok: 1.75,
+      outputPerMTok: 14,
+    },
+  ],
+  [
+    "gpt-5.3-chat-latest",
+    {
+      cacheReadMultiplier: 0.1,
+      cacheWriteMultiplier: 1,
+      contextWindowSize: 400_000,
+      inputPerMTok: 1.75,
+      outputPerMTok: 14,
+    },
+  ],
+  [
+    "gpt-5.2-chat-latest",
+    {
+      cacheReadMultiplier: 0.1,
+      cacheWriteMultiplier: 1,
+      contextWindowSize: 400_000,
+      inputPerMTok: 1.75,
+      outputPerMTok: 14,
+    },
+  ],
+  // gpt-5 / gpt-5.1 Codex and ChatGPT tiers: $1.25 / $0.125 / $10 per MTok
+  [
+    "gpt-5.1-codex-mini",
+    {
+      cacheReadMultiplier: 0.1,
+      cacheWriteMultiplier: 1,
+      contextWindowSize: 400_000,
+      inputPerMTok: 0.25,
+      outputPerMTok: 2,
+    },
+  ],
+  [
+    "gpt-5.1-codex-max",
+    {
+      cacheReadMultiplier: 0.1,
+      cacheWriteMultiplier: 1,
+      contextWindowSize: 400_000,
+      inputPerMTok: 1.25,
+      outputPerMTok: 10,
+    },
+  ],
+  [
+    "gpt-5.1-codex",
+    {
+      cacheReadMultiplier: 0.1,
+      cacheWriteMultiplier: 1,
+      contextWindowSize: 400_000,
+      inputPerMTok: 1.25,
+      outputPerMTok: 10,
+    },
+  ],
+  [
+    "gpt-5-codex",
+    {
+      cacheReadMultiplier: 0.1,
+      cacheWriteMultiplier: 1,
+      contextWindowSize: 400_000,
+      inputPerMTok: 1.25,
+      outputPerMTok: 10,
+    },
+  ],
+  [
+    "gpt-5.1-chat-latest",
+    {
+      cacheReadMultiplier: 0.1,
+      cacheWriteMultiplier: 1,
+      contextWindowSize: 400_000,
+      inputPerMTok: 1.25,
+      outputPerMTok: 10,
+    },
+  ],
+  [
+    "gpt-5-chat-latest",
+    {
+      cacheReadMultiplier: 0.1,
+      cacheWriteMultiplier: 1,
+      contextWindowSize: 400_000,
+      inputPerMTok: 1.25,
+      outputPerMTok: 10,
+    },
+  ],
+  [
+    "gpt-5-search-api",
+    {
+      cacheReadMultiplier: 0.1,
+      cacheWriteMultiplier: 1,
+      contextWindowSize: 400_000,
+      inputPerMTok: 1.25,
+      outputPerMTok: 10,
+    },
+  ],
+  // Legacy/current ChatGPT and Codex model aliases
+  [
+    "chat-latest",
+    {
+      cacheReadMultiplier: 0.1,
+      cacheWriteMultiplier: 1,
+      contextWindowSize: 400_000,
+      inputPerMTok: 5,
+      outputPerMTok: 30,
+    },
+  ],
+  [
+    "chatgpt-4o-latest",
+    {
+      cacheReadMultiplier: 1,
+      cacheWriteMultiplier: 1,
+      contextWindowSize: 128_000,
+      inputPerMTok: 5,
+      outputPerMTok: 15,
+    },
+  ],
+  [
+    "codex-mini-latest",
+    {
+      cacheReadMultiplier: 0.25,
+      cacheWriteMultiplier: 1,
+      contextWindowSize: 200_000,
+      inputPerMTok: 1.5,
+      outputPerMTok: 6,
+    },
+  ],
   // Opus 4.5/4.6 - cheaper tier ($5/$25)
   [
     "opus-4-5",
@@ -146,9 +423,28 @@ const DEFAULT_PRICING: ModelPricing = {
   outputPerMTok: 15,
 };
 
+const isOpenAiPricingKey = (substring: string): boolean =>
+  substring.startsWith("gpt-") ||
+  substring.startsWith("chat") ||
+  substring.startsWith("codex-") ||
+  substring.startsWith("o");
+
 /** Resolve a full model ID (e.g. "claude-opus-4-6-20260210") to its pricing */
 export const getPricing = (modelId: string): ModelPricing => {
   const normalized = modelId.toLowerCase();
+
+  // OpenAI has overlapping model names like gpt-5, gpt-5.1, and
+  // gpt-5.1-codex-mini. Prefer the longest matching OpenAI key so generic
+  // fallback rows do not shadow more specific Codex/mini/pro variants.
+  const openAiMatch = PRICING_TABLE.filter(([substring]) =>
+    isOpenAiPricingKey(substring)
+  )
+    .filter(([substring]) => normalized.includes(substring))
+    .toSorted(([a], [b]) => b.length - a.length)[0];
+  if (openAiMatch) {
+    return openAiMatch[1];
+  }
+
   for (const [substring, pricing] of PRICING_TABLE) {
     if (normalized.includes(substring)) {
       return pricing;
